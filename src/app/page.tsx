@@ -5,7 +5,7 @@ import { CopyButton } from "@/components/CopyButton";
 import { listAgents } from "@/lib/agents/repository";
 import { serializeAgent } from "@/lib/agents/serializer";
 import { DEFAULT_LIMIT, DEFAULT_PAGE } from "@/lib/constants";
-import { getPollUrl } from "@/lib/url";
+import { getPollUrl, PROVIDER_CONNECTOR_ENDPOINTS } from "@/lib/url";
 
 export default async function DashboardPage() {
   const pollUrl = getPollUrl();
@@ -24,20 +24,42 @@ export default async function DashboardPage() {
           Active Synthetic Agents
         </h1>
         <p className="max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">
-          Spin up mock AI agents for demos. Point your SailPoint REST connector
-          at the poll URL below to ingest agent identities and entitlements.
+          Mock agents deployed on AWS Bedrock, Google Cloud Vertex AI, or
+          Microsoft Azure AI Foundry. Point each SailPoint connector at the
+          matching platform endpoint below.
         </p>
       </section>
 
-      <section className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
+      <section className="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-          Connector poll endpoint
+          Platform connector endpoints
         </p>
-        <div className="mt-2 flex items-center justify-between gap-3">
-          <code className="truncate text-sm text-zinc-800 dark:text-zinc-200">
-            {pollUrl}
-          </code>
-          <CopyButton value={pollUrl} label="Copy" />
+        {PROVIDER_CONNECTOR_ENDPOINTS.map((endpoint) => (
+          <div
+            key={endpoint.slug}
+            className="flex items-center justify-between gap-3"
+          >
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                {endpoint.label}
+              </p>
+              <code className="block truncate text-sm text-zinc-800 dark:text-zinc-200">
+                {endpoint.url}
+              </code>
+            </div>
+            <CopyButton value={endpoint.url} label="Copy" />
+          </div>
+        ))}
+        <div className="border-t border-zinc-200 pt-3 dark:border-zinc-700">
+          <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+            Unified poll (all platforms)
+          </p>
+          <div className="mt-1 flex items-center justify-between gap-3">
+            <code className="truncate text-sm text-zinc-800 dark:text-zinc-200">
+              {pollUrl}
+            </code>
+            <CopyButton value={pollUrl} label="Copy" />
+          </div>
         </div>
       </section>
 
@@ -47,7 +69,8 @@ export default async function DashboardPage() {
             No synthetic agents yet
           </h2>
           <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            Create your first agent to generate connector-ready API endpoints.
+            Create your first agent and choose which cloud platform it should
+            mimic.
           </p>
           <Link
             href="/agents/new"
@@ -71,7 +94,7 @@ export default async function DashboardPage() {
           </div>
           <div className="grid gap-4">
             {agents.map((agent) => (
-              <AgentCard key={agent.id} agent={agent} pollUrl={pollUrl} />
+              <AgentCard key={agent.id} agent={agent} />
             ))}
           </div>
         </section>

@@ -1,6 +1,10 @@
 import type { Archetype } from "@/lib/constants";
+import type { DeploymentProvider } from "@/lib/providers/profiles";
+import type { ResolvedDeployment } from "@/lib/providers/deployment";
 
 export type AgentStatus = "active" | "inactive";
+
+export type CloudProvider = "aws" | "gcp" | "azure";
 
 export interface AgentMetadata {
   [key: string]: string;
@@ -24,8 +28,9 @@ export interface SerializedAgent {
   archetype_label: string;
   status: AgentStatus;
   agent_type: "autonomous";
-  provider: "synthetic";
-  infrastructure: "agentforge";
+  provider: CloudProvider;
+  infrastructure: string;
+  deployment: ResolvedDeployment;
   created_at: string;
   updated_at: string;
   last_active_at: string;
@@ -43,9 +48,11 @@ export interface SerializedAgent {
   endpoints: {
     self: string;
     entitlements: string;
+    provider_connector: string;
   };
   _links: {
     self: { href: string };
+    provider_connector: { href: string };
   };
 }
 
@@ -69,9 +76,23 @@ export interface AgentDetailResponse {
   agent: SerializedAgent;
 }
 
+export interface DeploymentConfigInput {
+  region?: string;
+  account_id?: string;
+  foundation_model?: string;
+  agent_alias?: string;
+  project_id?: string;
+  location?: string;
+  subscription_id?: string;
+  resource_group?: string;
+  workspace?: string;
+}
+
 export interface CreateAgentInput {
   name: string;
   archetype: Archetype;
+  deployment_provider: DeploymentProvider;
+  deployment_config?: DeploymentConfigInput;
   metadata: AgentMetadata;
   entitlements: string[];
 }
@@ -81,4 +102,5 @@ export interface ListAgentsQuery {
   limit: number;
   status?: AgentStatus;
   archetype?: Archetype;
+  deployment_provider?: DeploymentProvider;
 }

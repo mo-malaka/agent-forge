@@ -11,7 +11,7 @@ export type Archetype = keyof typeof ARCHETYPES;
 
 export const ARCHETYPE_VALUES = Object.keys(ARCHETYPES) as Archetype[];
 
-export const SCHEMA_VERSION = "1.0";
+export const SCHEMA_VERSION = "1.1";
 export const PLATFORM_ID = "agentforge-synthetic-ais";
 
 export const DEFAULT_PAGE = 1;

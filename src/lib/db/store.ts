@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 
 import type { AgentRow, NewAgentRow } from "@/lib/db/schema";
+import { normalizeAgentRow } from "@/lib/providers/deployment";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const STORE_PATH = path.join(DATA_DIR, "agents.json");
@@ -23,7 +24,15 @@ function readStore(): AgentStoreFile {
   const parsed = JSON.parse(raw) as AgentStoreFile;
 
   return {
-    agents: Array.isArray(parsed.agents) ? parsed.agents : [],
+    agents: Array.isArray(parsed.agents)
+      ? parsed.agents.map((agent) =>
+          normalizeAgentRow({
+            ...agent,
+            deploymentProvider: agent.deploymentProvider ?? "aws_bedrock",
+            deploymentConfig: agent.deploymentConfig ?? "{}",
+          } as AgentRow),
+        )
+      : [],
   };
 }
 
@@ -34,7 +43,7 @@ function writeStore(store: AgentStoreFile) {
 
 export function insertAgent(row: NewAgentRow): AgentRow {
   const store = readStore();
-  const agent = row as AgentRow;
+  const agent = normalizeAgentRow(row);
   store.agents.unshift(agent);
   writeStore(store);
   return agent;
@@ -42,17 +51,19 @@ export function insertAgent(row: NewAgentRow): AgentRow {
 
 export function findAgentById(id: string): AgentRow | null {
   const store = readStore();
-  return store.agents.find((agent) => agent.id === id) ?? null;
+  const agent = store.agents.find((item) => item.id === id);
+  return agent ? normalizeAgentRow(agent) : null;
 }
 
 export function findAgents(filters: {
   status?: string;
   archetype?: string;
+  deploymentProvider?: string;
   page: number;
   limit: number;
 }): { rows: AgentRow[]; total: number } {
   const store = readStore();
-  let rows = [...store.agents];
+  let rows = [...store.agents].map(normalizeAgentRow);
 
   if (filters.status) {
     rows = rows.filter((agent) => agent.status === filters.status);
@@ -60,6 +71,12 @@ export function findAgents(filters: {
 
   if (filters.archetype) {
     rows = rows.filter((agent) => agent.archetype === filters.archetype);
+  }
+
+  if (filters.deploymentProvider) {
+    rows = rows.filter(
+      (agent) => agent.deploymentProvider === filters.deploymentProvider,
+    );
   }
 
   const total = rows.length;

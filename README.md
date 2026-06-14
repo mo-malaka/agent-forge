@@ -4,6 +4,8 @@
 
 Create mock agents with custom metadata and IAM entitlements, then expose them through REST API endpoints that SailPoint connectors can poll and ingest like a real SaaS platform.
 
+**SailPoint integration:** [Connector Setup Guide](./CONNECTOR_SETUP.md)
+
 ## What it does
 
 - **Web UI** — create and manage synthetic agents in seconds
@@ -34,6 +36,11 @@ curl -s -X POST http://127.0.0.1:3000/api/agents \
   -d '{
     "name": "DevOps-Bot-Prod",
     "archetype": "devops_bot",
+    "deployment_provider": "aws_bedrock",
+    "deployment_config": {
+      "region": "us-east-1",
+      "account_id": "123456789012"
+    },
     "metadata": {
       "owner": "jane.doe@example.com",
       "department": "Engineering",
@@ -60,7 +67,29 @@ curl -s "http://127.0.0.1:3000/api/agents?page=1&limit=50" | jq
 | `DELETE` | `/api/agents/{id}` | Remove an agent |
 | `GET` | `/api/agents/{id}/entitlements` | Entitlements-only payload |
 
-List endpoint supports `?page=`, `?limit=`, `?status=`, and `?archetype=` query parameters.
+List endpoint supports `?page=`, `?limit=`, `?status=`, `?archetype=`, and `?deployment_provider=` query parameters.
+
+## Cloud platform connector endpoints
+
+Agents are mocked as deployed on a specific cloud AI platform. Use the endpoint that matches your SailPoint source system:
+
+| Platform | Connector poll URL | Native payload shape |
+|----------|-------------------|----------------------|
+| AWS Bedrock | `GET /api/connectors/aws-bedrock/agents` | `agentSummaries[]` with ARNs |
+| Google Cloud Vertex AI | `GET /api/connectors/gcp-vertex/agents` | `agents[]` with resource names |
+| Microsoft Azure AI Foundry | `GET /api/connectors/azure-ai-foundry/agents` | `value[]` with Azure resource IDs |
+
+The unified `GET /api/agents` endpoint returns all agents across platforms with a normalized `deployment` block and cloud-native `external_id` (ARN, GCP resource name, or Azure resource ID).
+
+**See [CONNECTOR_SETUP.md](./CONNECTOR_SETUP.md) for full SailPoint connector configuration, field mappings, and demo workflow.**
+
+### Deployment providers
+
+| Value | Platform |
+|-------|----------|
+| `aws_bedrock` | AWS Bedrock |
+| `gcp_vertex` | Google Cloud Vertex AI |
+| `azure_ai_foundry` | Microsoft Azure AI Foundry |
 
 ## Agent archetypes
 

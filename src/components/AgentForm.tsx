@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { DeploymentConfigFields } from "@/components/DeploymentConfigFields";
 import { EntitlementsEditor } from "@/components/EntitlementsEditor";
 import {
   DEFAULT_METADATA_ROWS,
@@ -10,6 +11,11 @@ import {
   metadataRowsToRecord,
 } from "@/components/MetadataEditor";
 import { ARCHETYPES, type Archetype } from "@/lib/constants";
+import {
+  DEPLOYMENT_PROVIDERS,
+  type DeploymentProvider,
+} from "@/lib/providers/profiles";
+import type { DeploymentConfigInput } from "@/types/agent";
 
 const ARCHETYPE_DEFAULT_ENTITLEMENTS: Partial<Record<Archetype, string[]>> = {
   code_assistant: ["GitHub:Write", "Jira:Read"],
@@ -20,13 +26,26 @@ const ARCHETYPE_DEFAULT_ENTITLEMENTS: Partial<Record<Archetype, string[]>> = {
   hr: ["Workday:Read", "Slack:Read"],
 };
 
+const PROVIDER_DEFAULT_ENTITLEMENTS: Partial<
+  Record<DeploymentProvider, string[]>
+> = {
+  aws_bedrock: ["S3:Read", "IAM:Read", "Bedrock:InvokeModel"],
+  gcp_vertex: ["VertexAI:User", "Storage:ObjectViewer"],
+  azure_ai_foundry: ["CognitiveServices:OpenAI:User", "Storage:Blob:Read"],
+};
+
 export function AgentForm() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [archetype, setArchetype] = useState<Archetype>("devops_bot");
+  const [deploymentProvider, setDeploymentProvider] =
+    useState<DeploymentProvider>("aws_bedrock");
+  const [deploymentConfig, setDeploymentConfig] = useState<DeploymentConfigInput>(
+    {},
+  );
   const [metadataRows, setMetadataRows] = useState(DEFAULT_METADATA_ROWS);
   const [entitlements, setEntitlements] = useState(
-    ARCHETYPE_DEFAULT_ENTITLEMENTS.devops_bot ?? [],
+    PROVIDER_DEFAULT_ENTITLEMENTS.aws_bedrock ?? [],
   );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -36,6 +55,12 @@ export function AgentForm() {
     if (entitlements.length === 0) {
       setEntitlements(ARCHETYPE_DEFAULT_ENTITLEMENTS[nextArchetype] ?? []);
     }
+  }
+
+  function handleProviderChange(nextProvider: DeploymentProvider) {
+    setDeploymentProvider(nextProvider);
+    setDeploymentConfig({});
+    setEntitlements(PROVIDER_DEFAULT_ENTITLEMENTS[nextProvider] ?? []);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -50,6 +75,8 @@ export function AgentForm() {
         body: JSON.stringify({
           name,
           archetype,
+          deployment_provider: deploymentProvider,
+          deployment_config: deploymentConfig,
           metadata: metadataRowsToRecord(metadataRows),
           entitlements,
         }),
@@ -91,6 +118,44 @@ export function AgentForm() {
           onChange={(event) => setName(event.target.value)}
           placeholder="e.g. DevOps-Bot-Prod"
           className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label
+          htmlFor="deployment_provider"
+          className="text-sm font-medium text-zinc-900 dark:text-zinc-100"
+        >
+          Deployment Platform
+        </label>
+        <select
+          id="deployment_provider"
+          value={deploymentProvider}
+          onChange={(event) =>
+            handleProviderChange(event.target.value as DeploymentProvider)
+          }
+          className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+        >
+          {Object.entries(DEPLOYMENT_PROVIDERS).map(([value, profile]) => (
+            <option key={value} value={value}>
+              {profile.label}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-zinc-500">
+          Agents are mocked as deployed on this cloud AI platform for SailPoint
+          connector ingestion.
+        </p>
+      </div>
+
+      <div className="space-y-2 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
+        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+          Platform configuration
+        </p>
+        <DeploymentConfigFields
+          provider={deploymentProvider}
+          config={deploymentConfig}
+          onChange={setDeploymentConfig}
         />
       </div>
 

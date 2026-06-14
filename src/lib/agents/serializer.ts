@@ -5,6 +5,7 @@ import {
   type Archetype,
 } from "@/lib/constants";
 import type { AgentRow } from "@/lib/db/schema";
+import { buildDeployment } from "@/lib/providers/deployment";
 import type {
   AgentDetailResponse,
   AgentListResponse,
@@ -91,18 +92,20 @@ export function serializeAgent(row: AgentRow): SerializedAgent {
   const entitlementNames = parseJsonStringArray(row.entitlements);
   const entitlements = entitlementNames.map(parseEntitlement);
   const baseUrl = getBaseUrl();
+  const deployment = buildDeployment(row);
 
   return {
     id: row.id,
-    external_id: row.id,
+    external_id: deployment.resource_id,
     name: row.name,
     display_name: row.name,
     archetype,
     archetype_label: ARCHETYPES[archetype] ?? row.archetype,
     status: row.status as "active" | "inactive",
     agent_type: "autonomous",
-    provider: "synthetic",
-    infrastructure: "agentforge",
+    provider: deployment.cloud,
+    infrastructure: deployment.infrastructure,
+    deployment,
     created_at: row.createdAt,
     updated_at: row.updatedAt,
     last_active_at: row.lastActiveAt,
@@ -115,14 +118,16 @@ export function serializeAgent(row: AgentRow): SerializedAgent {
     governance: {
       classification: "internal",
       data_access: entitlementNames.map((item) => item.split(":")[0]).filter(Boolean),
-      compliance_tags: ["demo-only"],
+      compliance_tags: ["demo-only", deployment.provider],
     },
     endpoints: {
       self: `${baseUrl}/api/agents/${row.id}`,
       entitlements: `${baseUrl}/api/agents/${row.id}/entitlements`,
+      provider_connector: deployment.connector_endpoint,
     },
     _links: {
       self: { href: `/api/agents/${row.id}` },
+      provider_connector: { href: deployment.connector_endpoint },
     },
   };
 }

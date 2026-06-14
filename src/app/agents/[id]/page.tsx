@@ -21,6 +21,7 @@ export default async function AgentDetailPage({ params }: AgentDetailPageProps) 
 
   const agent = serializeAgent(row);
   const pollUrl = getPollUrl();
+  const deployment = agent.deployment;
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-8">
@@ -36,7 +37,7 @@ export default async function AgentDetailPage({ params }: AgentDetailPageProps) 
             {agent.name}
           </h1>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            {agent.archetype_label} ·{" "}
+            {agent.archetype_label} · {deployment.provider_label} ·{" "}
             <span className="font-mono text-xs">{agent.id}</span>
           </p>
         </div>
@@ -45,9 +46,43 @@ export default async function AgentDetailPage({ params }: AgentDetailPageProps) 
 
       <section className="space-y-3 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
         <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+          Cloud deployment (mocked)
+        </h2>
+        <dl className="grid gap-3 text-sm sm:grid-cols-2">
+          <DetailItem label="Platform" value={deployment.provider_label} />
+          <DetailItem label="Native status" value={deployment.native_status} />
+          <DetailItem
+            label="Resource ID"
+            value={deployment.resource_id}
+            mono
+            className="sm:col-span-2"
+          />
+          {deployment.resource_arn ? (
+            <DetailItem
+              label="ARN"
+              value={deployment.resource_arn}
+              mono
+              className="sm:col-span-2"
+            />
+          ) : null}
+          {deployment.location ? (
+            <DetailItem label="Location" value={deployment.location} />
+          ) : null}
+          {deployment.region ? (
+            <DetailItem label="Region" value={deployment.region} />
+          ) : null}
+        </dl>
+      </section>
+
+      <section className="space-y-3 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+        <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
           Connector endpoints
         </h2>
-        <EndpointRow label="Poll all agents" value={pollUrl} />
+        <EndpointRow
+          label={`${deployment.provider_label} connector`}
+          value={agent.endpoints.provider_connector}
+        />
+        <EndpointRow label="Unified poll (all agents)" value={pollUrl} />
         <EndpointRow label="This agent" value={agent.endpoints.self} />
         <EndpointRow
           label="Entitlements"
@@ -104,6 +139,29 @@ function EndpointRow({ label, value }: { label: string; value: string }) {
         </code>
       </div>
       <CopyButton value={value} />
+    </div>
+  );
+}
+
+function DetailItem({
+  label,
+  value,
+  mono = false,
+  className = "",
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <dt className="text-xs uppercase tracking-wide text-zinc-500">{label}</dt>
+      <dd
+        className={`mt-1 text-zinc-900 dark:text-zinc-100 ${mono ? "font-mono text-xs break-all" : ""}`}
+      >
+        {value}
+      </dd>
     </div>
   );
 }

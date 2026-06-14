@@ -7,6 +7,7 @@ import {
   insertAgent,
   removeAgent,
 } from "@/lib/db/store";
+import { mergeDeploymentConfig } from "@/lib/providers/deployment";
 import type { CreateAgentInput, ListAgentsQuery } from "@/types/agent";
 
 function nowIso(): string {
@@ -15,11 +16,17 @@ function nowIso(): string {
 
 export async function createAgent(input: CreateAgentInput): Promise<AgentRow> {
   const timestamp = nowIso();
+  const deploymentConfig = mergeDeploymentConfig(
+    input.deployment_provider,
+    (input.deployment_config ?? {}) as Record<string, string>,
+  );
 
   return insertAgent({
     id: `agt_${nanoid(12)}`,
     name: input.name,
     archetype: input.archetype,
+    deploymentProvider: input.deployment_provider,
+    deploymentConfig: JSON.stringify(deploymentConfig),
     status: "active",
     metadata: JSON.stringify(input.metadata),
     entitlements: JSON.stringify(input.entitlements),
@@ -40,6 +47,7 @@ export async function listAgents(query: ListAgentsQuery): Promise<{
   return findAgents({
     status: query.status,
     archetype: query.archetype,
+    deploymentProvider: query.deployment_provider,
     page: query.page,
     limit: query.limit,
   });

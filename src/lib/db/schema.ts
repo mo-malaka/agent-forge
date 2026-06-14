@@ -2,6 +2,8 @@ export interface AgentRow {
   id: string;
   name: string;
   archetype: string;
+  deploymentProvider: string;
+  deploymentConfig: string;
   status: string;
   metadata: string;
   entitlements: string;
