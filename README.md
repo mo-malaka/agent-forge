@@ -133,6 +133,8 @@ agent-forge/
 
 Agent data is persisted to `data/agents.json` and survives server restarts.
 
+On first deploy (or when the store is empty), AgentForge automatically seeds **3 demo agents** — one each for AWS Bedrock, GCP Vertex AI, and Azure AI Foundry. Run `npm run db:reset` locally to clear data and trigger a fresh seed on the next request.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) (App Router) — UI + API in one app

@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 
 import type { AgentRow, NewAgentRow } from "@/lib/db/schema";
+import { buildSeedAgents } from "@/lib/db/seed";
 import { normalizeAgentRow } from "@/lib/providers/deployment";
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -11,19 +12,30 @@ interface AgentStoreFile {
   agents: AgentRow[];
 }
 
+function seedIfEmpty(store: AgentStoreFile): AgentStoreFile {
+  if (store.agents.length > 0) {
+    return store;
+  }
+
+  const seeded: AgentStoreFile = {
+    agents: buildSeedAgents().map((agent) => normalizeAgentRow(agent)),
+  };
+
+  writeStore(seeded);
+  return seeded;
+}
+
 function readStore(): AgentStoreFile {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 
   if (!fs.existsSync(STORE_PATH)) {
-    const empty: AgentStoreFile = { agents: [] };
-    fs.writeFileSync(STORE_PATH, JSON.stringify(empty, null, 2));
-    return empty;
+    return seedIfEmpty({ agents: [] });
   }
 
   const raw = fs.readFileSync(STORE_PATH, "utf8");
   const parsed = JSON.parse(raw) as AgentStoreFile;
 
-  return {
+  const store: AgentStoreFile = {
     agents: Array.isArray(parsed.agents)
       ? parsed.agents.map((agent) =>
           normalizeAgentRow({
@@ -34,6 +46,8 @@ function readStore(): AgentStoreFile {
         )
       : [],
   };
+
+  return seedIfEmpty(store);
 }
 
 function writeStore(store: AgentStoreFile) {
