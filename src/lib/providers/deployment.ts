@@ -1,4 +1,4 @@
-import { getBaseUrl } from "@/lib/url";
+import { getProviderConnectorUrl } from "@/lib/url";
 
 import {
   DEPLOYMENT_PROVIDERS,
@@ -64,12 +64,11 @@ export function mergeDeploymentConfig(
   };
 }
 
-export function buildDeployment(row: AgentRow): ResolvedDeployment {
+export function buildDeployment(row: AgentRow, baseUrl: string): ResolvedDeployment {
   const provider = resolveDeploymentProvider(row.deploymentProvider);
   const profile = DEPLOYMENT_PROVIDERS[provider];
   const config = mergeDeploymentConfig(provider, parseConfig(row.deploymentConfig));
-  const baseUrl = getBaseUrl();
-  const connectorEndpoint = `${baseUrl}/api/connectors/${profile.connectorSlug}/agents`;
+  const connectorEndpoint = getProviderConnectorUrl(profile.connectorSlug, baseUrl);
 
   if (provider === "aws_bedrock") {
     const region = config.region ?? "us-east-1";

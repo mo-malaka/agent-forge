@@ -6,6 +6,7 @@ import {
 } from "@/lib/agents/repository";
 import { serializeAgentDetail } from "@/lib/agents/serializer";
 import { jsonError } from "@/lib/api/response";
+import { resolveBaseUrl } from "@/lib/url";
 
 export const runtime = "nodejs";
 
@@ -13,7 +14,7 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-export async function GET(_request: NextRequest, context: RouteContext) {
+export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
     const agent = await getAgentById(id);
@@ -22,7 +23,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       return jsonError("Agent not found", 404);
     }
 
-    return NextResponse.json(serializeAgentDetail(agent));
+    return NextResponse.json(
+      serializeAgentDetail(agent, resolveBaseUrl(request.headers)),
+    );
   } catch (error) {
     console.error("GET /api/agents/[id] failed:", error);
     return jsonError("Failed to fetch agent", 500);

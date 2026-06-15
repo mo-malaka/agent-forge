@@ -7,6 +7,7 @@ import {
   serializeAgentList,
 } from "@/lib/agents/serializer";
 import { jsonError, jsonValidationError } from "@/lib/api/response";
+import { resolveBaseUrl } from "@/lib/url";
 import {
   createAgentSchema,
   listAgentsQuerySchema,
@@ -21,14 +22,19 @@ export async function GET(request: NextRequest) {
     );
 
     const { rows, total } = await listAgents(query);
+    const baseUrl = resolveBaseUrl(request.headers);
 
     return NextResponse.json(
-      serializeAgentList(rows, {
-        page: query.page,
-        limit: query.limit,
-        total,
-        has_more: query.page * query.limit < total,
-      }),
+      serializeAgentList(
+        rows,
+        {
+          page: query.page,
+          limit: query.limit,
+          total,
+          has_more: query.page * query.limit < total,
+        },
+        baseUrl,
+      ),
     );
   } catch (error) {
     if (error instanceof ZodError) {
@@ -46,7 +52,10 @@ export async function POST(request: NextRequest) {
     const payload = createAgentSchema.parse(body);
     const created = await createAgent(payload);
 
-    return NextResponse.json(serializeAgentDetail(created), { status: 201 });
+    return NextResponse.json(
+      serializeAgentDetail(created, resolveBaseUrl(request.headers)),
+      { status: 201 },
+    );
   } catch (error) {
     if (error instanceof ZodError) {
       return jsonValidationError(error);

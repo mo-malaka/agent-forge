@@ -4,6 +4,7 @@ import { ZodError } from "zod";
 import { listAgents } from "@/lib/agents/repository";
 import { jsonError, jsonValidationError } from "@/lib/api/response";
 import type { DeploymentProvider } from "@/lib/providers/profiles";
+import { resolveBaseUrl } from "@/lib/url";
 import { listAgentsQuerySchema } from "@/lib/validation/agent.schema";
 
 type ConnectorSerializer = (
@@ -14,6 +15,7 @@ type ConnectorSerializer = (
     total: number;
     has_more: boolean;
   },
+  baseUrl: string,
 ) => unknown;
 
 export async function handleConnectorListRequest(
@@ -31,14 +33,15 @@ export async function handleConnectorListRequest(
       deployment_provider: deploymentProvider,
     });
 
-    return NextResponse.json(
-      serialize(rows, {
-        page: query.page,
-        limit: query.limit,
-        total,
-        has_more: query.page * query.limit < total,
-      }),
-    );
+    const baseUrl = resolveBaseUrl(request.headers);
+    const pagination = {
+      page: query.page,
+      limit: query.limit,
+      total,
+      has_more: query.page * query.limit < total,
+    };
+
+    return NextResponse.json(serialize(rows, pagination, baseUrl));
   } catch (error) {
     if (error instanceof ZodError) {
       return jsonValidationError(error);

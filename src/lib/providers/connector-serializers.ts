@@ -1,6 +1,5 @@
 import type { AgentRow } from "@/lib/db/schema";
 import { SCHEMA_VERSION } from "@/lib/constants";
-import { getBaseUrl } from "@/lib/url";
 
 import { buildDeployment } from "./deployment";
 
@@ -14,16 +13,15 @@ interface Pagination {
 export function serializeAwsBedrockAgentList(
   rows: AgentRow[],
   pagination: Pagination,
+  baseUrl: string,
 ) {
-  const baseUrl = getBaseUrl();
-
   return {
     schema_version: SCHEMA_VERSION,
     source: "aws_bedrock",
     generated_at: new Date().toISOString(),
     pagination,
     agentSummaries: rows.map((row) => {
-      const deployment = buildDeployment(row);
+      const deployment = buildDeployment(row, baseUrl);
 
       return {
         agentId: row.id,
@@ -46,16 +44,15 @@ export function serializeAwsBedrockAgentList(
 export function serializeGcpVertexAgentList(
   rows: AgentRow[],
   pagination: Pagination,
+  baseUrl: string,
 ) {
-  const baseUrl = getBaseUrl();
-
   return {
     schema_version: SCHEMA_VERSION,
     source: "gcp_vertex",
     generated_at: new Date().toISOString(),
     pagination,
     agents: rows.map((row) => {
-      const deployment = buildDeployment(row);
+      const deployment = buildDeployment(row, baseUrl);
 
       return {
         name: deployment.resource_name,
@@ -79,16 +76,15 @@ export function serializeGcpVertexAgentList(
 export function serializeAzureAiFoundryAgentList(
   rows: AgentRow[],
   pagination: Pagination,
+  baseUrl: string,
 ) {
-  const baseUrl = getBaseUrl();
-
   return {
     schema_version: SCHEMA_VERSION,
     source: "azure_ai_foundry",
     generated_at: new Date().toISOString(),
     pagination,
     value: rows.map((row) => {
-      const deployment = buildDeployment(row);
+      const deployment = buildDeployment(row, baseUrl);
 
       return {
         id: deployment.resource_id,

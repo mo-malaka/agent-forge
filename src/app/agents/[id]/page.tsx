@@ -5,7 +5,7 @@ import { CopyButton } from "@/components/CopyButton";
 import { DeleteAgentButton } from "@/components/DeleteAgentButton";
 import { getAgentById } from "@/lib/agents/repository";
 import { serializeAgent } from "@/lib/agents/serializer";
-import { getPollUrl } from "@/lib/url";
+import { getPollUrl, getRequestBaseUrl } from "@/lib/url";
 
 interface AgentDetailPageProps {
   params: Promise<{ id: string }>;
@@ -19,8 +19,9 @@ export default async function AgentDetailPage({ params }: AgentDetailPageProps) 
     notFound();
   }
 
-  const agent = serializeAgent(row);
-  const pollUrl = getPollUrl();
+  const baseUrl = await getRequestBaseUrl();
+  const agent = serializeAgent(row, baseUrl);
+  const pollUrl = getPollUrl(baseUrl);
   const deployment = agent.deployment;
 
   return (

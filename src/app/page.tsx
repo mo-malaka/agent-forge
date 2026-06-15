@@ -5,17 +5,23 @@ import { CopyButton } from "@/components/CopyButton";
 import { listAgents } from "@/lib/agents/repository";
 import { serializeAgent } from "@/lib/agents/serializer";
 import { DEFAULT_LIMIT, DEFAULT_PAGE } from "@/lib/constants";
-import { getPollUrl, PROVIDER_CONNECTOR_ENDPOINTS } from "@/lib/url";
+import {
+  getPollUrl,
+  getProviderConnectorEndpoints,
+  getRequestBaseUrl,
+} from "@/lib/url";
 
 export default async function DashboardPage() {
-  const pollUrl = getPollUrl();
+  const baseUrl = await getRequestBaseUrl();
+  const pollUrl = getPollUrl(baseUrl);
+  const providerEndpoints = getProviderConnectorEndpoints(baseUrl);
   const { rows, total } = await listAgents({
     page: DEFAULT_PAGE,
     limit: DEFAULT_LIMIT,
     status: "active",
   });
 
-  const agents = rows.map(serializeAgent);
+  const agents = rows.map((row) => serializeAgent(row, baseUrl));
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-6 py-8">
@@ -34,7 +40,7 @@ export default async function DashboardPage() {
         <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
           Platform connector endpoints
         </p>
-        {PROVIDER_CONNECTOR_ENDPOINTS.map((endpoint) => (
+        {providerEndpoints.map((endpoint) => (
           <div
             key={endpoint.slug}
             className="flex items-center justify-between gap-3"

@@ -91,7 +91,7 @@ These steps apply to a generic **REST / Web Services** connector. Exact field na
 | Authentication | None (no auth required for local AgentForge) |
 | HTTP method | `GET` |
 | Content type | `application/json` |
-| Base URL | `http://<agentforge-host>:3000` |
+| Base URL | Your deployed AgentForge URL (e.g. `https://main.d12mzah9vzl24s.amplifyapp.com`) — auto-detected from request headers; no env var required on Amplify |
 | Resource path | See platform table below |
 
 ### Platform resource paths
@@ -364,8 +364,8 @@ When moving from demo to production, replace the AgentForge poll URL and credent
 ### AgentForge unreachable from ISC
 
 - Ensure the host is network-accessible (not just `localhost` on your laptop)
-- Set `NEXT_PUBLIC_BASE_URL` to the hostname ISC can reach
-- Check firewall rules on port `3000`
+- Connector URLs auto-detect from the request `Host` header on Amplify/Vercel; only set `AGENTFORGE_BASE_URL` or `NEXT_PUBLIC_BASE_URL` if ISC polls a different hostname than the browser sees
+- Check firewall rules on port `3000` (local) or HTTPS on your deployed domain
 
 ### Stale data after creating new agents
 

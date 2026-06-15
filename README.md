@@ -102,11 +102,17 @@ The unified `GET /api/agents` endpoint returns all agents across platforms with 
 
 ## Configuration
 
-Copy `.env.example` to `.env.local` and set your deployment base URL so endpoint links in API responses are correct:
+Connector URLs are **auto-detected** from the incoming request (`Host` / `X-Forwarded-Host` headers). On Amplify this resolves to your deployed domain automatically — no env var required.
+
+To override (e.g. when SailPoint polls a different hostname than the browser), set either:
 
 ```bash
-NEXT_PUBLIC_BASE_URL=http://localhost:3000
+AGENTFORGE_BASE_URL=https://main.d12mzah9vzl24s.amplifyapp.com
+# or
+NEXT_PUBLIC_BASE_URL=https://main.d12mzah9vzl24s.amplifyapp.com
 ```
+
+Leave unset for local dev (`http://localhost:3000`).
 
 ## Scripts
 

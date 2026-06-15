@@ -79,20 +79,13 @@ function parseJsonStringArray(value: string): string[] {
   }
 }
 
-function getBaseUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ??
-    "http://localhost:3000"
-  );
-}
 
-export function serializeAgent(row: AgentRow): SerializedAgent {
+export function serializeAgent(row: AgentRow, baseUrl: string): SerializedAgent {
   const archetype = row.archetype as Archetype;
   const metadata = parseJsonRecord(row.metadata);
   const entitlementNames = parseJsonStringArray(row.entitlements);
   const entitlements = entitlementNames.map(parseEntitlement);
-  const baseUrl = getBaseUrl();
-  const deployment = buildDeployment(row);
+  const deployment = buildDeployment(row, baseUrl);
 
   return {
     id: row.id,
@@ -135,21 +128,25 @@ export function serializeAgent(row: AgentRow): SerializedAgent {
 export function serializeAgentList(
   rows: AgentRow[],
   pagination: AgentListResponse["pagination"],
+  baseUrl: string,
 ): AgentListResponse {
   return {
     schema_version: SCHEMA_VERSION,
     platform: PLATFORM_ID,
     generated_at: new Date().toISOString(),
     pagination,
-    agents: rows.map(serializeAgent),
+    agents: rows.map((row) => serializeAgent(row, baseUrl)),
   };
 }
 
-export function serializeAgentDetail(row: AgentRow): AgentDetailResponse {
+export function serializeAgentDetail(
+  row: AgentRow,
+  baseUrl: string,
+): AgentDetailResponse {
   return {
     schema_version: SCHEMA_VERSION,
     platform: PLATFORM_ID,
     generated_at: new Date().toISOString(),
-    agent: serializeAgent(row),
+    agent: serializeAgent(row, baseUrl),
   };
 }
