@@ -74,11 +74,11 @@ export function AgentCard({ agent }: AgentCardProps) {
       <div className="mt-4 space-y-2 rounded-md bg-zinc-50 p-3 dark:bg-zinc-900">
         <div className="flex items-center justify-between gap-3">
           <code className="truncate text-xs text-zinc-700 dark:text-zinc-300">
-            {agent.endpoints.provider_connector}
+            {agent.endpoints.web_services}
           </code>
           <CopyButton
-            value={agent.endpoints.provider_connector}
-            label="Copy connector URL"
+            value={agent.endpoints.web_services}
+            label="Copy Web Services URL"
           />
         </div>
         <div className="flex items-center justify-between gap-3">

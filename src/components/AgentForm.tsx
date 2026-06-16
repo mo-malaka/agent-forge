@@ -143,8 +143,9 @@ export function AgentForm() {
           ))}
         </select>
         <p className="text-xs text-zinc-500">
-          Agents are mocked as deployed on this cloud AI platform for SailPoint
-          connector ingestion.
+          Choose the cloud platform this agent mimics. Aggregate accounts in ISC
+          via Web Services SaaS using the dashboard account endpoint for this
+          platform.
         </p>
       </div>
 

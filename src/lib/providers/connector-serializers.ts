@@ -34,7 +34,7 @@ export function serializeAwsBedrockAgentList(
         agentAlias: deployment.config.agent_alias,
         region: deployment.region,
         accountId: deployment.config.account_id,
-        connector_endpoint: deployment.connector_endpoint,
+        reference_api: deployment.reference_api,
         detail_url: `${baseUrl}/api/agents/${row.id}`,
       };
     }),
@@ -66,7 +66,7 @@ export function serializeGcpVertexAgentList(
         },
         project_id: deployment.config.project_id,
         location: deployment.location,
-        connector_endpoint: deployment.connector_endpoint,
+        reference_api: deployment.reference_api,
         detail_url: `${baseUrl}/api/agents/${row.id}`,
       };
     }),
@@ -100,7 +100,7 @@ export function serializeAzureAiFoundryAgentList(
           subscriptionId: deployment.config.subscription_id,
           lastModifiedAt: row.updatedAt,
         },
-        connector_endpoint: deployment.connector_endpoint,
+        reference_api: deployment.reference_api,
         detail_url: `${baseUrl}/api/agents/${row.id}`,
       };
     }),

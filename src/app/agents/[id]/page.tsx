@@ -77,18 +77,32 @@ export default async function AgentDetailPage({ params }: AgentDetailPageProps) 
 
       <section className="space-y-3 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
         <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-          Connector endpoints
+          Web Services endpoints
         </h2>
+        <p className="text-xs text-zinc-500">
+          Point your ISC Web Services source account aggregation at the platform
+          list URL. Root path: <code>$.accounts[*]</code>
+        </p>
         <EndpointRow
-          label={`${deployment.provider_label} connector`}
-          value={agent.endpoints.provider_connector}
+          label={`${deployment.provider_label} accounts`}
+          value={agent.endpoints.web_services}
         />
-        <EndpointRow label="Unified poll (all agents)" value={pollUrl} />
         <EndpointRow label="This agent" value={agent.endpoints.self} />
         <EndpointRow
           label="Entitlements"
           value={agent.endpoints.entitlements}
         />
+      </section>
+
+      <section className="space-y-3 rounded-lg border border-dashed border-zinc-300 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-950">
+        <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+          Cloud-native reference API (optional)
+        </h2>
+        <EndpointRow
+          label={`${deployment.provider_label} reference payload`}
+          value={agent.endpoints.reference_api}
+        />
+        <EndpointRow label="Unified list (all platforms)" value={pollUrl} />
       </section>
 
       <section className="grid gap-6 md:grid-cols-2">

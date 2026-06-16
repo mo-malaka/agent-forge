@@ -48,11 +48,13 @@ export interface SerializedAgent {
   endpoints: {
     self: string;
     entitlements: string;
-    provider_connector: string;
+    web_services: string;
+    reference_api: string;
   };
   _links: {
     self: { href: string };
-    provider_connector: { href: string };
+    web_services: { href: string };
+    reference_api: { href: string };
   };
 }
 

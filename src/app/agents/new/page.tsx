@@ -8,8 +8,8 @@ export default function NewAgentPage() {
           Create Synthetic Agent
         </h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Configure agent metadata and entitlements. AgentForge will expose the
-          agent via REST endpoints for your SailPoint connector.
+          Configure agent metadata and entitlements. AgentForge exposes agents
+          through Web Services endpoints for your SailPoint connector.
         </p>
       </div>
 

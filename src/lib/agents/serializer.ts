@@ -116,11 +116,13 @@ export function serializeAgent(row: AgentRow, baseUrl: string): SerializedAgent 
     endpoints: {
       self: `${baseUrl}/api/agents/${row.id}`,
       entitlements: `${baseUrl}/api/agents/${row.id}/entitlements`,
-      provider_connector: deployment.connector_endpoint,
+      web_services: deployment.web_services_endpoint,
+      reference_api: deployment.reference_api,
     },
     _links: {
       self: { href: `/api/agents/${row.id}` },
-      provider_connector: { href: deployment.connector_endpoint },
+      web_services: { href: deployment.web_services_endpoint },
+      reference_api: { href: deployment.reference_api },
     },
   };
 }

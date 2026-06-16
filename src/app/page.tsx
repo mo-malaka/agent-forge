@@ -9,12 +9,14 @@ import {
   getPollUrl,
   getProviderConnectorEndpoints,
   getRequestBaseUrl,
+  getWebServicesAccountEndpoints,
 } from "@/lib/url";
 
 export default async function DashboardPage() {
   const baseUrl = await getRequestBaseUrl();
   const pollUrl = getPollUrl(baseUrl);
-  const providerEndpoints = getProviderConnectorEndpoints(baseUrl);
+  const webServicesEndpoints = getWebServicesAccountEndpoints(baseUrl);
+  const referenceEndpoints = getProviderConnectorEndpoints(baseUrl);
   const { rows, total } = await listAgents({
     page: DEFAULT_PAGE,
     limit: DEFAULT_LIMIT,
@@ -30,17 +32,52 @@ export default async function DashboardPage() {
           Active Synthetic Agents
         </h1>
         <p className="max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">
-          Mock agents deployed on AWS Bedrock, Google Cloud Vertex AI, or
-          Microsoft Azure AI Foundry. Point each SailPoint connector at the
-          matching platform endpoint below.
+          Mock agents for SailPoint demos. Point a Web Services SaaS source in
+          ISC at the account endpoints below — no real cloud connection required.
         </p>
       </section>
 
       <section className="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-          Platform connector endpoints
+          Web Services account endpoints
         </p>
-        {providerEndpoints.map((endpoint) => (
+        <p className="text-xs text-zinc-500">
+          Use root path{" "}
+          <code className="rounded bg-white px-1 dark:bg-zinc-950">
+            $.accounts[*]
+          </code>
+          . See{" "}
+          <span className="font-medium text-zinc-700 dark:text-zinc-300">
+            WEB_SERVICES_SETUP.md
+          </span>{" "}
+          for ISC configuration.
+        </p>
+        {webServicesEndpoints.map((endpoint) => (
+          <div
+            key={endpoint.slug}
+            className="flex items-center justify-between gap-3 rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-950"
+          >
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                {endpoint.label}
+              </p>
+              <code className="block truncate text-sm text-zinc-800 dark:text-zinc-200">
+                {endpoint.url}
+              </code>
+            </div>
+            <CopyButton value={endpoint.url} label="Copy" />
+          </div>
+        ))}
+      </section>
+
+      <section className="space-y-3 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-900">
+        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+          Cloud-native reference payloads (optional)
+        </p>
+        <p className="text-xs text-zinc-500">
+          Bedrock / Vertex / Foundry JSON shapes for field-mapping walkthroughs.
+        </p>
+        {referenceEndpoints.map((endpoint) => (
           <div
             key={endpoint.slug}
             className="flex items-center justify-between gap-3"
@@ -58,7 +95,7 @@ export default async function DashboardPage() {
         ))}
         <div className="border-t border-zinc-200 pt-3 dark:border-zinc-700">
           <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-            Unified poll (all platforms)
+            Unified list (all platforms)
           </p>
           <div className="mt-1 flex items-center justify-between gap-3">
             <code className="truncate text-sm text-zinc-800 dark:text-zinc-200">

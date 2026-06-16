@@ -69,3 +69,16 @@ export function getProviderConnectorEndpoints(baseUrl: string) {
     url: getProviderConnectorUrl(profile.connectorSlug, baseUrl),
   }));
 }
+
+export function getWebServicesAccountUrl(slug: string, baseUrl?: string): string {
+  return `${baseUrl ?? resolveBaseUrl()}/api/connectors/web-services/${slug}/accounts`;
+}
+
+export function getWebServicesAccountEndpoints(baseUrl: string) {
+  return Object.values(DEPLOYMENT_PROVIDERS).map((profile) => ({
+    label: profile.label,
+    slug: profile.connectorSlug,
+    url: getWebServicesAccountUrl(profile.connectorSlug, baseUrl),
+    rootPath: "$.accounts[*]",
+  }));
+}

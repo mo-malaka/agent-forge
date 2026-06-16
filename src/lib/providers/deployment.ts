@@ -1,4 +1,7 @@
-import { getProviderConnectorUrl } from "@/lib/url";
+import {
+  getProviderConnectorUrl,
+  getWebServicesAccountUrl,
+} from "@/lib/url";
 
 import {
   DEPLOYMENT_PROVIDERS,
@@ -13,7 +16,8 @@ export interface ResolvedDeployment {
   provider_label: string;
   cloud: "aws" | "gcp" | "azure";
   infrastructure: string;
-  connector_endpoint: string;
+  web_services_endpoint: string;
+  reference_api: string;
   native_status: string;
   resource_id: string;
   resource_arn?: string;
@@ -68,7 +72,14 @@ export function buildDeployment(row: AgentRow, baseUrl: string): ResolvedDeploym
   const provider = resolveDeploymentProvider(row.deploymentProvider);
   const profile = DEPLOYMENT_PROVIDERS[provider];
   const config = mergeDeploymentConfig(provider, parseConfig(row.deploymentConfig));
-  const connectorEndpoint = getProviderConnectorUrl(profile.connectorSlug, baseUrl);
+  const base = {
+    provider,
+    provider_label: profile.label,
+    cloud: profile.cloud,
+    infrastructure: profile.infrastructure,
+    web_services_endpoint: getWebServicesAccountUrl(profile.connectorSlug, baseUrl),
+    reference_api: getProviderConnectorUrl(profile.connectorSlug, baseUrl),
+  };
 
   if (provider === "aws_bedrock") {
     const region = config.region ?? "us-east-1";
@@ -76,11 +87,7 @@ export function buildDeployment(row: AgentRow, baseUrl: string): ResolvedDeploym
     const arn = `arn:aws:bedrock:${region}:${accountId}:agent/${row.id}`;
 
     return {
-      provider,
-      provider_label: profile.label,
-      cloud: profile.cloud,
-      infrastructure: profile.infrastructure,
-      connector_endpoint: connectorEndpoint,
+      ...base,
       native_status: row.status === "active" ? profile.nativeStatusActive : "FAILED",
       resource_id: arn,
       resource_arn: arn,
@@ -95,11 +102,7 @@ export function buildDeployment(row: AgentRow, baseUrl: string): ResolvedDeploym
     const resourceName = `projects/${projectId}/locations/${location}/agents/${row.id}`;
 
     return {
-      provider,
-      provider_label: profile.label,
-      cloud: profile.cloud,
-      infrastructure: profile.infrastructure,
-      connector_endpoint: connectorEndpoint,
+      ...base,
       native_status: row.status === "active" ? profile.nativeStatusActive : "DELETED",
       resource_id: resourceName,
       resource_name: resourceName,
@@ -116,11 +119,7 @@ export function buildDeployment(row: AgentRow, baseUrl: string): ResolvedDeploym
   const resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.CognitiveServices/accounts/${workspace}/agents/${row.id}`;
 
   return {
-    provider,
-    provider_label: profile.label,
-    cloud: profile.cloud,
-    infrastructure: profile.infrastructure,
-    connector_endpoint: connectorEndpoint,
+    ...base,
     native_status:
       row.status === "active" ? profile.nativeStatusActive : "Failed",
     resource_id: resourceId,
