@@ -48,9 +48,9 @@ export default async function DashboardPage() {
           </code>
           . See{" "}
           <span className="font-medium text-zinc-700 dark:text-zinc-300">
-            WEB_SERVICES_SETUP.md
+            CONNECTOR_SETUP.md
           </span>{" "}
-          for ISC configuration.
+          for the ISC setup guide.
         </p>
         {webServicesEndpoints.map((endpoint) => (
           <div

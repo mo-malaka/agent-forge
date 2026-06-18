@@ -12,6 +12,7 @@ interface Pagination {
 
 export interface WebServicesAccount {
   id: string;
+  accountId: string;
   name: string;
   displayName: string;
   nativeIdentity: string;
@@ -19,9 +20,10 @@ export interface WebServicesAccount {
   agentId: string;
   archetype: string;
   platform: string;
+  owner?: string;
   region?: string;
   location?: string;
-  accountId?: string;
+  awsAccountId?: string;
   foundationModel?: string;
   projectId?: string;
   workspace?: string;
@@ -31,11 +33,31 @@ export interface WebServicesAccount {
   updatedAt: string;
 }
 
+function parseMetadata(value: string): Record<string, string> {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+
+    return Object.fromEntries(
+      Object.entries(parsed).filter(
+        (entry): entry is [string, string] => typeof entry[1] === "string",
+      ),
+    );
+  } catch {
+    return {};
+  }
+}
+
 function buildWebServicesAccount(row: AgentRow, baseUrl: string): WebServicesAccount {
   const deployment = buildDeployment(row, baseUrl);
+  const metadata = parseMetadata(row.metadata);
 
   const base: WebServicesAccount = {
-    id: deployment.resource_id,
+    // Short stable IDs — map Account ID / KeyID to accountId or id in ISC.
+    id: row.id,
+    accountId: row.id,
     name: row.name,
     displayName: row.name,
     nativeIdentity: deployment.resource_id,
@@ -43,6 +65,7 @@ function buildWebServicesAccount(row: AgentRow, baseUrl: string): WebServicesAcc
     agentId: row.id,
     archetype: row.archetype,
     platform: deployment.provider_label,
+    owner: metadata.owner,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -51,7 +74,7 @@ function buildWebServicesAccount(row: AgentRow, baseUrl: string): WebServicesAcc
     return {
       ...base,
       region: deployment.region,
-      accountId: deployment.config.account_id,
+      awsAccountId: deployment.config.account_id,
       foundationModel: deployment.config.foundation_model,
     };
   }

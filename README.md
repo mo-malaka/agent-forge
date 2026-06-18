@@ -4,7 +4,7 @@
 
 Create mock agents with custom metadata and IAM entitlements, then expose them through REST API endpoints that a SailPoint **Web Services SaaS** connector can poll and ingest.
 
-**SailPoint integration:** [Connector Setup Guide](./CONNECTOR_SETUP.md) · [Web Services ISC config](./WEB_SERVICES_SETUP.md)
+**SailPoint integration:** [Setup Guide](./CONNECTOR_SETUP.md)
 
 ## What it does
 
