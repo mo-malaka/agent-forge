@@ -183,47 +183,9 @@ These dropdowns designate which attributes ISC uses as the unique account key an
 
 4. Click **Save**
 
-> **Note:** ISC uses **Account ID** and **Account Name** selectors in the schema editor — not checkboxes labeled “Identity Attribute.” Correlation to human identities is configured separately in Step 6.
-
 ---
 
-## Step 5 — Configure account correlation
-
-Correlation links aggregated accounts to **identities** in ISC. Aggregation works without correlation; uncorrelated accounts still appear under **Accounts → Uncorrelated**.
-
-### Option A — Leave uncorrelated (simplest demo)
-
-1. Go to **Account Management → Account Correlation**
-2. Save with the default settings
-3. After aggregation, open **Accounts** and filter by **Uncorrelated**
-
-This is enough to demo synthetic agent accounts in ISC.
-
-### Option B — Correlate by owner email
-
-Use this when agent `owner` should match an identity email in ISC.
-
-1. Add `owner` to the account schema (type: `string`) and map `owner = owner` in the HTTP operation
-2. On **Account Correlation**, click **Add Criteria**:
-
-| Identity attribute | Account attribute |
-|--------------------|-------------------|
-| `email` | `owner` |
-
-3. Ensure a human identity exists with that email (seed agents use values like `platform-ops@sailpoint.com`)
-4. Save and use **Test Account Correlation** to verify
-
-### Option C — Correlate by name
-
-| Identity attribute | Account attribute |
-|--------------------|-------------------|
-| `name` | `name` |
-
-Only works if an identity with the same name exists (e.g. `DevOps-Bot-Prod`).
-
----
-
-## Step 6 — Run account aggregation
+## Step 5 — Run account aggregation
 
 1. Go to **Account Management → Account Aggregation**
 2. Click **Start Aggregation**
@@ -233,17 +195,4 @@ Only works if an identity with the same name exists (e.g. `DevOps-Bot-Prod`).
 
 You should see your synthetic agent (for example **DevOps-Bot-Prod**) with status **Enabled**.
 
----
 
-## Demo checklist
-
-- [ ] Web Services source created with Custom Authentication (blank credentials)
-- [ ] **Test Connection** HTTP operation configured (`GET /api/health`)
-- [ ] Test connection succeeds from **Review and Test**
-- [ ] **Account Aggregation** HTTP operation uses `/web-services/.../accounts`
-- [ ] Root path is `$.accounts[*]`
-- [ ] Response mapping: `accountId`, `name`, `nativeIdentity`
-- [ ] Account schema: **Account ID** = `accountId`, **Account Name** = `name`
-- [ ] Account correlation saved
-- [ ] Account aggregation completed successfully
-- [ ] Account visible under **Accounts**
