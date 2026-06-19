@@ -5,8 +5,11 @@ import {
   findAgentById,
   findAgents,
   insertAgent,
+  insertAgents,
   removeAgent,
 } from "@/lib/db/store";
+import { generateRandomAgentBatch } from "@/lib/agents/bulk-generator";
+import type { BulkCreateAgentsPayload } from "@/lib/validation/agent.schema";
 import { mergeDeploymentConfig } from "@/lib/providers/deployment";
 import type { CreateAgentInput, ListAgentsQuery } from "@/types/agent";
 
@@ -51,6 +54,36 @@ export async function listAgents(query: ListAgentsQuery): Promise<{
     page: query.page,
     limit: query.limit,
   });
+}
+
+export async function createAgentsBulk(
+  input: BulkCreateAgentsPayload,
+): Promise<AgentRow[]> {
+  const timestamp = nowIso();
+  const payloads = generateRandomAgentBatch(input.deployment_provider, input.count);
+
+  const rows = payloads.map((payload) => {
+    const deploymentConfig = mergeDeploymentConfig(
+      payload.deployment_provider,
+      (payload.deployment_config ?? {}) as Record<string, string>,
+    );
+
+    return {
+      id: `agt_${nanoid(12)}`,
+      name: payload.name,
+      archetype: payload.archetype,
+      deploymentProvider: payload.deployment_provider,
+      deploymentConfig: JSON.stringify(deploymentConfig),
+      status: "active" as const,
+      metadata: JSON.stringify(payload.metadata),
+      entitlements: JSON.stringify(payload.entitlements),
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      lastActiveAt: timestamp,
+    };
+  });
+
+  return insertAgents(rows);
 }
 
 export async function deleteAgent(id: string): Promise<boolean> {

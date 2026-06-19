@@ -55,5 +55,12 @@ export const listAgentsQuerySchema = z.object({
   deployment_provider: deploymentProviderSchema.optional(),
 });
 
+export const bulkCreateAgentsSchema = z.object({
+  deployment_provider: deploymentProviderSchema,
+  count: z.union([z.literal(5), z.literal(10), z.literal(20)]),
+});
+
+export type BulkCreateAgentsPayload = z.infer<typeof bulkCreateAgentsSchema>;
+
 export type CreateAgentPayload = z.infer<typeof createAgentSchema>;
 export type ListAgentsQueryPayload = z.infer<typeof listAgentsQuerySchema>;

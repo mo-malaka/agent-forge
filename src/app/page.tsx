@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { AgentCard } from "@/components/AgentCard";
+import { BulkCreateAgentsForm } from "@/components/BulkCreateAgentsForm";
 import { CopyButton } from "@/components/CopyButton";
 import { listAgents } from "@/lib/agents/repository";
 import { serializeAgent } from "@/lib/agents/serializer";
@@ -108,6 +109,8 @@ export default async function DashboardPage() {
           </div>
         </div>
       </section>
+
+      <BulkCreateAgentsForm />
 
       {agents.length === 0 ? (
         <section className="rounded-lg border border-dashed border-zinc-300 p-10 text-center dark:border-zinc-700">

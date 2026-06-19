@@ -63,6 +63,14 @@ export function insertAgent(row: NewAgentRow): AgentRow {
   return agent;
 }
 
+export function insertAgents(rows: NewAgentRow[]): AgentRow[] {
+  const store = readStore();
+  const agents = rows.map((row) => normalizeAgentRow(row));
+  store.agents.unshift(...agents);
+  writeStore(store);
+  return agents;
+}
+
 export function findAgentById(id: string): AgentRow | null {
   const store = readStore();
   const agent = store.agents.find((item) => item.id === id);
