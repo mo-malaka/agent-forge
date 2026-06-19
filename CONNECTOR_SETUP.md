@@ -82,18 +82,9 @@ AgentForge does not require authentication for demos. In ISC, configure this usi
 |---------|-------|
 | **Authentication Type** | **Custom Authentication** |
 | **Base URL** | `https://main.d12mzah9vzl24s.amplifyapp.com` |
-| Username | *(leave blank)* |
-| Password | *(leave blank)* |
-| API Token | *(leave blank)* |
-| Resource Owner Username | *(leave blank)* |
-| Resource Owner Password | *(leave blank)* |
-| Private Key | *(leave blank)* |
 
-ISC treats empty custom authentication parameters as **no authentication** — you do not need Basic Auth, OAuth, or an API token for AgentForge.
 
 5. Save **Connection Settings**
-
-> There is no separate **Test Connection** button on this screen. You verify connectivity in Step 3 by creating a **Test Connection** HTTP operation.
 
 ---
 
@@ -120,15 +111,6 @@ ISC uses an HTTP operation (not a standalone button) to verify the source is rea
 4. Save the operation
 5. Run the test from **Review and Test** (or your source's test action) and confirm it succeeds
 
-**Expected response from AgentForge:**
-
-```json
-{
-  "status": "ok",
-  "service": "agent-forge",
-  "timestamp": "..."
-}
-```
 
 ### 3b — Account Aggregation operation
 
@@ -178,8 +160,6 @@ Optional attributes: `displayName`, `status`, `owner`, `platform`, `archetype`.
 |-------|-------|
 | **Account ID** | `accountId` |
 | **Account Name** | `name` |
-
-These dropdowns designate which attributes ISC uses as the unique account key and display name. You will see **Account ID** and **Account Name** badges next to those attributes in the schema table.
 
 4. Click **Save**
 
