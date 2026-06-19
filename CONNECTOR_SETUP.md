@@ -9,7 +9,7 @@ Connect AgentForge synthetic AI agents to Identity Security Cloud (ISC) using a 
 ## What you will set up
 
 1. A **Web Services SaaS** source in ISC
-2. An **account aggregation** that polls AgentForge
+2. **HTTP operations** for test connection and account aggregation
 3. **Account schema** and **correlation** settings
 4. Synthetic agent accounts visible under **Admin → Connections → Sources → Accounts**
 
@@ -17,7 +17,7 @@ Connect AgentForge synthetic AI agents to Identity Security Cloud (ISC) using a 
 
 ## Before you begin
 
-- AgentForge is reachable from your ISC tenant (use the public Amplify URL above)
+- AgentForge is reachable from your ISC tenant (use the public URL above)
 - You have permission to create and configure sources in ISC
 - Create **one Web Services source per cloud platform** you want to demo (e.g. one for AWS Bedrock agents)
 
@@ -71,37 +71,89 @@ Copy the matching URL from the AgentForge dashboard **Web Services account endpo
 
 1. Go to **Admin → Connections → Sources → Create source**
 2. Select **Web Services SaaS**
-3. Complete **Base Configuration** and **Connection Settings**
-4. Set **Authentication** to **None** (AgentForge does not require auth for demos)
-5. Set the **Base URL** to your AgentForge host, for example:
-   ```
-   https://main.d12mzah9vzl24s.amplifyapp.com
-   ```
-6. Run **Test Connection** and confirm it succeeds
+3. Complete **Base Configuration** (source name, owner, etc.)
+4. Open **Connection Settings**
+
+### Authentication (no auth required)
+
+AgentForge does not require authentication for demos. In ISC, configure this using **Custom Authentication** with all credential fields left blank:
+
+| Setting | Value |
+|---------|-------|
+| **Authentication Type** | **Custom Authentication** |
+| **Base URL** | `https://main.d12mzah9vzl24s.amplifyapp.com` |
+| Username | *(leave blank)* |
+| Password | *(leave blank)* |
+| API Token | *(leave blank)* |
+| Resource Owner Username | *(leave blank)* |
+| Resource Owner Password | *(leave blank)* |
+| Private Key | *(leave blank)* |
+
+ISC treats empty custom authentication parameters as **no authentication** — you do not need Basic Auth, OAuth, or an API token for AgentForge.
+
+5. Save **Connection Settings**
+
+> There is no separate **Test Connection** button on this screen. You verify connectivity in Step 3 by creating a **Test Connection** HTTP operation.
 
 ---
 
-## Step 3 — Configure account aggregation (HTTP operation)
+## Step 3 — Configure HTTP operations
 
-1. Open **Source Setup → HTTP Operations**
-2. Create or edit the **Account Aggregation** operation
-3. Use these settings:
+Go to **Source Setup → HTTP Operations**. You need **two operations**: one to test connectivity, one to aggregate accounts.
 
-| Setting | Value |
-|---------|-------|
-| HTTP method | `GET` |
-| URL path | `/api/connectors/web-services/aws-bedrock/accounts` |
-| Authentication | None |
+### 3a — Test Connection operation
 
-4. Under **Response Information**, set:
+ISC uses an HTTP operation (not a standalone button) to verify the source is reachable.
 
-| Setting | Value |
-|---------|-------|
-| Root path | `$.accounts[*]` |
+1. Click **Add operation** (or **Create operation**)
+2. Open the **General Information** tab and set:
+
+| Field | Value |
+|-------|-------|
+| **Operation Name** | `Test Connection` |
+| **Operation Type** | `Test Connection` |
+| **Request Type** | `API` |
+| **Context URL** | `/api/health` |
+| **HTTP Method** | `GET` |
+
+3. Leave **Header**, **Response Mapping**, and **XPath Namespace Mapping** empty unless your ISC version requires them
+4. Save the operation
+5. Run the test from **Review and Test** (or your source's test action) and confirm it succeeds
+
+**Expected response from AgentForge:**
+
+```json
+{
+  "status": "ok",
+  "service": "agent-forge",
+  "timestamp": "..."
+}
+```
+
+### 3b — Account Aggregation operation
+
+1. Add a second HTTP operation
+2. Open **General Information** and set:
+
+| Field | Value |
+|-------|-------|
+| **Operation Name** | `Account Aggregation` *(or a descriptive name)* |
+| **Operation Type** | `Account Aggregation` |
+| **Request Type** | `API` |
+| **Context URL** | `/api/connectors/web-services/aws-bedrock/accounts` |
+| **HTTP Method** | `GET` |
+
+Use the platform-specific path from Step 1 (e.g. `gcp-vertex` or `azure-ai-foundry` instead of `aws-bedrock`).
+
+3. Open **Response Information** and set:
+
+| Field | Value |
+|-------|-------|
+| **Root path** | `$.accounts[*]` |
 
 > The root path must include `[*]` so ISC iterates each object in the `accounts` array.
 
-5. Under **Response Mapping**, map attributes **relative to the root path** (do not repeat the root path in each mapping):
+4. Open **Response Mapping** and map attributes **relative to the root path** (do not repeat the root path in each mapping):
 
 | Schema attribute | Attribute path |
 |------------------|----------------|
@@ -111,7 +163,8 @@ Copy the matching URL from the AgentForge dashboard **Web Services account endpo
 
 Optional attributes: `displayName`, `status`, `owner`, `platform`, `archetype`.
 
-6. **Preview** or **Test** the operation — you should see at least one account with a non-empty `accountId`.
+5. Save the operation
+6. **Preview** or **Test** the operation — you should see at least one account with a non-empty `accountId`
 
 ---
 
@@ -130,7 +183,7 @@ These dropdowns designate which attributes ISC uses as the unique account key an
 
 4. Click **Save**
 
-> **Note:** ISC uses **Account ID** and **Account Name** selectors in the schema editor — not checkboxes labeled “Identity Attribute.” Correlation to human identities is configured separately in Step 5.
+> **Note:** ISC uses **Account ID** and **Account Name** selectors in the schema editor — not checkboxes labeled “Identity Attribute.” Correlation to human identities is configured separately in Step 6.
 
 ---
 
@@ -184,8 +237,10 @@ You should see your synthetic agent (for example **DevOps-Bot-Prod**) with statu
 
 ## Demo checklist
 
-- [ ] Web Services source created and connection test passes
-- [ ] Account aggregation URL uses `/web-services/.../accounts`
+- [ ] Web Services source created with Custom Authentication (blank credentials)
+- [ ] **Test Connection** HTTP operation configured (`GET /api/health`)
+- [ ] Test connection succeeds from **Review and Test**
+- [ ] **Account Aggregation** HTTP operation uses `/web-services/.../accounts`
 - [ ] Root path is `$.accounts[*]`
 - [ ] Response mapping: `accountId`, `name`, `nativeIdentity`
 - [ ] Account schema: **Account ID** = `accountId`, **Account Name** = `name`
@@ -193,61 +248,3 @@ You should see your synthetic agent (for example **DevOps-Bot-Prod**) with statu
 - [ ] Account aggregation completed successfully
 - [ ] Account visible under **Accounts**
 
----
-
-## Troubleshooting
-
-### "KeyID cannot be empty"
-
-The **Account ID** field is empty during aggregation.
-
-| Check | Action |
-|-------|--------|
-| Endpoint | Use `/web-services/.../accounts`, not `/aws-bedrock/agents` |
-| Root path | Must be `$.accounts[*]` |
-| Response mapping | Use `accountId = accountId` (not `$.accounts[*].accountId`) |
-| Account schema | **Account ID** dropdown must be set to `accountId` |
-| Preview | Confirm `accountId` has a value like `agt_demo_aws_bedrock` |
-
-### Aggregation succeeds but 0 accounts
-
-Usually a response mapping or root path issue. Enable **Show Debug Info**, re-run aggregation, and confirm the raw JSON contains an `accounts` array with data.
-
-### Account shows as Uncorrelated
-
-Expected unless a correlation rule matches an identity. The account is still aggregated successfully — view it under **Uncorrelated**, or configure correlation in Step 5.
-
-### Wrong JSON shape
-
-| Wrong endpoint | Returns |
-|----------------|---------|
-| `/api/connectors/aws-bedrock/agents` | `agentSummaries[]` |
-| `/api/connectors/web-services/aws-bedrock/accounts` | `accounts[]` ✓ |
-
-Always use the **web-services** path for ISC account aggregation.
-
----
-
-## Optional reference endpoints
-
-These return cloud-native JSON shapes (Bedrock, Vertex, Foundry) for field-mapping walkthroughs. They are **not** used for Web Services account aggregation.
-
-| Platform | Path |
-|----------|------|
-| AWS Bedrock | `/api/connectors/aws-bedrock/agents` |
-| GCP Vertex AI | `/api/connectors/gcp-vertex/agents` |
-| Azure AI Foundry | `/api/connectors/azure-ai-foundry/agents` |
-| All platforms | `/api/agents` |
-
----
-
-## Support
-
-- AgentForge health: `GET /api/health`
-- Account count check:
-
-```bash
-curl -s "https://main.d12mzah9vzl24s.amplifyapp.com/api/connectors/web-services/aws-bedrock/accounts" | jq '.accounts | length'
-```
-
-Expected: `1` or more on a fresh deploy (demo seed data).
