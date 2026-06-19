@@ -46,11 +46,14 @@ export default async function DashboardPage() {
           <code className="rounded bg-white px-1 dark:bg-zinc-950">
             $.accounts[*]
           </code>
-          . See{" "}
-          <span className="font-medium text-zinc-700 dark:text-zinc-300">
-            CONNECTOR_SETUP.md
-          </span>{" "}
-          for the ISC setup guide.
+          .{" "}
+          <Link
+            href="/setup"
+            className="font-medium text-zinc-700 underline underline-offset-2 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
+          >
+            SailPoint setup guide
+          </Link>{" "}
+          for ISC configuration.
         </p>
         {webServicesEndpoints.map((endpoint) => (
           <div
