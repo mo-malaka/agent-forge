@@ -43,8 +43,12 @@ export const createAgentSchema = z.object({
     .default({}),
   entitlements: z
     .array(z.string().trim().min(1))
-    .min(1, "At least one entitlement is required")
-    .max(50, "A maximum of 50 entitlements is allowed"),
+    .min(1, "At least one outbound access permission is required")
+    .max(50, "A maximum of 50 outbound permissions is allowed"),
+  inbound_access: z
+    .array(z.string().trim().min(1))
+    .max(20, "A maximum of 20 inbound callers is allowed")
+    .default([]),
 });
 
 export const listAgentsQuerySchema = z.object({
@@ -53,6 +57,12 @@ export const listAgentsQuerySchema = z.object({
   status: z.enum(["active", "inactive"]).optional(),
   archetype: archetypeSchema.optional(),
   deployment_provider: deploymentProviderSchema.optional(),
+});
+
+export const webServicesEntitlementsQuerySchema = z.object({
+  type: z.enum(["inbound", "outbound"]).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
 export const bulkCreateAgentsSchema = z.object({

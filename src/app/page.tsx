@@ -11,12 +11,14 @@ import {
   getProviderConnectorEndpoints,
   getRequestBaseUrl,
   getWebServicesAccountEndpoints,
+  getWebServicesEntitlementEndpoints,
 } from "@/lib/url";
 
 export default async function DashboardPage() {
   const baseUrl = await getRequestBaseUrl();
   const pollUrl = getPollUrl(baseUrl);
   const webServicesEndpoints = getWebServicesAccountEndpoints(baseUrl);
+  const entitlementEndpoints = getWebServicesEntitlementEndpoints(baseUrl);
   const referenceEndpoints = getProviderConnectorEndpoints(baseUrl);
   const { rows, total } = await listAgents({
     page: DEFAULT_PAGE,
@@ -70,6 +72,47 @@ export default async function DashboardPage() {
               </code>
             </div>
             <CopyButton value={endpoint.url} label="Copy" />
+          </div>
+        ))}
+      </section>
+
+      <section className="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
+        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+          Web Services entitlement endpoints
+        </p>
+        <p className="text-xs text-zinc-500">
+          Use root path{" "}
+          <code className="rounded bg-white px-1 dark:bg-zinc-950">
+            $.entitlements[*]
+          </code>
+          . Filter with{" "}
+          <code className="rounded bg-white px-1 dark:bg-zinc-950">
+            ?type=outbound
+          </code>{" "}
+          or{" "}
+          <code className="rounded bg-white px-1 dark:bg-zinc-950">
+            ?type=inbound
+          </code>{" "}
+          for separate ISC group aggregations.
+        </p>
+        {entitlementEndpoints.map((endpoint) => (
+          <div
+            key={endpoint.slug}
+            className="space-y-2 rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-950"
+          >
+            <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+              {endpoint.label}
+            </p>
+            <div className="flex items-center justify-between gap-3">
+              <code className="truncate text-sm text-zinc-800 dark:text-zinc-200">
+                {endpoint.url}
+              </code>
+              <CopyButton value={endpoint.url} label="Copy" />
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs">
+              <CopyButton value={endpoint.outboundUrl} label="Copy outbound" />
+              <CopyButton value={endpoint.inboundUrl} label="Copy inbound" />
+            </div>
           </div>
         ))}
       </section>

@@ -9,9 +9,9 @@ Connect AgentForge synthetic AI agents to Identity Security Cloud (ISC) using a 
 ## What you will set up
 
 1. A **Web Services SaaS** source in ISC
-2. **HTTP operations** for test connection and account aggregation
-3. **Account schema** and **correlation** settings
-4. Synthetic agent accounts visible under **Admin → Connections → Sources → Accounts**
+2. **HTTP operations** for test connection, account aggregation, entitlement aggregation, and machine identity aggregation
+3. **Account schema** with inbound/outbound access attributes
+4. Synthetic agent accounts and AI agent identities visible in ISC and **Identity Graph**
 
 ---
 
@@ -175,4 +175,124 @@ Optional attributes: `displayName`, `status`, `owner`, `platform`, `archetype`.
 
 You should see your synthetic agent (for example **DevOps-Bot-Prod**) with status **Enabled**.
 
+---
+
+## Step 6 — Inbound and outbound access (Option C)
+
+AgentForge exposes **outbound** access (what the agent can reach) and **inbound** access (who can invoke the agent). Use these for Identity Graph and Agent Identity Security demos.
+
+### Account payload fields
+
+Each account in `GET /api/connectors/web-services/{platform}/accounts` now includes:
+
+| Field | Direction | Example |
+|-------|-----------|---------|
+| `outboundPermissions` | Outbound | `["S3:Read", "Jira:Admin"]` |
+| `inboundCallers` | Inbound | `["invoke:engineering-team"]` |
+| `identityName` | Machine identity | Same as agent display name |
+
+**Sample account with access:**
+
+```json
+{
+  "accountId": "agt_demo_aws_bedrock",
+  "name": "DevOps-Bot-Prod",
+  "nativeIdentity": "arn:aws:bedrock:us-east-1:123456789012:agent/agt_demo_aws_bedrock",
+  "identityName": "DevOps-Bot-Prod",
+  "owner": "platform-ops@sailpoint.com",
+  "outboundPermissions": ["S3:Read", "Jira:Admin"],
+  "inboundCallers": ["invoke:engineering-team", "invoke:service-now-workflow"]
+}
+```
+
+### 6a — Mark access fields as entitlements on the account schema
+
+1. Go to **Account Management → Account Schema**
+2. Add multi-valued string attributes:
+   - `outboundPermissions` (entitlement type: **outbound** or **permission**)
+   - `inboundCallers` (entitlement type: **inbound** or **permission**)
+3. Map them in your **Account Aggregation** response mapping:
+
+| Schema attribute | Attribute path |
+|------------------|----------------|
+| `outboundPermissions` | `outboundPermissions` |
+| `inboundCallers` | `inboundCallers` |
+
+4. Re-run account aggregation
+
+### 6b — Entitlement catalog aggregation
+
+Add **Group Aggregation** HTTP operations for the entitlement catalog.
+
+| Platform | Context URL |
+|----------|-------------|
+| AWS Bedrock | `/api/connectors/web-services/aws-bedrock/entitlements` |
+| GCP Vertex | `/api/connectors/web-services/gcp-vertex/entitlements` |
+| Azure AI Foundry | `/api/connectors/web-services/azure-ai-foundry/entitlements` |
+
+**Root path:** `$.entitlements[*]`
+
+**Response mapping:**
+
+| Schema attribute | Attribute path |
+|------------------|----------------|
+| `entitlementId` | `entitlementId` |
+| `name` | `name` |
+| `accessDirection` | `accessDirection` |
+| `riskScore` | `riskScore` |
+
+Create **two entitlement types** in ISC (e.g. `outbound` and `inbound`), then add separate group aggregation operations:
+
+- Outbound catalog: `GET .../entitlements?type=outbound`
+- Inbound catalog: `GET .../entitlements?type=inbound`
+
+**Sample entitlement:**
+
+```json
+{
+  "entitlementId": "ent_s3_read",
+  "name": "S3:Read",
+  "accessDirection": "outbound",
+  "riskScore": 3
+}
+```
+
+### 6c — Machine identity aggregation (reuse accounts endpoint)
+
+You do **not** need a separate AgentForge URL for machine identities. Point **Machine Identity Aggregation** at the same accounts endpoint:
+
+| Field | Value |
+|-------|-------|
+| **Context URL** | `/api/connectors/web-services/aws-bedrock/accounts` |
+| **Root path** | `$.accounts[*]` |
+
+Map machine identity schema attributes:
+
+| Machine identity attribute | Account path |
+|----------------------------|--------------|
+| Native Identity | `nativeIdentity` |
+| Identity Name | `identityName` |
+| Owner | `owner` |
+
+Ensure `nativeIdentity` matches between account aggregation and machine identity aggregation so ISC correlates the AI agent identity to its source account.
+
+### 6d — Identity Graph demo flow
+
+1. Bulk-create agents in AgentForge (or use seed agents)
+2. Run **Machine Identity Aggregation** → agents appear under **Admin → Identities → AI Agents**
+3. Run **Account Aggregation** → correlate accounts to agent identities
+4. Run **Entitlement Aggregation** (outbound + inbound types)
+5. Open an AI agent → **View in Identity Graph**
+6. Show **outbound** path (agent → account → permissions) and **inbound** path (user entitlements → agent)
+
+---
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| No outbound/inbound on account | Re-run account aggregation after schema update; bulk-create new agents if testing locally |
+| Entitlement catalog empty | Ensure agents have `outboundPermissions` / `inboundCallers`; check `?type=` filter |
+| Agent not in Identity Graph | Run machine identity aggregation; confirm AIS is licensed |
+| Account not linked to agent | Verify `nativeIdentity` is identical on account and machine identity |
 

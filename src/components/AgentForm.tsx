@@ -34,6 +34,12 @@ const PROVIDER_DEFAULT_ENTITLEMENTS: Partial<
   azure_ai_foundry: ["CognitiveServices:OpenAI:User", "Storage:Blob:Read"],
 };
 
+const PROVIDER_DEFAULT_INBOUND: Partial<Record<DeploymentProvider, string[]>> = {
+  aws_bedrock: ["invoke:engineering-team", "invoke:service-now-workflow"],
+  gcp_vertex: ["invoke:slack-bot", "invoke:api-gateway"],
+  azure_ai_foundry: ["invoke:copilot-studio", "invoke:engineering-team"],
+};
+
 export function AgentForm() {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -46,6 +52,9 @@ export function AgentForm() {
   const [metadataRows, setMetadataRows] = useState(DEFAULT_METADATA_ROWS);
   const [entitlements, setEntitlements] = useState(
     PROVIDER_DEFAULT_ENTITLEMENTS.aws_bedrock ?? [],
+  );
+  const [inboundAccess, setInboundAccess] = useState(
+    PROVIDER_DEFAULT_INBOUND.aws_bedrock ?? [],
   );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -61,6 +70,7 @@ export function AgentForm() {
     setDeploymentProvider(nextProvider);
     setDeploymentConfig({});
     setEntitlements(PROVIDER_DEFAULT_ENTITLEMENTS[nextProvider] ?? []);
+    setInboundAccess(PROVIDER_DEFAULT_INBOUND[nextProvider] ?? []);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -79,6 +89,7 @@ export function AgentForm() {
           deployment_config: deploymentConfig,
           metadata: metadataRowsToRecord(metadataRows),
           entitlements,
+          inbound_access: inboundAccess,
         }),
       });
 
@@ -188,6 +199,18 @@ export function AgentForm() {
       <EntitlementsEditor
         entitlements={entitlements}
         onChange={setEntitlements}
+        label="Outbound access"
+        description="Systems and data the agent can reach (e.g. S3:Read, Jira:Admin)."
+        placeholder="e.g. S3:Read — press Enter or comma to add"
+      />
+
+      <EntitlementsEditor
+        entitlements={inboundAccess}
+        onChange={setInboundAccess}
+        label="Inbound access"
+        description="Principals that can invoke this agent (e.g. invoke:engineering-team)."
+        placeholder="e.g. invoke:engineering-team — press Enter or comma to add"
+        required={false}
       />
 
       {error ? (

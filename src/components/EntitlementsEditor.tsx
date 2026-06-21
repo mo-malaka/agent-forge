@@ -5,11 +5,19 @@ import { useState } from "react";
 interface EntitlementsEditorProps {
   entitlements: string[];
   onChange: (entitlements: string[]) => void;
+  label?: string;
+  description?: string;
+  placeholder?: string;
+  required?: boolean;
 }
 
 export function EntitlementsEditor({
   entitlements,
   onChange,
+  label = "IAM Entitlements",
+  description,
+  placeholder = "e.g. S3:Read — press Enter or comma to add",
+  required = true,
 }: EntitlementsEditorProps) {
   const [input, setInput] = useState("");
 
@@ -40,9 +48,14 @@ export function EntitlementsEditor({
 
   return (
     <div className="space-y-3">
-      <label className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-        IAM Entitlements
-      </label>
+      <div>
+        <label className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+          {label}
+        </label>
+        {description ? (
+          <p className="mt-1 text-xs text-zinc-500">{description}</p>
+        ) : null}
+      </div>
       <div className="flex gap-2">
         <input
           type="text"
@@ -54,7 +67,7 @@ export function EntitlementsEditor({
               addEntitlement(input);
             }
           }}
-          placeholder="e.g. S3:Read — press Enter or comma to add"
+          placeholder={placeholder}
           className="flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
         />
         <button
@@ -85,10 +98,12 @@ export function EntitlementsEditor({
             </span>
           ))}
         </div>
-      ) : (
+      ) : required ? (
         <p className="text-xs text-zinc-500">
           Add at least one permission or role (e.g. S3:Read, Jira:Admin).
         </p>
+      ) : (
+        <p className="text-xs text-zinc-500">Optional. Leave empty if not needed.</p>
       )}
     </div>
   );

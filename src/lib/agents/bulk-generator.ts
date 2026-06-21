@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 
 import { ARCHETYPE_VALUES, type Archetype } from "@/lib/constants";
+import { pickInboundCallers } from "@/lib/agents/access";
 import type { DeploymentProvider } from "@/lib/providers/profiles";
 import type { CreateAgentInput } from "@/types/agent";
 
@@ -112,6 +113,7 @@ export function generateRandomAgentInput(
       environment: "demo",
     },
     entitlements: uniqueEntitlements(archetype, provider),
+    inbound_access: pickInboundCallers(2),
   };
 }
 

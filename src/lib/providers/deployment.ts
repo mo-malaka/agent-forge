@@ -138,5 +138,6 @@ export function normalizeAgentRow(row: AgentRow): AgentRow {
     deploymentConfig: JSON.stringify(
       mergeDeploymentConfig(provider, parseConfig(row.deploymentConfig)),
     ),
+    inboundAccess: row.inboundAccess ?? "[]",
   };
 }

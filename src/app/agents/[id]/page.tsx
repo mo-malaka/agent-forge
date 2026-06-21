@@ -5,7 +5,8 @@ import { CopyButton } from "@/components/CopyButton";
 import { DeleteAgentButton } from "@/components/DeleteAgentButton";
 import { getAgentById } from "@/lib/agents/repository";
 import { serializeAgent } from "@/lib/agents/serializer";
-import { getPollUrl, getRequestBaseUrl } from "@/lib/url";
+import { getPollUrl, getRequestBaseUrl, getWebServicesEntitlementUrl } from "@/lib/url";
+import { DEPLOYMENT_PROVIDERS } from "@/lib/providers/profiles";
 
 interface AgentDetailPageProps {
   params: Promise<{ id: string }>;
@@ -23,6 +24,10 @@ export default async function AgentDetailPage({ params }: AgentDetailPageProps) 
   const agent = serializeAgent(row, baseUrl);
   const pollUrl = getPollUrl(baseUrl);
   const deployment = agent.deployment;
+  const entitlementUrl = getWebServicesEntitlementUrl(
+    DEPLOYMENT_PROVIDERS[deployment.provider].connectorSlug,
+    baseUrl,
+  );
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-8">
@@ -81,11 +86,17 @@ export default async function AgentDetailPage({ params }: AgentDetailPageProps) 
         </h2>
         <p className="text-xs text-zinc-500">
           Point your ISC Web Services source account aggregation at the platform
-          list URL. Root path: <code>$.accounts[*]</code>
+          list URL. Root path: <code>$.accounts[*]</code>. Accounts include{" "}
+          <code>outboundPermissions</code> and <code>inboundCallers</code> for
+          Identity Graph demos.
         </p>
         <EndpointRow
           label={`${deployment.provider_label} accounts`}
           value={agent.endpoints.web_services}
+        />
+        <EndpointRow
+          label={`${deployment.provider_label} entitlements`}
+          value={entitlementUrl}
         />
         <EndpointRow label="This agent" value={agent.endpoints.self} />
         <EndpointRow
@@ -122,22 +133,12 @@ export default async function AgentDetailPage({ params }: AgentDetailPageProps) 
           </dl>
         </InfoPanel>
 
-        <InfoPanel title="IAM Entitlements">
-          <ul className="space-y-2 text-sm">
-            {agent.iam.entitlements.map((entitlement) => (
-              <li
-                key={entitlement.id}
-                className="flex items-center justify-between rounded-md bg-zinc-50 px-3 py-2 dark:bg-zinc-900"
-              >
-                <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                  {entitlement.name}
-                </span>
-                <span className="text-xs text-zinc-500">
-                  risk {entitlement.risk_score}
-                </span>
-              </li>
-            ))}
-          </ul>
+        <InfoPanel title="Outbound access">
+          <AccessList items={agent.iam.outbound_access} emptyLabel="No outbound permissions." />
+        </InfoPanel>
+
+        <InfoPanel title="Inbound access" className="md:col-span-2">
+          <AccessList items={agent.iam.inbound_access} emptyLabel="No inbound callers configured." />
         </InfoPanel>
       </section>
     </div>
@@ -184,16 +185,48 @@ function DetailItem({
 function InfoPanel({
   title,
   children,
+  className = "",
 }: {
   title: string;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+    <section
+      className={`rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950 ${className}`}
+    >
       <h2 className="mb-4 text-sm font-medium text-zinc-900 dark:text-zinc-100">
         {title}
       </h2>
       {children}
     </section>
+  );
+}
+
+function AccessList({
+  items,
+  emptyLabel,
+}: {
+  items: Array<{ id: string; name: string; risk_score: number }>;
+  emptyLabel: string;
+}) {
+  if (items.length === 0) {
+    return <p className="text-sm text-zinc-500">{emptyLabel}</p>;
+  }
+
+  return (
+    <ul className="space-y-2 text-sm">
+      {items.map((item) => (
+        <li
+          key={item.id}
+          className="flex items-center justify-between rounded-md bg-zinc-50 px-3 py-2 dark:bg-zinc-900"
+        >
+          <span className="font-medium text-zinc-900 dark:text-zinc-100">
+            {item.name}
+          </span>
+          <span className="text-xs text-zinc-500">risk {item.risk_score}</span>
+        </li>
+      ))}
+    </ul>
   );
 }

@@ -9,6 +9,7 @@ import {
   removeAgent,
 } from "@/lib/db/store";
 import { generateRandomAgentBatch } from "@/lib/agents/bulk-generator";
+import { pickInboundCallers } from "@/lib/agents/access";
 import type { BulkCreateAgentsPayload } from "@/lib/validation/agent.schema";
 import { mergeDeploymentConfig } from "@/lib/providers/deployment";
 import type { CreateAgentInput, ListAgentsQuery } from "@/types/agent";
@@ -33,6 +34,7 @@ export async function createAgent(input: CreateAgentInput): Promise<AgentRow> {
     status: "active",
     metadata: JSON.stringify(input.metadata),
     entitlements: JSON.stringify(input.entitlements),
+    inboundAccess: JSON.stringify(input.inbound_access ?? []),
     createdAt: timestamp,
     updatedAt: timestamp,
     lastActiveAt: timestamp,
@@ -77,6 +79,7 @@ export async function createAgentsBulk(
       status: "active" as const,
       metadata: JSON.stringify(payload.metadata),
       entitlements: JSON.stringify(payload.entitlements),
+      inboundAccess: JSON.stringify(payload.inbound_access ?? []),
       createdAt: timestamp,
       updatedAt: timestamp,
       lastActiveAt: timestamp,

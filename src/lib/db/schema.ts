@@ -7,6 +7,7 @@ export interface AgentRow {
   status: string;
   metadata: string;
   entitlements: string;
+  inboundAccess: string;
   createdAt: string;
   updatedAt: string;
   lastActiveAt: string;

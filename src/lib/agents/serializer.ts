@@ -6,10 +6,18 @@ import {
 } from "@/lib/constants";
 import type { AgentRow } from "@/lib/db/schema";
 import { buildDeployment } from "@/lib/providers/deployment";
+import {
+  buildAccessEntitlementId,
+  getInboundAccess,
+  getOutboundAccess,
+  scoreInboundAccess,
+  slugifyAccessName,
+} from "@/lib/agents/access";
 import type {
   AgentDetailResponse,
   AgentListResponse,
   AgentMetadata,
+  SerializedAccessEntitlement,
   SerializedAgent,
   SerializedEntitlement,
 } from "@/types/agent";
@@ -66,25 +74,43 @@ function parseJsonRecord(value: string): AgentMetadata {
   }
 }
 
-function parseJsonStringArray(value: string): string[] {
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
+function parseOutboundAccess(name: string): SerializedAccessEntitlement {
+  const parsed = parseEntitlement(name);
 
-    return parsed.filter((item): item is string => typeof item === "string");
-  } catch {
-    return [];
-  }
+  return {
+    id: parsed.id,
+    name,
+    direction: "outbound",
+    type: parsed.type,
+    resource: parsed.resource,
+    action: parsed.action,
+    risk_score: parsed.risk_score,
+  };
 }
 
+function parseInboundAccess(name: string): SerializedAccessEntitlement {
+  const [prefix, principal = "unknown"] = name.split(":");
+  const action = slugifyAccessName(principal);
+
+  return {
+    id: buildAccessEntitlementId(name),
+    name,
+    direction: "inbound",
+    type: "caller",
+    resource: `invoke:${slugifyAccessName(prefix || "agent")}`,
+    action,
+    risk_score: scoreInboundAccess(name),
+  };
+}
 
 export function serializeAgent(row: AgentRow, baseUrl: string): SerializedAgent {
   const archetype = row.archetype as Archetype;
   const metadata = parseJsonRecord(row.metadata);
-  const entitlementNames = parseJsonStringArray(row.entitlements);
-  const entitlements = entitlementNames.map(parseEntitlement);
+  const outboundNames = getOutboundAccess(row);
+  const inboundNames = getInboundAccess(row);
+  const outboundAccess = outboundNames.map(parseOutboundAccess);
+  const inboundAccess = inboundNames.map(parseInboundAccess);
+  const entitlements = outboundNames.map(parseEntitlement);
   const deployment = buildDeployment(row, baseUrl);
 
   return {
@@ -104,13 +130,15 @@ export function serializeAgent(row: AgentRow, baseUrl: string): SerializedAgent 
     last_active_at: row.lastActiveAt,
     metadata,
     iam: {
+      outbound_access: outboundAccess,
+      inbound_access: inboundAccess,
       entitlements,
       roles: entitlements.filter((item) => item.type === "role").map((item) => item.action),
-      permissions_count: entitlements.length,
+      permissions_count: outboundAccess.length + inboundAccess.length,
     },
     governance: {
       classification: "internal",
-      data_access: entitlementNames.map((item) => item.split(":")[0]).filter(Boolean),
+      data_access: outboundNames.map((item) => item.split(":")[0]).filter(Boolean),
       compliance_tags: ["demo-only", deployment.provider],
     },
     endpoints: {

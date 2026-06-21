@@ -12,6 +12,7 @@ interface SeedAgent {
   deploymentConfig?: Record<string, string>;
   metadata: Record<string, string>;
   entitlements: string[];
+  inbound_access: string[];
 }
 
 const SEED_AGENTS: SeedAgent[] = [
@@ -32,6 +33,7 @@ const SEED_AGENTS: SeedAgent[] = [
       environment: "demo",
     },
     entitlements: ["S3:Read", "EC2:Describe", "Jira:Admin", "Bedrock:InvokeModel"],
+    inbound_access: ["invoke:engineering-team", "invoke:service-now-workflow"],
   },
   {
     id: "agt_demo_gcp_vertex",
@@ -50,6 +52,7 @@ const SEED_AGENTS: SeedAgent[] = [
       environment: "demo",
     },
     entitlements: ["Salesforce:Read", "Slack:Write", "VertexAI:User"],
+    inbound_access: ["invoke:slack-bot", "invoke:api-gateway"],
   },
   {
     id: "agt_demo_azure_foundry",
@@ -70,6 +73,7 @@ const SEED_AGENTS: SeedAgent[] = [
       environment: "demo",
     },
     entitlements: ["Workday:Read", "Slack:Read", "CognitiveServices:OpenAI:User"],
+    inbound_access: ["invoke:copilot-studio", "invoke:engineering-team"],
   },
 ];
 
@@ -85,6 +89,7 @@ export function buildSeedAgents(): NewAgentRow[] {
     status: "active",
     metadata: JSON.stringify(seed.metadata),
     entitlements: JSON.stringify(seed.entitlements),
+    inboundAccess: JSON.stringify(seed.inbound_access),
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     lastActiveAt: SEED_TIMESTAMP,

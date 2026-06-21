@@ -55,10 +55,11 @@ export function AgentCard({ agent }: AgentCardProps) {
         </div>
         <div>
           <dt className="text-xs uppercase tracking-wide text-zinc-500">
-            Entitlements
+            Access
           </dt>
           <dd className="mt-1 font-medium text-zinc-900 dark:text-zinc-100">
-            {agent.iam.permissions_count}
+            {agent.iam.outbound_access.length} out ·{" "}
+            {agent.iam.inbound_access.length} in
           </dd>
         </div>
         <div>

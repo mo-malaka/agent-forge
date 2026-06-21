@@ -42,6 +42,7 @@ function readStore(): AgentStoreFile {
             ...agent,
             deploymentProvider: agent.deploymentProvider ?? "aws_bedrock",
             deploymentConfig: agent.deploymentConfig ?? "{}",
+            inboundAccess: agent.inboundAccess ?? "[]",
           } as AgentRow),
         )
       : [],

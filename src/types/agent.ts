@@ -19,6 +19,16 @@ export interface SerializedEntitlement {
   risk_score: number;
 }
 
+export interface SerializedAccessEntitlement {
+  id: string;
+  name: string;
+  direction: "inbound" | "outbound";
+  type: "permission" | "role" | "caller";
+  resource: string;
+  action: string;
+  risk_score: number;
+}
+
 export interface SerializedAgent {
   id: string;
   external_id: string;
@@ -36,6 +46,8 @@ export interface SerializedAgent {
   last_active_at: string;
   metadata: AgentMetadata;
   iam: {
+    outbound_access: SerializedAccessEntitlement[];
+    inbound_access: SerializedAccessEntitlement[];
     entitlements: SerializedEntitlement[];
     roles: string[];
     permissions_count: number;
@@ -97,6 +109,7 @@ export interface CreateAgentInput {
   deployment_config?: DeploymentConfigInput;
   metadata: AgentMetadata;
   entitlements: string[];
+  inbound_access?: string[];
 }
 
 export interface ListAgentsQuery {

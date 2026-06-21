@@ -1,5 +1,9 @@
 import type { AgentRow } from "@/lib/db/schema";
 import { SCHEMA_VERSION } from "@/lib/constants";
+import {
+  getInboundAccess,
+  getOutboundAccess,
+} from "@/lib/agents/access";
 
 import { buildDeployment } from "./deployment";
 
@@ -15,12 +19,17 @@ export interface WebServicesAccount {
   accountId: string;
   name: string;
   displayName: string;
+  identityName: string;
   nativeIdentity: string;
   status: string;
   agentId: string;
   archetype: string;
   platform: string;
   owner?: string;
+  department?: string;
+  riskLevel?: string;
+  outboundPermissions: string[];
+  inboundCallers: string[];
   region?: string;
   location?: string;
   awsAccountId?: string;
@@ -50,22 +59,31 @@ function parseMetadata(value: string): Record<string, string> {
   }
 }
 
-function buildWebServicesAccount(row: AgentRow, baseUrl: string): WebServicesAccount {
+export function buildWebServicesAccount(
+  row: AgentRow,
+  baseUrl: string,
+): WebServicesAccount {
   const deployment = buildDeployment(row, baseUrl);
   const metadata = parseMetadata(row.metadata);
+  const outboundPermissions = getOutboundAccess(row);
+  const inboundCallers = getInboundAccess(row);
 
   const base: WebServicesAccount = {
-    // Short stable IDs — map Account ID / KeyID to accountId or id in ISC.
     id: row.id,
     accountId: row.id,
     name: row.name,
     displayName: row.name,
+    identityName: row.name,
     nativeIdentity: deployment.resource_id,
     status: deployment.native_status,
     agentId: row.id,
     archetype: row.archetype,
     platform: deployment.provider_label,
     owner: metadata.owner,
+    department: metadata.department,
+    riskLevel: metadata.risk_level,
+    outboundPermissions,
+    inboundCallers,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
