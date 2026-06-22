@@ -25,7 +25,6 @@ const OWNERS = [
   "demo-admin@sailpoint.com",
 ] as const;
 
-const AWS_REGIONS = ["us-east-1", "us-west-2", "eu-west-1"] as const;
 const GCP_LOCATIONS = ["us-central1", "us-east1", "europe-west1"] as const;
 const AZURE_LOCATIONS = ["eastus", "westus2", "westeurope"] as const;
 
@@ -66,7 +65,7 @@ function uniqueEntitlements(archetype: Archetype, provider: DeploymentProvider):
 function buildDeploymentConfig(provider: DeploymentProvider): Record<string, string> {
   if (provider === "aws_bedrock") {
     return {
-      region: pick(AWS_REGIONS),
+      region: "us-east-1",
       account_id: "123456789012",
     };
   }

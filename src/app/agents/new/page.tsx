@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { AgentForm } from "@/components/AgentForm";
 
 export default function NewAgentPage() {
@@ -8,8 +10,15 @@ export default function NewAgentPage() {
           Create Synthetic Agent
         </h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Configure agent metadata and entitlements. AgentForge exposes agents
-          through Web Services endpoints for your SailPoint connector.
+          Configure outbound permissions and inbound callers. AgentForge exposes
+          agents through Web Services endpoints for SailPoint AIS — see the{" "}
+          <Link
+            href="/setup"
+            className="font-medium text-zinc-700 underline underline-offset-2 hover:text-zinc-900 dark:text-zinc-300"
+          >
+            setup guide
+          </Link>
+          .
         </p>
       </div>
 

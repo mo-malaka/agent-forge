@@ -35,8 +35,16 @@ export default async function DashboardPage() {
           Active Synthetic Agents
         </h1>
         <p className="max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">
-          Mock agents for SailPoint demos. Point a Web Services SaaS source in
-          ISC at the account endpoints below — no real cloud connection required.
+          Mock agents for SailPoint demos — inbound and outbound access via Web
+          Services SaaS. Copy endpoints below or bulk-create agents, then follow
+          the{" "}
+          <Link
+            href="/setup"
+            className="font-medium text-zinc-700 underline underline-offset-2 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
+          >
+            setup guide
+          </Link>{" "}
+          to demo on AI Agent → Access in ISC.
         </p>
       </section>
 
