@@ -97,3 +97,39 @@ export function getWebServicesEntitlementEndpoints(baseUrl: string) {
     inboundUrl: `${getWebServicesEntitlementUrl(profile.connectorSlug, baseUrl)}?type=inbound`,
   }));
 }
+
+function getWebServicesProvisionUrl(
+  slug: string,
+  operation: string,
+  baseUrl?: string,
+): string {
+  return `${baseUrl ?? resolveBaseUrl()}/api/connectors/web-services/${slug}/provision/${operation}`;
+}
+
+export function getWebServicesProvisionEndpoints(baseUrl: string) {
+  return Object.values(DEPLOYMENT_PROVIDERS).map((profile) => ({
+    label: profile.label,
+    slug: profile.connectorSlug,
+    addEntitlementUrl: getWebServicesProvisionUrl(
+      profile.connectorSlug,
+      "add-entitlement",
+      baseUrl,
+    ),
+    removeEntitlementUrl: getWebServicesProvisionUrl(
+      profile.connectorSlug,
+      "remove-entitlement",
+      baseUrl,
+    ),
+    disableAccountUrl: getWebServicesProvisionUrl(
+      profile.connectorSlug,
+      "disable-account",
+      baseUrl,
+    ),
+    enableAccountUrl: getWebServicesProvisionUrl(
+      profile.connectorSlug,
+      "enable-account",
+      baseUrl,
+    ),
+    getAccountUrl: `${baseUrl}/api/connectors/web-services/${profile.connectorSlug}/account`,
+  }));
+}

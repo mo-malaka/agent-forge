@@ -60,6 +60,7 @@ export interface SerializedAgent {
   endpoints: {
     self: string;
     entitlements: string;
+    authorize: string;
     web_services: string;
     reference_api: string;
   };

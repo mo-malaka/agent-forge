@@ -144,6 +144,7 @@ export function serializeAgent(row: AgentRow, baseUrl: string): SerializedAgent 
     endpoints: {
       self: `${baseUrl}/api/agents/${row.id}`,
       entitlements: `${baseUrl}/api/agents/${row.id}/entitlements`,
+      authorize: `${baseUrl}/api/agents/${row.id}/authorize`,
       web_services: deployment.web_services_endpoint,
       reference_api: deployment.reference_api,
     },

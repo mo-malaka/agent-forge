@@ -11,6 +11,8 @@ Create mock agents with **inbound** and **outbound** access, then expose them th
 - **Web UI** — create agents with outbound permissions and inbound callers; bulk-create 5/10/20 per platform
 - **Web Services accounts API** — `accounts[]` with `outboundPermissions` and `inboundCallers` for ISC account aggregation
 - **Web Services entitlements API** — entitlement catalog for group aggregation (`?type=outbound` / `?type=inbound`)
+- **Provisioning API** — ISC write-back for add/remove entitlement and disable/enable account
+- **Authorize API** — runtime allow/deny against effective inbound/outbound access
 - **Machine identity** — reuse the accounts endpoint for machine identity aggregation (same `nativeIdentity` ARN)
 - **Reference API** — optional cloud-native JSON shapes (Bedrock, Vertex, Foundry)
 
@@ -79,9 +81,26 @@ curl -s -X POST http://127.0.0.1:3000/api/agents \
 | `POST` | `/api/agents` | Create a synthetic agent |
 | `POST` | `/api/agents/bulk` | Bulk create 5, 10, or 20 random agents |
 | `GET` | `/api/agents/{id}` | Get a single agent |
+| `PATCH` | `/api/agents/{id}` | Update status or access lists |
+| `POST` | `/api/agents/{id}/authorize` | Assert access → allow/deny |
 | `DELETE` | `/api/agents/{id}` | Remove an agent |
 | `GET` | `/api/connectors/web-services/{platform}/accounts` | ISC account aggregation |
 | `GET` | `/api/connectors/web-services/{platform}/entitlements` | ISC entitlement catalog |
+| `POST` | `/api/connectors/web-services/{platform}/provision/*` | ISC provisioning (add/remove/disable) |
+
+### Authorize (runtime enforcement)
+
+```bash
+curl -s -X POST http://127.0.0.1:3000/api/agents/{id}/authorize \
+  -H "Content-Type: application/json" \
+  -d '{
+    "principal": "jane.doe@sailpoint.com",
+    "direction": "outbound",
+    "permission": "S3:Read"
+  }' | jq
+```
+
+Returns `decision: "allow"` (HTTP 200) or `decision: "deny"` (HTTP 403) with `effective_access` and `policy`.
 
 ## Configuration
 

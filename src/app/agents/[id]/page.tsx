@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { CopyButton } from "@/components/CopyButton";
 import { DeleteAgentButton } from "@/components/DeleteAgentButton";
+import { SimulateAccessPanel } from "@/components/SimulateAccessPanel";
 import { getAgentById } from "@/lib/agents/repository";
 import { serializeAgent } from "@/lib/agents/serializer";
 import { getPollUrl, getRequestBaseUrl, getWebServicesEntitlementUrl } from "@/lib/url";
@@ -103,7 +104,17 @@ export default async function AgentDetailPage({ params }: AgentDetailPageProps) 
           label="Entitlements"
           value={agent.endpoints.entitlements}
         />
+        <EndpointRow label="Authorize" value={agent.endpoints.authorize} />
       </section>
+
+      <SimulateAccessPanel
+        agentId={agent.id}
+        agentName={agent.name}
+        authorizeUrl={agent.endpoints.authorize}
+        outboundPermissions={agent.iam.outbound_access.map((item) => item.name)}
+        inboundCallers={agent.iam.inbound_access.map((item) => item.name)}
+        status={agent.status}
+      />
 
       <section className="space-y-3 rounded-lg border border-dashed border-zinc-300 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-950">
         <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">

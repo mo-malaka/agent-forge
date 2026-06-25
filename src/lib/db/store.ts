@@ -122,3 +122,34 @@ export function removeAgent(id: string): boolean {
   writeStore({ agents: nextAgents });
   return true;
 }
+
+export function updateAgent(
+  id: string,
+  patch: Partial<
+    Pick<
+      AgentRow,
+      | "status"
+      | "entitlements"
+      | "inboundAccess"
+      | "metadata"
+      | "updatedAt"
+      | "lastActiveAt"
+    >
+  >,
+): AgentRow | null {
+  const store = readStore();
+  const index = store.agents.findIndex((agent) => agent.id === id);
+
+  if (index === -1) {
+    return null;
+  }
+
+  const updated = normalizeAgentRow({
+    ...store.agents[index]!,
+    ...patch,
+  });
+
+  store.agents[index] = updated;
+  writeStore(store);
+  return updated;
+}

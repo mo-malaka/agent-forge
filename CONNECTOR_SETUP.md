@@ -15,8 +15,12 @@ Connect AgentForge synthetic AI agents to Identity Security Cloud (ISC) using a 
 | **Inbound access** | Who can invoke the agent (`invoke:engineering-team`) | **AI Agent → Access** (`inboundCallers`) |
 | **Agent identity** | The governed AI agent | **Admin → Identities → AI Agents** |
 | **Source account** | The connector account backing the agent | **Sources → Accounts** |
+| **Provisioning** | ISC applies access changes back to AgentForge | **Access profiles / certifications → provisioning** |
+| **Authorization** | Runtime allow/deny against effective access | **AgentForge authorize API + simulate panel** |
 
 **Primary demo screen:** **AI Agent → Access** (not Identity Graph). Identity Graph is optional; Web Services account entitlements often appear on the Access tab but not as expandable nodes on the agent-root graph.
+
+After provisioning, re-run **account aggregation** so ISC reflects updated entitlements or disabled status.
 
 ---
 
@@ -342,6 +346,224 @@ Show: `invoke:engineering-team`, `invoke:service-now-workflow` (attribute `inbou
 
 ---
 
+## Part I — Provisioning (add/remove entitlement, disable agent)
+
+AgentForge implements **write-back** so ISC provisioning plans can change agent access and status. After a provision completes, re-run **account aggregation** on the source.
+
+### I1 — HTTP operations to add
+
+Go to **Source Setup → HTTP Operations** and create **five** additional operations (same base URL as aggregation).
+
+#### Add Entitlement — outboundPermissions
+
+| Field | Value |
+|-------|-------|
+| **Operation Type** | **Add Entitlement - outboundPermissions** |
+| **Context URL** | `/api/connectors/web-services/aws-bedrock/provision/add-entitlement` |
+| **HTTP Method** | `POST` |
+| **Content-Type** | `application/json` |
+
+**Request body mapping** (ISC plan variables):
+
+| Body field | Value |
+|------------|-------|
+| `nativeIdentity` | `$plan.nativeIdentity$` |
+| `accountId` | `$plan.accountId$` |
+| `outboundPermissions` | `$plan.outboundPermissions$` |
+
+AgentForge also accepts `entitlement` + `entitlementType: outboundPermissions`.
+
+#### Add Entitlement — inboundCallers
+
+| Field | Value |
+|-------|-------|
+| **Operation Type** | **Add Entitlement - inboundCallers** |
+| **Context URL** | `/api/connectors/web-services/aws-bedrock/provision/add-entitlement` |
+| **HTTP Method** | `POST` |
+
+| Body field | Value |
+|------------|-------|
+| `nativeIdentity` | `$plan.nativeIdentity$` |
+| `inboundCallers` | `$plan.inboundCallers$` |
+
+#### Remove Entitlement — outboundPermissions / inboundCallers
+
+| Operation Type | Context URL |
+|----------------|-------------|
+| **Remove Entitlement - outboundPermissions** | `/api/connectors/web-services/aws-bedrock/provision/remove-entitlement` |
+| **Remove Entitlement - inboundCallers** | `/api/connectors/web-services/aws-bedrock/provision/remove-entitlement` |
+
+Same body mapping as add, using the entitlement attribute being removed.
+
+#### Disable Account
+
+| Field | Value |
+|-------|-------|
+| **Operation Type** | **Disable Account** |
+| **Context URL** | `/api/connectors/web-services/aws-bedrock/provision/disable-account` |
+| **HTTP Method** | `POST` |
+
+| Body field | Value |
+|------------|-------|
+| `nativeIdentity` | `$plan.nativeIdentity$` |
+| `accountId` | `$plan.accountId$` |
+
+Sets agent status to **inactive**. Account aggregation returns platform-native disabled status (`FAILED` on Bedrock, `DELETED` on Vertex, `Failed` on Azure).
+
+#### Enable Account (optional)
+
+| Field | Value |
+|-------|-------|
+| **Operation Type** | **Enable Account** |
+| **Context URL** | `/api/connectors/web-services/aws-bedrock/provision/enable-account` |
+| **HTTP Method** | `POST` |
+
+Same body as disable. Restores `active` status.
+
+#### Get Object (optional)
+
+| Field | Value |
+|-------|-------|
+| **Operation Type** | **Get Object** |
+| **Context URL** | `/api/connectors/web-services/aws-bedrock/account?nativeIdentity=$plan.nativeIdentity$` |
+| **HTTP Method** | `GET` |
+
+Root path: `$.account` or `$.object`.
+
+### I2 — Test provisioning with curl
+
+Replace `NATIVE_IDENTITY` with an agent ARN from account aggregation:
+
+```bash
+# Add outbound permission
+curl -s -X POST https://main.d12mzah9vzl24s.amplifyapp.com/api/connectors/web-services/aws-bedrock/provision/add-entitlement \
+  -H "Content-Type: application/json" \
+  -d '{"nativeIdentity":"NATIVE_IDENTITY","outboundPermissions":"DynamoDB:Read"}'
+
+# Remove outbound permission
+curl -s -X POST https://main.d12mzah9vzl24s.amplifyapp.com/api/connectors/web-services/aws-bedrock/provision/remove-entitlement \
+  -H "Content-Type: application/json" \
+  -d '{"nativeIdentity":"NATIVE_IDENTITY","outboundPermissions":"Jira:Admin"}'
+
+# Disable agent account
+curl -s -X POST https://main.d12mzah9vzl24s.amplifyapp.com/api/connectors/web-services/aws-bedrock/provision/disable-account \
+  -H "Content-Type: application/json" \
+  -d '{"nativeIdentity":"NATIVE_IDENTITY"}'
+```
+
+Successful responses include `success: true` and an updated `account` object.
+
+### I3 — Demo flow with ISC
+
+1. Create an **access profile** with outbound entitlements (e.g. add `DynamoDB:Read`)
+2. Assign the profile to a user and provision to the linked AI agent account
+3. Re-run **account aggregation**
+4. Open **AI Agent → Access** — new outbound permission appears
+5. Run a **certification** or manual revoke to remove `Jira:Admin`
+6. Re-aggregate — permission disappears on the Access tab
+7. **Disable** the account via provisioning — account shows disabled in **Sources → Accounts**
+
+### I4 — Direct AgentForge API (optional)
+
+`PATCH /api/agents/{id}` accepts:
+
+```json
+{
+  "status": "inactive",
+  "entitlements": ["S3:Read", "EC2:Describe"],
+  "inbound_access": ["invoke:engineering-team"]
+}
+```
+
+Useful for local testing without ISC.
+
+---
+
+## Part J — Simulate authorization (Phase 3)
+
+AgentForge evaluates **effective access** at runtime: assert a principal and requested permission, get **allow** or **deny**. This simulates enforcement after ISC governance — without connecting to real cloud APIs.
+
+### J1 — Authorize API
+
+```
+POST /api/agents/{id}/authorize
+```
+
+**Outbound** (what the agent can reach):
+
+```json
+{
+  "principal": "DevOps-Bot-Prod",
+  "direction": "outbound",
+  "resource": "S3",
+  "action": "Read"
+}
+```
+
+Or use a full permission string:
+
+```json
+{
+  "principal": "DevOps-Bot-Prod",
+  "direction": "outbound",
+  "permission": "S3:Read"
+}
+```
+
+**Inbound** (who can invoke the agent):
+
+```json
+{
+  "principal": "jane.doe@sailpoint.com",
+  "direction": "inbound",
+  "action": "invoke",
+  "caller": "invoke:engineering-team"
+}
+```
+
+### J2 — Evaluation rules
+
+| Check | Result |
+|-------|--------|
+| Agent `status` is `inactive` | **deny** (`agent_disabled`) |
+| Outbound: `Resource:Action` not in `outboundPermissions` | **deny** (`agent_outbound_allowlist`) |
+| Inbound: `caller` not in `inboundCallers` | **deny** (`agent_inbound_allowlist`) |
+| Match found | **allow** |
+
+Responses use HTTP **200** for allow and **403** for deny. The JSON body always includes `decision`, `reason`, `policy`, and `effective_access`.
+
+### J3 — Demo flow (govern → provision → enforce)
+
+1. **Before revoke:** authorize `S3:Read` → **allow**
+2. **Certify / revoke** `Jira:Admin` in ISC → provisioning removes it → re-aggregate
+3. Authorize `Jira:Admin` → **deny** (no longer in effective outbound)
+4. **Disable** agent via provisioning → authorize any request → **deny** (`agent_disabled`)
+
+```bash
+AGENT_ID=agt_xxx
+
+# Allow outbound read
+curl -s -X POST https://main.d12mzah9vzl24s.amplifyapp.com/api/agents/$AGENT_ID/authorize \
+  -H "Content-Type: application/json" \
+  -d '{"principal":"DevOps-Bot-Prod","direction":"outbound","permission":"S3:Read"}'
+
+# Deny after revoke
+curl -s -X POST https://main.d12mzah9vzl24s.amplifyapp.com/api/agents/$AGENT_ID/authorize \
+  -H "Content-Type: application/json" \
+  -d '{"principal":"DevOps-Bot-Prod","direction":"outbound","permission":"Jira:Admin"}'
+
+# Inbound allow
+curl -s -X POST https://main.d12mzah9vzl24s.amplifyapp.com/api/agents/$AGENT_ID/authorize \
+  -H "Content-Type: application/json" \
+  -d '{"principal":"jane.doe@sailpoint.com","direction":"inbound","caller":"invoke:engineering-team"}'
+```
+
+### J4 — UI simulate panel
+
+Open any agent detail page in AgentForge. The **Simulate authorization** panel lets you pick inbound/outbound, principal, and permission — then shows allow/deny with policy and matched entitlement.
+
+---
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
@@ -357,6 +579,9 @@ Show: `invoke:engineering-team`, `invoke:service-now-workflow` (attribute `inbou
 | Graph *Filter Returned No Results* | Bad Account ID filter | Clear filters in Explorer |
 | 0 accounts in aggregation | Wrong URL or root path | `$.accounts[*]`; platform-specific path |
 | KeyID / 0 accounts (ISC) | Wrong endpoint | Use Web Services `/accounts`, not `/connectors/aws-bedrock/agents` |
+| Provision succeeds but ISC unchanged | No re-aggregation | Re-run account aggregation after provision |
+| Provision 404 | Wrong platform URL or nativeIdentity | Match source platform path; use ARN from account agg |
+| Remove entitlement 404 | Value not on agent | Confirm exact entitlement string (`S3:Read` vs `S3 Read`) |
 
 ---
 
@@ -385,5 +610,8 @@ Show: `invoke:engineering-team`, `invoke:service-now-workflow` (attribute `inbou
 ☐ Account shows Entitlement Assignments (6 items)
 ☐ AI Agent linked to source account
 ☐ AI Agent → Access shows inbound + outbound
+☐ Provisioning HTTP ops: add/remove entitlement, disable account
+☐ Provision test: add entitlement → re-aggregate → Access tab updated
+☐ Authorize API: allow known permission, deny revoked/disabled
 ☐ Demo!
 ```

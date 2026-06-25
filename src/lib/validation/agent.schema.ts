@@ -70,7 +70,62 @@ export const bulkCreateAgentsSchema = z.object({
   count: z.union([z.literal(5), z.literal(10), z.literal(20)]),
 });
 
+export const entitlementAttributeSchema = z.enum([
+  "outboundPermissions",
+  "inboundCallers",
+]);
+
+export const provisionAccountRefSchema = z
+  .object({
+    accountId: z.string().trim().min(1).optional(),
+    nativeIdentity: z.string().trim().min(1).optional(),
+    id: z.string().trim().min(1).optional(),
+  })
+  .refine((value) => Boolean(value.accountId || value.nativeIdentity || value.id), {
+    message: "accountId, nativeIdentity, or id is required",
+  });
+
+export const provisionEntitlementBodySchema = provisionAccountRefSchema.and(
+  z.object({
+    entitlement: z.string().trim().min(1).optional(),
+    entitlementType: entitlementAttributeSchema.optional(),
+    outboundPermissions: z
+      .union([z.string().trim().min(1), z.array(z.string().trim().min(1))])
+      .optional(),
+    inboundCallers: z
+      .union([z.string().trim().min(1), z.array(z.string().trim().min(1))])
+      .optional(),
+  }),
+);
+
+export const provisionAccountStatusBodySchema = provisionAccountRefSchema;
+
+export const updateAgentSchema = z
+  .object({
+    status: z.enum(["active", "inactive"]).optional(),
+    entitlements: z.array(z.string().trim().min(1)).max(50).optional(),
+    inbound_access: z.array(z.string().trim().min(1)).max(20).optional(),
+  })
+  .refine(
+    (value) =>
+      value.status !== undefined ||
+      value.entitlements !== undefined ||
+      value.inbound_access !== undefined,
+    { message: "At least one field must be provided" },
+  );
+
+export const getProvisionAccountQuerySchema = z
+  .object({
+    accountId: z.string().trim().min(1).optional(),
+    nativeIdentity: z.string().trim().min(1).optional(),
+    id: z.string().trim().min(1).optional(),
+  })
+  .refine((value) => Boolean(value.accountId || value.nativeIdentity || value.id), {
+    message: "accountId, nativeIdentity, or id is required",
+  });
+
 export type BulkCreateAgentsPayload = z.infer<typeof bulkCreateAgentsSchema>;
 
 export type CreateAgentPayload = z.infer<typeof createAgentSchema>;
 export type ListAgentsQueryPayload = z.infer<typeof listAgentsQuerySchema>;
+export type UpdateAgentPayload = z.infer<typeof updateAgentSchema>;

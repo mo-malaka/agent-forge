@@ -12,6 +12,7 @@ import {
   getRequestBaseUrl,
   getWebServicesAccountEndpoints,
   getWebServicesEntitlementEndpoints,
+  getWebServicesProvisionEndpoints,
 } from "@/lib/url";
 
 export default async function DashboardPage() {
@@ -19,6 +20,7 @@ export default async function DashboardPage() {
   const pollUrl = getPollUrl(baseUrl);
   const webServicesEndpoints = getWebServicesAccountEndpoints(baseUrl);
   const entitlementEndpoints = getWebServicesEntitlementEndpoints(baseUrl);
+  const provisionEndpoints = getWebServicesProvisionEndpoints(baseUrl);
   const referenceEndpoints = getProviderConnectorEndpoints(baseUrl);
   const { rows, total } = await listAgents({
     page: DEFAULT_PAGE,
@@ -36,8 +38,8 @@ export default async function DashboardPage() {
         </h1>
         <p className="max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">
           Mock agents for SailPoint demos — inbound and outbound access via Web
-          Services SaaS. Copy endpoints below or bulk-create agents, then follow
-          the{" "}
+          Services SaaS, provisioning write-back, and runtime authorization.
+          Copy endpoints below or bulk-create agents, then follow the{" "}
           <Link
             href="/setup"
             className="font-medium text-zinc-700 underline underline-offset-2 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
@@ -120,6 +122,63 @@ export default async function DashboardPage() {
             <div className="flex flex-wrap gap-2 text-xs">
               <CopyButton value={endpoint.outboundUrl} label="Copy outbound" />
               <CopyButton value={endpoint.inboundUrl} label="Copy inbound" />
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <section className="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
+        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+          Web Services provisioning endpoints
+        </p>
+        <p className="text-xs text-zinc-500">
+          ISC HTTP operations for add/remove entitlement and disable/enable
+          account. POST JSON with{" "}
+          <code className="rounded bg-white px-1 dark:bg-zinc-950">
+            nativeIdentity
+          </code>{" "}
+          or{" "}
+          <code className="rounded bg-white px-1 dark:bg-zinc-950">
+            accountId
+          </code>
+          .
+        </p>
+        {provisionEndpoints.map((endpoint) => (
+          <div
+            key={endpoint.slug}
+            className="space-y-2 rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-950"
+          >
+            <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+              {endpoint.label}
+            </p>
+            <div className="space-y-1 text-xs">
+              <div className="flex items-center justify-between gap-3">
+                <code className="truncate text-zinc-800 dark:text-zinc-200">
+                  Add entitlement: {endpoint.addEntitlementUrl}
+                </code>
+                <CopyButton value={endpoint.addEntitlementUrl} label="Copy" />
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <code className="truncate text-zinc-800 dark:text-zinc-200">
+                  Remove entitlement: {endpoint.removeEntitlementUrl}
+                </code>
+                <CopyButton
+                  value={endpoint.removeEntitlementUrl}
+                  label="Copy"
+                />
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <code className="truncate text-zinc-800 dark:text-zinc-200">
+                  Disable account: {endpoint.disableAccountUrl}
+                </code>
+                <CopyButton value={endpoint.disableAccountUrl} label="Copy" />
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <code className="truncate text-zinc-800 dark:text-zinc-200">
+                  Get account: {endpoint.getAccountUrl}
+                </code>
+                <CopyButton value={endpoint.getAccountUrl} label="Copy" />
+              </div>
             </div>
           </div>
         ))}
