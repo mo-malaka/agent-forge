@@ -21,6 +21,13 @@ export async function startEntitlementAggregation(
   return toAggregationResult(raw);
 }
 
+/** ISC API triggers the default "Group Aggregation" operation only (not typed ops). */
+export async function startOutboundEntitlementAggregation(
+  config: IscConfig,
+): Promise<AggregationStartResult> {
+  return startEntitlementAggregation(config);
+}
+
 export async function startMachineIdentityAggregation(
   config: IscConfig,
   schemas: string[] = ["bedrock-agent"],

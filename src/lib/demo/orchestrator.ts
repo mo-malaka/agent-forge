@@ -9,7 +9,7 @@ import { DEMO_STEPS, type DemoStepId } from "@/lib/demo/steps";
 import { getIscConfig } from "@/lib/isc/config";
 import {
   startAccountAggregation,
-  startEntitlementAggregation,
+  startOutboundEntitlementAggregation,
   startMachineIdentityAggregation,
   updateMachineAccountMappings,
   verifySourceData,
@@ -19,7 +19,7 @@ import type { DemoStepPayload } from "@/lib/validation/demo.schema";
 
 export interface DemoStepResult {
   step: DemoStepId;
-  status: "completed" | "started";
+  status: "completed" | "started" | "manual";
   message: string;
   system: "agentforge" | "isc";
   taskId: string | null;
@@ -79,18 +79,36 @@ export async function runDemoStep(
       };
     }
 
-    case "entitlement-aggregation": {
+    case "entitlement-aggregation":
+    case "entitlement-aggregation-outbound": {
       const config = requireIscConfig();
-      const started = await startEntitlementAggregation(config);
+      const started = await startOutboundEntitlementAggregation(config);
 
       return {
         step: payload.step,
         status: "started",
         message:
-          "Entitlement aggregation started. Run again for a second entitlement type if needed.",
+          "Outbound entitlement aggregation started (ISC API uses Group Aggregation HTTP op)",
         system,
         taskId: started.taskId,
         result: started.raw,
+      };
+    }
+
+    case "entitlement-aggregation-inbound": {
+      return {
+        step: payload.step,
+        status: "manual",
+        message:
+          "Run in ISC: Source → Entitlement Aggregation → Specific Types → inboundCallers → Start Aggregation. Then continue the remaining steps.",
+        system,
+        taskId: null,
+        result: {
+          manual: true,
+          entitlementType: "inboundCallers",
+          uiPath:
+            "Source → Entitlement Aggregation → Specific Types → inboundCallers",
+        },
       };
     }
 

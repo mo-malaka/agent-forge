@@ -15,7 +15,7 @@ import {
   type DeploymentProvider,
 } from "@/lib/providers/profiles";
 
-type LogStatus = "pending" | "running" | "waiting" | "success" | "error";
+type LogStatus = "pending" | "running" | "waiting" | "success" | "error" | "manual";
 
 interface LogEntry {
   id: string;
@@ -27,7 +27,7 @@ interface LogEntry {
 
 interface DemoStepResponse {
   step: DemoStepId;
-  status: "completed" | "started";
+  status: "completed" | "started" | "manual";
   message: string;
   system: "agentforge" | "isc";
   taskId: string | null;
@@ -109,8 +109,14 @@ async function pollTask(taskId: string, onTick: (message: string) => void) {
       complete?: boolean;
       successful?: boolean;
       label?: string;
+      errorDetail?: string | null;
       error?: string;
-      status?: { completionStatus?: string; progress?: string; name?: string };
+      status?: {
+        completionStatus?: string;
+        progress?: string;
+        name?: string;
+        errors?: unknown[];
+      };
     };
 
     if (!response.ok) {
@@ -127,8 +133,15 @@ async function pollTask(taskId: string, onTick: (message: string) => void) {
 
     if (body.complete) {
       if (!body.successful) {
+        const detail =
+          body.errorDetail ??
+          (Array.isArray(body.status?.errors) && body.status.errors.length > 0
+            ? JSON.stringify(body.status.errors[0])
+            : null);
         throw new Error(
-          `ISC task failed: ${body.status?.completionStatus ?? statusLabel}`,
+          detail
+            ? `ISC task failed: ${body.status?.completionStatus ?? statusLabel} — ${detail}`
+            : `ISC task failed: ${body.status?.completionStatus ?? statusLabel}`,
         );
       }
       return;
@@ -213,6 +226,14 @@ export function DemoOrchestratorPanel() {
       });
     }
 
+    if (body.status === "manual") {
+      updateLog(logId, {
+        status: "manual",
+        message: body.message,
+      });
+      return;
+    }
+
     updateLog(logId, {
       status: "success",
       message: body.message,
@@ -228,12 +249,6 @@ export function DemoOrchestratorPanel() {
     setRunningMode(mode);
 
     const steps = [...DEMO_MODES[mode].steps];
-    if (mode === "full-sync") {
-      const entitlementIndex = steps.indexOf("entitlement-aggregation");
-      if (entitlementIndex !== -1) {
-        steps.splice(entitlementIndex + 1, 0, "entitlement-aggregation");
-      }
-    }
 
     const initialLogs: LogEntry[] = steps.map((step, index) => ({
       id: `${step}-${index}`,
@@ -424,6 +439,8 @@ export function DemoOrchestratorPanel() {
                 className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
                   entry.status === "success"
                     ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+                    : entry.status === "manual"
+                      ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200"
                     : entry.status === "error"
                       ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200"
                       : entry.status === "running" || entry.status === "waiting"
@@ -448,9 +465,9 @@ export function DemoOrchestratorPanel() {
       ) : null}
 
       <p className="text-xs text-zinc-500">
-        Full sync runs entitlement aggregation twice (outbound + inbound). Govern
-        + enforce revokes via AgentForge directly, then re-aggregates accounts in
-        ISC.
+        Outbound entitlement aggregation uses the ISC API (requires a{" "}
+        <strong>Group Aggregation</strong> HTTP op). Inbound must be started
+        manually in ISC under Specific Types → inboundCallers.
       </p>
     </section>
   );

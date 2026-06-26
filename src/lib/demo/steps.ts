@@ -1,6 +1,8 @@
 export const DEMO_STEP_IDS = [
   "bulk-create",
   "entitlement-aggregation",
+  "entitlement-aggregation-outbound",
+  "entitlement-aggregation-inbound",
   "machine-identity-aggregation",
   "account-aggregation",
   "machine-account-mappings",
@@ -31,8 +33,23 @@ export const DEMO_STEPS: Record<DemoStepId, DemoStepDefinition> = {
   },
   "entitlement-aggregation": {
     id: "entitlement-aggregation",
-    label: "Entitlement aggregation",
-    description: "Sync entitlement catalog from AgentForge into ISC",
+    label: "Entitlement aggregation (outbound)",
+    description:
+      "Sync outbound entitlement catalog via ISC API (requires Group Aggregation HTTP op)",
+    system: "isc",
+  },
+  "entitlement-aggregation-outbound": {
+    id: "entitlement-aggregation-outbound",
+    label: "Entitlement aggregation (outbound)",
+    description:
+      "Sync outboundPermissions catalog via ISC API (requires Group Aggregation HTTP op)",
+    system: "isc",
+  },
+  "entitlement-aggregation-inbound": {
+    id: "entitlement-aggregation-inbound",
+    label: "Entitlement aggregation (inbound)",
+    description:
+      "Sync inboundCallers catalog — run manually in ISC (Specific Types → inboundCallers)",
     system: "isc",
   },
   "machine-identity-aggregation": {
@@ -95,7 +112,8 @@ export const DEMO_MODES: Record<
     description: "Discover agents, entitlements, and machine identity links in ISC",
     steps: [
       "bulk-create",
-      "entitlement-aggregation",
+      "entitlement-aggregation-outbound",
+      "entitlement-aggregation-inbound",
       "machine-identity-aggregation",
       "account-aggregation",
       "machine-account-mappings",

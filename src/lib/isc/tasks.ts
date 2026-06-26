@@ -90,3 +90,28 @@ export function formatTaskStatus(status: IscTaskStatus): string {
 
   return status.completed ? "completed" : "in progress";
 }
+
+export function formatTaskErrors(status: IscTaskStatus): string | null {
+  const messages: string[] = [];
+
+  for (const entry of status.errors ?? []) {
+    if (typeof entry === "string") {
+      messages.push(entry);
+    } else if (entry && typeof entry === "object") {
+      const record = entry as Record<string, unknown>;
+      const text =
+        record.message ?? record.error ?? record.detail ?? record.description;
+      if (typeof text === "string") {
+        messages.push(text);
+      } else {
+        messages.push(JSON.stringify(entry));
+      }
+    }
+  }
+
+  if (messages.length === 0) {
+    return null;
+  }
+
+  return messages.slice(0, 3).join(" | ");
+}

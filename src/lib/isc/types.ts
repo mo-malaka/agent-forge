@@ -14,8 +14,8 @@ export interface IscTaskStatus {
   completed?: boolean;
   progress?: string;
   completionStatus?: string;
-  errors?: string[];
-  warnings?: string[];
+  errors?: Array<string | Record<string, unknown>>;
+  warnings?: Array<string | Record<string, unknown>>;
   [key: string]: unknown;
 }
 

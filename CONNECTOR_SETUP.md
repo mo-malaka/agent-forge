@@ -196,6 +196,27 @@ Go to **Source Setup → HTTP Operations**. Create **five** operations.
 
 Preview/test — confirm `outboundPermissions` and `inboundCallers` appear as arrays.
 
+### D2.5 — Group Aggregation (required for API / orchestrator)
+
+The ISC API `POST /entitlements/aggregate/sources/{id}` triggers the **default** operation type **`Group Aggregation`** — not `Group Aggregation-outboundPermissions`.
+
+If you only configure typed group aggregation ops (D3/D4), the API and AgentForge orchestrator will fail with:
+
+> No configuration found for 'Group Aggregation'. Please add at least one operation and try again.
+
+Add **one extra** HTTP operation for API-driven outbound entitlement sync:
+
+| Field | Value |
+|-------|-------|
+| **Operation Type** | **Group Aggregation** |
+| **Context URL** | `/api/connectors/web-services/aws-bedrock/entitlements?type=outbound` |
+| **HTTP Method** | `GET` |
+| **Root path** | `$.entitlements[*]` |
+
+Use the **same response mapping** as D3.
+
+> **Inbound** (`inboundCallers`) cannot be triggered by this API on Web Services sources. Run it manually: **Source → Entitlement Aggregation → Specific Types → inboundCallers**.
+
 ### D3 — Group Aggregation — outboundPermissions
 
 | Field | Value |

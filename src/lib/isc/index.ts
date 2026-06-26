@@ -8,6 +8,7 @@ export {
 } from "@/lib/isc/config";
 export {
   startEntitlementAggregation,
+  startOutboundEntitlementAggregation,
   startMachineIdentityAggregation,
   startAccountAggregation,
 } from "@/lib/isc/aggregations";
