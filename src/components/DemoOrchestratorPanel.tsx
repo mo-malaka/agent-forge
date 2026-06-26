@@ -164,7 +164,7 @@ export function DemoOrchestratorPanel() {
   const [principal, setPrincipal] = useState("demo-user");
   const [allowPermission, setAllowPermission] = useState("S3:Read");
   const [revokeEntitlement, setRevokeEntitlement] = useState("Jira:Admin");
-  const [runningMode, setRunningMode] = useState<DemoModeId | null>(null);
+  const [runningStep, setRunningStep] = useState<DemoStepId | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -244,38 +244,29 @@ export function DemoOrchestratorPanel() {
     }
   }
 
-  async function runMode(mode: DemoModeId) {
+  async function runSingleStep(mode: DemoModeId, step: DemoStepId) {
     setError(null);
-    setRunningMode(mode);
+    setRunningStep(step);
 
-    const steps = [...DEMO_MODES[mode].steps];
-
-    const initialLogs: LogEntry[] = steps.map((step, index) => ({
-      id: `${step}-${index}`,
+    const logId = `${step}-${Date.now()}`;
+    const entry: LogEntry = {
+      id: logId,
       step,
       label: DEMO_STEPS[step].label,
       status: "pending",
       message: "Waiting",
-    }));
-    setLogs(initialLogs);
+    };
+    setLogs((current) => [...current, entry]);
 
     try {
-      for (const entry of initialLogs) {
-        await runStep(mode, entry.step, entry.id);
-      }
+      await runStep(mode, step, logId);
     } catch (runError) {
       const message =
-        runError instanceof Error ? runError.message : "Demo run failed";
+        runError instanceof Error ? runError.message : "Demo step failed";
       setError(message);
-      setLogs((current) =>
-        current.map((entry) =>
-          entry.status === "running" || entry.status === "waiting"
-            ? { ...entry, status: "error", message }
-            : entry,
-        ),
-      );
+      updateLog(logId, { status: "error", message });
     } finally {
-      setRunningMode(null);
+      setRunningStep(null);
     }
   }
 
@@ -323,7 +314,7 @@ export function DemoOrchestratorPanel() {
             onChange={(event) =>
               setProvider(event.target.value as DeploymentProvider)
             }
-            disabled={runningMode !== null}
+            disabled={runningStep !== null}
             className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
           >
             {DEPLOYMENT_PROVIDER_VALUES.map((value) => (
@@ -341,7 +332,7 @@ export function DemoOrchestratorPanel() {
           <select
             value={count}
             onChange={(event) => setCount(Number(event.target.value) as BulkCount)}
-            disabled={runningMode !== null}
+            disabled={runningStep !== null}
             className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
           >
             {BULK_COUNTS.map((value) => (
@@ -359,7 +350,7 @@ export function DemoOrchestratorPanel() {
           <input
             value={agentId}
             onChange={(event) => setAgentId(event.target.value)}
-            disabled={runningMode !== null}
+            disabled={runningStep !== null}
             className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
           />
         </label>
@@ -371,7 +362,7 @@ export function DemoOrchestratorPanel() {
           <input
             value={allowPermission}
             onChange={(event) => setAllowPermission(event.target.value)}
-            disabled={runningMode !== null}
+            disabled={runningStep !== null}
             className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
           />
         </label>
@@ -383,7 +374,7 @@ export function DemoOrchestratorPanel() {
           <input
             value={revokeEntitlement}
             onChange={(event) => setRevokeEntitlement(event.target.value)}
-            disabled={runningMode !== null}
+            disabled={runningStep !== null}
             className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
           />
         </label>
@@ -395,31 +386,78 @@ export function DemoOrchestratorPanel() {
           <input
             value={principal}
             onChange={(event) => setPrincipal(event.target.value)}
-            disabled={runningMode !== null}
+            disabled={runningStep !== null}
             className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
           />
         </label>
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <button
-          type="button"
-          onClick={() => void runMode("full-sync")}
-          disabled={!iscReady || runningMode !== null}
-          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {runningMode === "full-sync" ? "Running full sync..." : "Run full sync"}
-        </button>
-        <button
-          type="button"
-          onClick={() => void runMode("govern-enforce")}
-          disabled={!iscReady || runningMode !== null}
-          className="rounded-md border border-indigo-300 bg-white px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-200 dark:hover:bg-indigo-900"
-        >
-          {runningMode === "govern-enforce"
-            ? "Running govern + enforce..."
-            : "Run govern + enforce"}
-        </button>
+      <div className="space-y-4">
+        <div>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            Full sync — run one step at a time
+          </h3>
+          <ol className="space-y-2">
+            {DEMO_MODES["full-sync"].steps.map((step, index) => (
+              <li
+                key={step}
+                className="flex items-center gap-3 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+              >
+                <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                  {index + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                    {DEMO_STEPS[step].label}
+                  </p>
+                  <p className="text-xs text-zinc-500">{DEMO_STEPS[step].description}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void runSingleStep("full-sync", step)}
+                  disabled={
+                    (step !== "bulk-create" && !iscReady) || runningStep !== null
+                  }
+                  className="shrink-0 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {runningStep === step ? "Running..." : "Run"}
+                </button>
+              </li>
+            ))}
+          </ol>
+        </div>
+
+        <div>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            Govern + enforce — run one step at a time
+          </h3>
+          <ol className="space-y-2">
+            {DEMO_MODES["govern-enforce"].steps.map((step, index) => (
+              <li
+                key={step}
+                className="flex items-center gap-3 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+              >
+                <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                  {index + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                    {DEMO_STEPS[step].label}
+                  </p>
+                  <p className="text-xs text-zinc-500">{DEMO_STEPS[step].description}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void runSingleStep("govern-enforce", step)}
+                  disabled={!iscReady || runningStep !== null}
+                  className="shrink-0 rounded-md border border-indigo-300 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-indigo-800 dark:text-indigo-200 dark:hover:bg-indigo-900"
+                >
+                  {runningStep === step ? "Running..." : "Run"}
+                </button>
+              </li>
+            ))}
+          </ol>
+        </div>
       </div>
 
       {error ? (
@@ -465,9 +503,8 @@ export function DemoOrchestratorPanel() {
       ) : null}
 
       <p className="text-xs text-zinc-500">
-        Outbound entitlement aggregation uses the ISC API (requires a{" "}
-        <strong>Group Aggregation</strong> HTTP op). Inbound must be started
-        manually in ISC under Specific Types → inboundCallers.
+        Entitlement aggregations (outbound + inbound) run in ISC under Specific
+        Types. API steps poll ISC until each task completes.
       </p>
     </section>
   );

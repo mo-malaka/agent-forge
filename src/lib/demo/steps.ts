@@ -42,7 +42,7 @@ export const DEMO_STEPS: Record<DemoStepId, DemoStepDefinition> = {
     id: "entitlement-aggregation-outbound",
     label: "Entitlement aggregation (outbound)",
     description:
-      "Sync outboundPermissions catalog via ISC API (requires Group Aggregation HTTP op)",
+      "Sync outboundPermissions — run manually in ISC (Specific Types → outboundPermissions)",
     system: "isc",
   },
   "entitlement-aggregation-inbound": {

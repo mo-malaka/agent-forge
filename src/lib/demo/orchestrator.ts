@@ -81,17 +81,19 @@ export async function runDemoStep(
 
     case "entitlement-aggregation":
     case "entitlement-aggregation-outbound": {
-      const config = requireIscConfig();
-      const started = await startOutboundEntitlementAggregation(config);
-
       return {
         step: payload.step,
-        status: "started",
+        status: "manual",
         message:
-          "Outbound entitlement aggregation started (ISC API uses Group Aggregation HTTP op)",
+          "Run in ISC: Source → Entitlement Aggregation → Specific Types → outboundPermissions → Start Aggregation. Then run the next step.",
         system,
-        taskId: started.taskId,
-        result: started.raw,
+        taskId: null,
+        result: {
+          manual: true,
+          entitlementType: "outboundPermissions",
+          uiPath:
+            "Source → Entitlement Aggregation → Specific Types → outboundPermissions",
+        },
       };
     }
 

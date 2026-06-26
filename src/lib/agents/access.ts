@@ -72,6 +72,7 @@ export interface WebServicesAccessEntitlement {
   id: string;
   entitlementId: string;
   name: string;
+  value: string;
   displayName: string;
   type: AccessDirection;
   accessDirection: AccessDirection;
@@ -94,6 +95,7 @@ function buildCatalogEntry(
     id,
     entitlementId: id,
     name,
+    value: name,
     displayName: name,
     type: direction,
     accessDirection: direction,

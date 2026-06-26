@@ -215,7 +215,26 @@ Add **one extra** HTTP operation for API-driven outbound entitlement sync:
 
 Use the **same response mapping** as D3.
 
+**Also configure the default `group` entitlement type** (this op aggregates as object type `group`, not `outboundPermissions`):
+
+1. **Entitlement Management → Entitlement Types → group** (default)
+2. Set **Entitlement ID** = `name` and **Entitlement Name** = `name`
+3. In the **Group Aggregation** HTTP op response mapping, include at minimum:
+
+| Schema attribute | Attribute path |
+|------------------|----------------|
+| `name` | `name` |
+| `entitlementId` | `entitlementId` |
+| `id` | `id` |
+| `value` | `value` |
+| `accessDirection` | `accessDirection` |
+| `riskScore` | `riskScore` |
+
+> If you see **`KeyID cannot be empty`** during Group Aggregation, the default `group` entitlement type Entitlement ID field does not match any populated attribute in the HTTP response mapping. Align Entitlement ID = `name` and map `name` → `name`.
+
 > **Inbound** (`inboundCallers`) cannot be triggered by this API on Web Services sources. Run it manually: **Source → Entitlement Aggregation → Specific Types → inboundCallers**.
+
+**Simpler alternative:** Skip the generic **Group Aggregation** op entirely. Run **Group Aggregation - outboundPermissions** and **Group Aggregation - inboundCallers** from the ISC UI (Specific Types). The AgentForge orchestrator marks inbound as manual and can skip the API outbound step too.
 
 ### D3 — Group Aggregation — outboundPermissions
 
@@ -755,6 +774,7 @@ DEMO (AgentForge orchestrator)
 | Orchestrator: auth failed | Bad client credentials or scopes | Verify OAuth client scopes (Part K2) |
 | Orchestrator: task timed out | Large tenant / slow agg | Re-run single step via `/api/demo/run`; check ISC task monitor |
 | Orchestrator: machine mappings failed | Experimental API | Ensure `ISC_API_VERSION=v2026`; check source has MIS enabled |
+| Group agg `KeyID cannot be empty` | Generic **Group Aggregation** uses default `group` schema; Entitlement ID field not mapped | Set `group` type Entitlement ID = `name`; map `name` in response — or use typed ops from UI only (D3/D4) |
 
 ---
 
