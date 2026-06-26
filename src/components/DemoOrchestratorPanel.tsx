@@ -99,36 +99,47 @@ function buildStepPayload(
   }
 }
 
+const TASK_POLL_INTERVAL_MS = 5000;
+const TASK_POLL_MAX_ATTEMPTS = 240; // 20 minutes
+
 async function pollTask(taskId: string, onTick: (message: string) => void) {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+  for (let attempt = 0; attempt < TASK_POLL_MAX_ATTEMPTS; attempt += 1) {
     const response = await fetch(`/api/demo/task/${taskId}`);
     const body = (await response.json()) as {
       complete?: boolean;
       successful?: boolean;
+      label?: string;
       error?: string;
-      status?: { completionStatus?: string; progress?: string };
+      status?: { completionStatus?: string; progress?: string; name?: string };
     };
 
     if (!response.ok) {
       throw new Error(body.error ?? "Failed to poll ISC task");
     }
 
-    const progress = body.status?.progress ?? body.status?.completionStatus;
-    onTick(progress ? `Task ${progress}` : `Polling task (${attempt + 1})`);
+    const elapsedMinutes = Math.floor(((attempt + 1) * TASK_POLL_INTERVAL_MS) / 60000);
+    const statusLabel =
+      body.label ??
+      body.status?.progress ??
+      body.status?.completionStatus ??
+      "in progress";
+    onTick(`Task ${statusLabel} (${elapsedMinutes}m elapsed, id: ${taskId})`);
 
     if (body.complete) {
       if (!body.successful) {
         throw new Error(
-          `ISC task failed: ${body.status?.completionStatus ?? "unknown"}`,
+          `ISC task failed: ${body.status?.completionStatus ?? statusLabel}`,
         );
       }
       return;
     }
 
-    await sleep(3000);
+    await sleep(TASK_POLL_INTERVAL_MS);
   }
 
-  throw new Error("ISC task timed out after 5 minutes");
+  throw new Error(
+    `ISC task timed out after 20 minutes (task ${taskId}). Check Admin → Monitoring → Tasks in ISC — the job may still be running. Re-run full sync when it finishes, or run remaining steps manually.`,
+  );
 }
 
 export function DemoOrchestratorPanel() {

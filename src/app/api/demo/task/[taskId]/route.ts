@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getIscConfig } from "@/lib/isc/config";
-import { getTaskStatus, isTaskComplete, isTaskSuccessful } from "@/lib/isc/tasks";
+import { getTaskStatus, isTaskComplete, isTaskSuccessful, formatTaskStatus } from "@/lib/isc/tasks";
 import { jsonError } from "@/lib/api/response";
 
 export const runtime = "nodejs";
@@ -27,6 +27,7 @@ export async function GET(_request: Request, context: RouteContext) {
       taskId,
       complete: isTaskComplete(status),
       successful: isTaskSuccessful(status),
+      label: formatTaskStatus(status),
       status,
     });
   } catch (error) {

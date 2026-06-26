@@ -41,18 +41,52 @@ export function isTaskComplete(status: IscTaskStatus): boolean {
   }
 
   const completion = String(status.completionStatus ?? "").toUpperCase();
-  return completion === "SUCCESS" || completion === "FAILED";
+  return (
+    completion === "SUCCESS" ||
+    completion === "WARNING" ||
+    completion === "ERROR" ||
+    completion === "FAILED" ||
+    completion === "FAILURE" ||
+    completion === "TERMINATED" ||
+    completion === "TEMPERROR"
+  );
 }
 
 export function isTaskSuccessful(status: IscTaskStatus): boolean {
   const completion = String(status.completionStatus ?? "").toUpperCase();
-  if (completion === "SUCCESS") {
+  if (completion === "SUCCESS" || completion === "WARNING") {
     return true;
   }
 
-  if (completion === "FAILED") {
+  if (
+    completion === "ERROR" ||
+    completion === "FAILED" ||
+    completion === "FAILURE" ||
+    completion === "TERMINATED" ||
+    completion === "TEMPERROR"
+  ) {
     return false;
   }
 
   return status.completed === true && !status.errors?.length;
+}
+
+export function formatTaskStatus(status: IscTaskStatus): string {
+  const completion = status.completionStatus;
+  const progress = status.progress;
+  const name = status.name;
+
+  if (progress) {
+    return String(progress);
+  }
+
+  if (completion) {
+    return String(completion);
+  }
+
+  if (name) {
+    return String(name);
+  }
+
+  return status.completed ? "completed" : "in progress";
 }
