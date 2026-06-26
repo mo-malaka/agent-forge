@@ -17,14 +17,6 @@ import {
 
 type LogStatus = "pending" | "running" | "waiting" | "success" | "error" | "manual";
 
-interface LogEntry {
-  id: string;
-  step: DemoStepId;
-  label: string;
-  status: LogStatus;
-  message: string;
-}
-
 interface DemoStepResponse {
   step: DemoStepId;
   status: "completed" | "started" | "manual";
@@ -102,6 +94,43 @@ function buildStepPayload(
 const TASK_POLL_INTERVAL_MS = 5000;
 const TASK_POLL_MAX_ATTEMPTS = 240; // 20 minutes
 
+type StepStatusMap = Partial<
+  Record<DemoStepId, { status: LogStatus; message: string }>
+>;
+
+function stepStatusStyles(status: LogStatus | undefined) {
+  switch (status) {
+    case "success":
+      return "border-emerald-300 bg-emerald-50/60 dark:border-emerald-900 dark:bg-emerald-950/30";
+    case "error":
+      return "border-red-300 bg-red-50/60 dark:border-red-900 dark:bg-red-950/30";
+    case "manual":
+      return "border-amber-300 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/30";
+    case "running":
+    case "waiting":
+      return "border-amber-300 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/30";
+    default:
+      return "border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950";
+  }
+}
+
+function stepStatusLabel(status: LogStatus | undefined) {
+  switch (status) {
+    case "success":
+      return "Done";
+    case "error":
+      return "Failed";
+    case "manual":
+      return "Manual";
+    case "running":
+      return "Running";
+    case "waiting":
+      return "Waiting";
+    default:
+      return null;
+  }
+}
+
 async function pollTask(taskId: string, onTick: (message: string) => void) {
   for (let attempt = 0; attempt < TASK_POLL_MAX_ATTEMPTS; attempt += 1) {
     const response = await fetch(`/api/demo/task/${taskId}`);
@@ -165,7 +194,7 @@ export function DemoOrchestratorPanel() {
   const [allowPermission, setAllowPermission] = useState("S3:Read");
   const [revokeEntitlement, setRevokeEntitlement] = useState("Jira:Admin");
   const [runningStep, setRunningStep] = useState<DemoStepId | null>(null);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [stepStatus, setStepStatus] = useState<StepStatusMap>({});
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -182,18 +211,23 @@ export function DemoOrchestratorPanel() {
       );
   }, []);
 
-  function updateLog(id: string, patch: Partial<LogEntry>) {
-    setLogs((current) =>
-      current.map((entry) => (entry.id === id ? { ...entry, ...patch } : entry)),
-    );
+  function updateStepStatus(
+    step: DemoStepId,
+    status: LogStatus,
+    message: string,
+  ) {
+    setStepStatus((current) => ({
+      ...current,
+      [step]: { status, message },
+    }));
   }
 
   async function runStep(
     mode: DemoModeId,
     step: DemoStepId,
-    logId: string,
+    onProgress: (status: LogStatus, message: string) => void,
   ): Promise<void> {
-    updateLog(logId, { status: "running", message: "Running..." });
+    onProgress("running", "Running...");
 
     const payload = buildStepPayload(step, {
       deploymentProvider: provider,
@@ -217,27 +251,18 @@ export function DemoOrchestratorPanel() {
     }
 
     if (body.taskId) {
-      updateLog(logId, {
-        status: "waiting",
-        message: `Task started (${body.taskId})`,
-      });
+      onProgress("waiting", `Task started (${body.taskId})`);
       await pollTask(body.taskId, (message) => {
-        updateLog(logId, { status: "waiting", message });
+        onProgress("waiting", message);
       });
     }
 
     if (body.status === "manual") {
-      updateLog(logId, {
-        status: "manual",
-        message: body.message,
-      });
+      onProgress("manual", body.message);
       return;
     }
 
-    updateLog(logId, {
-      status: "success",
-      message: body.message,
-    });
+    onProgress("success", body.message);
 
     if (step === "bulk-create") {
       router.refresh();
@@ -247,30 +272,110 @@ export function DemoOrchestratorPanel() {
   async function runSingleStep(mode: DemoModeId, step: DemoStepId) {
     setError(null);
     setRunningStep(step);
-
-    const logId = `${step}-${Date.now()}`;
-    const entry: LogEntry = {
-      id: logId,
-      step,
-      label: DEMO_STEPS[step].label,
-      status: "pending",
-      message: "Waiting",
-    };
-    setLogs((current) => [...current, entry]);
+    updateStepStatus(step, "running", "Running...");
 
     try {
-      await runStep(mode, step, logId);
+      await runStep(mode, step, (status, message) => {
+        updateStepStatus(step, status, message);
+      });
     } catch (runError) {
       const message =
         runError instanceof Error ? runError.message : "Demo step failed";
       setError(message);
-      updateLog(logId, { status: "error", message });
+      updateStepStatus(step, "error", message);
     } finally {
       setRunningStep(null);
     }
   }
 
   const iscReady = iscStatus?.configured ?? false;
+
+  function renderStepRow(
+    mode: DemoModeId,
+    step: DemoStepId,
+    index: number,
+    iscReady: boolean,
+    options?: { requiresIsc?: boolean },
+  ) {
+    const result = stepStatus[step];
+    const status = result?.status;
+    const label = stepStatusLabel(status);
+    const requiresIsc = options?.requiresIsc ?? true;
+
+    return (
+      <li
+        key={step}
+        className={`flex items-start gap-3 rounded-md border px-3 py-2 text-sm ${stepStatusStyles(status)}`}
+      >
+        <span
+          className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+            status === "success"
+              ? "bg-emerald-200 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-200"
+              : status === "error"
+                ? "bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200"
+                : status === "manual"
+                  ? "bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
+                  : status === "running" || status === "waiting"
+                    ? "bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
+                    : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+          }`}
+        >
+          {status === "success" ? "✓" : status === "error" ? "!" : index + 1}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-zinc-900 dark:text-zinc-100">
+            {DEMO_STEPS[step].label}
+          </p>
+          <p className="text-xs text-zinc-500">{DEMO_STEPS[step].description}</p>
+          {result?.message ? (
+            <p
+              className={`mt-1 text-xs ${
+                status === "success"
+                  ? "text-emerald-700 dark:text-emerald-300"
+                  : status === "error"
+                    ? "text-red-700 dark:text-red-300"
+                    : status === "manual"
+                      ? "text-amber-700 dark:text-amber-300"
+                      : "text-zinc-600 dark:text-zinc-400"
+              }`}
+            >
+              {result.message}
+            </p>
+          ) : null}
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          {label ? (
+            <span
+              className={`text-xs font-medium uppercase tracking-wide ${
+                status === "success"
+                  ? "text-emerald-700 dark:text-emerald-300"
+                  : status === "error"
+                    ? "text-red-700 dark:text-red-300"
+                    : "text-amber-700 dark:text-amber-300"
+              }`}
+            >
+              {label}
+            </span>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => void runSingleStep(mode, step)}
+            disabled={
+              (requiresIsc && step !== "bulk-create" && !iscReady) ||
+              runningStep !== null
+            }
+            className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {runningStep === step
+              ? "Running..."
+              : status === "success" || status === "manual"
+                ? "Run again"
+                : "Run"}
+          </button>
+        </div>
+      </li>
+    );
+  }
 
   return (
     <section className="space-y-4 rounded-lg border border-indigo-200 bg-indigo-50/40 p-5 dark:border-indigo-900 dark:bg-indigo-950/20">
@@ -398,32 +503,11 @@ export function DemoOrchestratorPanel() {
             Full sync — run one step at a time
           </h3>
           <ol className="space-y-2">
-            {DEMO_MODES["full-sync"].steps.map((step, index) => (
-              <li
-                key={step}
-                className="flex items-center gap-3 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
-              >
-                <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                  {index + 1}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                    {DEMO_STEPS[step].label}
-                  </p>
-                  <p className="text-xs text-zinc-500">{DEMO_STEPS[step].description}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void runSingleStep("full-sync", step)}
-                  disabled={
-                    (step !== "bulk-create" && !iscReady) || runningStep !== null
-                  }
-                  className="shrink-0 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {runningStep === step ? "Running..." : "Run"}
-                </button>
-              </li>
-            ))}
+            {DEMO_MODES["full-sync"].steps.map((step, index) =>
+              renderStepRow("full-sync", step, index, iscReady, {
+                requiresIsc: true,
+              }),
+            )}
           </ol>
         </div>
 
@@ -432,30 +516,9 @@ export function DemoOrchestratorPanel() {
             Govern + enforce — run one step at a time
           </h3>
           <ol className="space-y-2">
-            {DEMO_MODES["govern-enforce"].steps.map((step, index) => (
-              <li
-                key={step}
-                className="flex items-center gap-3 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
-              >
-                <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                  {index + 1}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                    {DEMO_STEPS[step].label}
-                  </p>
-                  <p className="text-xs text-zinc-500">{DEMO_STEPS[step].description}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void runSingleStep("govern-enforce", step)}
-                  disabled={!iscReady || runningStep !== null}
-                  className="shrink-0 rounded-md border border-indigo-300 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-indigo-800 dark:text-indigo-200 dark:hover:bg-indigo-900"
-                >
-                  {runningStep === step ? "Running..." : "Run"}
-                </button>
-              </li>
-            ))}
+            {DEMO_MODES["govern-enforce"].steps.map((step, index) =>
+              renderStepRow("govern-enforce", step, index, iscReady),
+            )}
           </ol>
         </div>
       </div>
@@ -464,42 +527,6 @@ export function DemoOrchestratorPanel() {
         <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
           {error}
         </p>
-      ) : null}
-
-      {logs.length > 0 ? (
-        <ol className="space-y-2">
-          {logs.map((entry, index) => (
-            <li
-              key={entry.id}
-              className="flex items-start gap-3 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
-            >
-              <span
-                className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-                  entry.status === "success"
-                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
-                    : entry.status === "manual"
-                      ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200"
-                    : entry.status === "error"
-                      ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200"
-                      : entry.status === "running" || entry.status === "waiting"
-                        ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200"
-                        : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-                }`}
-              >
-                {index + 1}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                  {entry.label}
-                </p>
-                <p className="text-xs text-zinc-500">{entry.message}</p>
-              </div>
-              <span className="shrink-0 text-xs uppercase tracking-wide text-zinc-400">
-                {entry.status}
-              </span>
-            </li>
-          ))}
-        </ol>
       ) : null}
 
       <p className="text-xs text-zinc-500">
