@@ -13,6 +13,7 @@ Create mock agents with **inbound** and **outbound** access, then expose them th
 - **Web Services entitlements API** — entitlement catalog for group aggregation (`?type=outbound` / `?type=inbound`)
 - **Provisioning API** — ISC write-back for add/remove entitlement and disable/enable account
 - **Authorize API** — runtime allow/deny against effective inbound/outbound access
+- **ISC demo orchestrator** — run full sync and govern + enforce from the dashboard (no Postman)
 - **Machine identity** — reuse the accounts endpoint for machine identity aggregation (same `nativeIdentity` ARN)
 - **Reference API** — optional cloud-native JSON shapes (Bedrock, Vertex, Foundry)
 
@@ -35,7 +36,15 @@ npm run dev
 
 Open [http://127.0.0.1:3000](http://127.0.0.1:3000).
 
-### Bulk-create demo agents
+### One-click ISC demo (recommended)
+
+1. **One-time in ISC** — configure the Web Services source, HTTP operations, entitlement types, and schemas ([setup guide](./CONNECTOR_SETUP.md))
+2. **Set ISC env vars** — copy [`.env.example`](./.env.example) to `.env.local` and fill in tenant credentials
+3. Open the dashboard → **ISC demo orchestrator**
+4. **Run full sync** — bulk create agents, run ISC aggregations, link machine accounts, verify
+5. **Run govern + enforce** — authorize allow → revoke entitlement → re-aggregate → authorize deny
+
+### Bulk-create demo agents (manual)
 
 1. Open the dashboard
 2. **Quick bulk create** — pick platform (AWS / GCP / Azure) and **5, 10, or 20**
@@ -87,6 +96,10 @@ curl -s -X POST http://127.0.0.1:3000/api/agents \
 | `GET` | `/api/connectors/web-services/{platform}/accounts` | ISC account aggregation |
 | `GET` | `/api/connectors/web-services/{platform}/entitlements` | ISC entitlement catalog |
 | `POST` | `/api/connectors/web-services/{platform}/provision/*` | ISC provisioning (add/remove/disable) |
+| `GET` | `/api/demo/config` | ISC connection status (no secrets) |
+| `GET` | `/api/demo/run` | Demo modes and step catalog |
+| `POST` | `/api/demo/run?mode=full-sync` | Run a single demo step |
+| `GET` | `/api/demo/task/{taskId}` | Poll ISC aggregation task status |
 
 ### Authorize (runtime enforcement)
 
@@ -104,8 +117,65 @@ Returns `decision: "allow"` (HTTP 200) or `decision: "deny"` (HTTP 403) with `ef
 
 ## Configuration
 
+Copy [`.env.example`](./.env.example) to `.env.local` for local development. On Amplify, set the same variables in the environment settings.
+
+### AgentForge (optional)
+
 ```bash
-AGENTFORGE_BASE_URL=https://main.d12mzah9vzl24s.amplifyapp.com
+# Override auto-detected base URL (Amplify usually does not need this)
+AGENTFORGE_BASE_URL=https://your-app.amplifyapp.com
+NEXT_PUBLIC_BASE_URL=https://your-app.amplifyapp.com
+```
+
+AgentForge auto-detects the public URL from request headers on Amplify when these are unset.
+
+### ISC demo orchestrator (server-side only)
+
+Required for **Run full sync** and **Run govern + enforce** on the dashboard.
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ISC_TENANT` | Yes | ISC tenant name (e.g. your company slug) |
+| `ISC_CLIENT_ID` | Yes | API client or PAT client ID |
+| `ISC_CLIENT_SECRET` | Yes | API client secret |
+| `ISC_SOURCE_ID` | Yes | Web Services source ID for AgentForge |
+| `ISC_API_VERSION` | No | API version prefix (default `v2026`) |
+| `ISC_DOMAIN` | No | API domain (default `identitynow.com`) |
+| `ISC_DEMO_AGENT_ID` | No | Agent used in govern + enforce (default `agt_demo_aws_bedrock`) |
+
+**OAuth scopes** for the API client (minimum):
+
+- `idn:sources:read`, `idn:sources:manage`
+- `idn:accounts:read`
+- `idn:entitlement:manage`
+- `idn:mis-agents:aggregate`
+- `idn:mis-account:read`
+
+Never expose `ISC_CLIENT_SECRET` to the browser — AgentForge calls ISC only from server routes.
+
+### Demo modes
+
+| Mode | Steps | What it does |
+|------|-------|--------------|
+| **Full sync** | 6 (+ entitlement agg ×2) | Bulk create → entitlement agg → MIS agg → account agg → machine account mappings → verify |
+| **Govern + enforce** | 4 | Authorize allow → revoke entitlement (AgentForge) → unoptimized account agg → authorize deny |
+
+### Demo API examples
+
+```bash
+# Check ISC is configured
+curl -s http://127.0.0.1:3000/api/demo/config | jq
+
+# List demo modes and steps
+curl -s http://127.0.0.1:3000/api/demo/run | jq
+
+# Run one step (full-sync mode)
+curl -s -X POST "http://127.0.0.1:3000/api/demo/run?mode=full-sync" \
+  -H "Content-Type: application/json" \
+  -d '{"step":"bulk-create","deployment_provider":"aws_bedrock","count":5}' | jq
+
+# Poll an ISC aggregation task
+curl -s http://127.0.0.1:3000/api/demo/task/{taskId} | jq
 ```
 
 ## Scripts

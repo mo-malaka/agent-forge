@@ -17,10 +17,11 @@ Connect AgentForge synthetic AI agents to Identity Security Cloud (ISC) using a 
 | **Source account** | The connector account backing the agent | **Sources → Accounts** |
 | **Provisioning** | ISC applies access changes back to AgentForge | **Access profiles / certifications → provisioning** |
 | **Authorization** | Runtime allow/deny against effective access | **AgentForge authorize API + simulate panel** |
+| **ISC orchestrator** | One-click sync and govern + enforce from AgentForge | **Dashboard → ISC demo orchestrator** |
 
 **Primary demo screen:** **AI Agent → Access** (not Identity Graph). Identity Graph is optional; Web Services account entitlements often appear on the Access tab but not as expandable nodes on the agent-root graph.
 
-After provisioning, re-run **account aggregation** so ISC reflects updated entitlements or disabled status.
+After provisioning, re-run **account aggregation** so ISC reflects updated entitlements or disabled status. The **ISC demo orchestrator** can run aggregations and authorization steps for you — no Postman required.
 
 ---
 
@@ -30,6 +31,7 @@ After provisioning, re-run **account aggregation** so ISC reflects updated entit
 - Permission to create and configure sources in ISC
 - **Agent Identity Security (AIS)** licensed on your tenant
 - Create **one Web Services source per platform** you demo (e.g. AWS Bedrock)
+- For the **ISC demo orchestrator**: API client credentials with source, account, entitlement, and machine-identity scopes (see [Part K](#part-k--isc-demo-orchestrator))
 
 Verify AgentForge:
 
@@ -42,6 +44,15 @@ curl -s https://main.d12mzah9vzl24s.amplifyapp.com/api/health
 ## Part A — Prepare data in AgentForge
 
 ### A1 — Bulk-create agents (recommended)
+
+**Option 1 — ISC demo orchestrator (recommended after one-time ISC setup):**
+
+1. Configure ISC env vars on AgentForge (see [Part K](#part-k--isc-demo-orchestrator))
+2. Open the dashboard → **ISC demo orchestrator** → **Run full sync**
+
+This bulk-creates agents and runs ISC aggregations in order.
+
+**Option 2 — Manual bulk create:**
 
 1. Open the AgentForge dashboard
 2. Use **Quick bulk create** — pick platform and **5, 10, or 20** agents
@@ -269,12 +280,16 @@ The schema name must match the suffix in **Machine Identity Aggregation - {schem
 
 ## Part F — Run aggregations (order matters)
 
+**Manual (ISC UI):**
+
 ```
 1. Group Aggregation → outboundPermissions
 2. Group Aggregation → inboundCallers
 3. Machine Identity Aggregation → bedrock-agent (Specific Schemas — not "All" if no schemas exist)
 4. Account Aggregation
 ```
+
+**Automated (AgentForge orchestrator):** **Run full sync** on the dashboard runs the same sequence via ISC v2026 APIs, including entitlement aggregation twice and machine account mappings. See [Part K](#part-k--isc-demo-orchestrator).
 
 **Machine identity aggregation:** If you see *`Illegal value "" for field "datasetIds"`*, you have no machine identity schema selected. Choose **Specific Schemas** and pick your schema (e.g. `bedrock-agent`).
 
@@ -292,6 +307,10 @@ The schema name must match the suffix in **Machine Identity Aggregation - {schem
 ## Part G — Link account to AI agent
 
 Correlating in **Machine Accounts** alone may not populate **AI Agent → Accounts**.
+
+**Automated:** **Run full sync** applies machine account mappings via `PUT /v2026/sources/{sourceId}/machine-account-mappings` (nativeIdentity → nativeIdentity). See [Part K](#part-k--isc-demo-orchestrator).
+
+**Manual:**
 
 1. **Admin → Identities → AI Agents → DevOps-Bot-Prod**
 2. **Accounts** tab → link **AgentForge Bedrock** account  
@@ -534,6 +553,10 @@ Responses use HTTP **200** for allow and **403** for deny. The JSON body always 
 
 ### J3 — Demo flow (govern → provision → enforce)
 
+**Automated:** After full sync, use **Run govern + enforce** on the dashboard. It runs authorize allow → revoke entitlement (AgentForge) → unoptimized account aggregation → authorize deny.
+
+**Manual:**
+
 1. **Before revoke:** authorize `S3:Read` → **allow**
 2. **Certify / revoke** `Jira:Admin` in ISC → provisioning removes it → re-aggregate
 3. Authorize `Jira:Admin` → **deny** (no longer in effective outbound)
@@ -564,6 +587,129 @@ Open any agent detail page in AgentForge. The **Simulate authorization** panel l
 
 ---
 
+## Part K — ISC demo orchestrator
+
+Run the full AgentForge + ISC demo from the **dashboard** without Postman. AgentForge calls ISC v2026 APIs server-side using OAuth client credentials.
+
+### K1 — What still requires one-time ISC setup
+
+The orchestrator does **not** replace initial connector bootstrap. Configure once in ISC (or export golden source JSON):
+
+| One-time in ISC | Why |
+|-----------------|-----|
+| Web Services source + HTTP operations | Poorly documented create-source API |
+| Entitlement types (`outboundPermissions`, `inboundCallers`) | No clean public create API |
+| Account + machine identity schemas | AIS-specific configuration |
+
+After bootstrap, the orchestrator handles runtime demo steps.
+
+### K2 — Environment variables
+
+Set on AgentForge (`.env.local` locally, Amplify environment variables in production). Copy from [`.env.example`](./.env.example).
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ISC_TENANT` | Yes | Tenant slug (e.g. `acme`) |
+| `ISC_CLIENT_ID` | Yes | API client ID |
+| `ISC_CLIENT_SECRET` | Yes | API client secret — **server only, never expose to browser** |
+| `ISC_SOURCE_ID` | Yes | Web Services source ID for AgentForge |
+| `ISC_API_VERSION` | No | Default `v2026` |
+| `ISC_DOMAIN` | No | Default `identitynow.com` |
+| `ISC_DEMO_AGENT_ID` | No | Agent for govern + enforce (default `agt_demo_aws_bedrock`) |
+
+**Minimum OAuth scopes:**
+
+- `idn:sources:read`, `idn:sources:manage`
+- `idn:accounts:read`
+- `idn:entitlement:manage`
+- `idn:mis-agents:aggregate`
+- `idn:mis-account:read`
+
+Verify configuration:
+
+```bash
+curl -s https://main.d12mzah9vzl24s.amplifyapp.com/api/demo/config | jq
+```
+
+Expected: `"configured": true` with tenant and sourceId.
+
+### K3 — Demo modes
+
+| Mode | Button | Steps |
+|------|--------|-------|
+| **Full sync** | Run full sync | Bulk create → entitlement agg ×2 → MIS agg → account agg → machine account mappings → verify |
+| **Govern + enforce** | Run govern + enforce | Authorize allow → revoke entitlement → unoptimized account agg → authorize deny |
+
+**Full sync** ISC API calls (AgentForge server → ISC):
+
+| Step | ISC API |
+|------|---------|
+| Entitlement aggregation | `POST /v2026/entitlements/aggregate/sources/{sourceId}` |
+| Machine identity aggregation | `POST /v2026/sources/{sourceId}/aggregate-agents` |
+| Account aggregation | `POST /v2026/sources/{sourceId}/load-accounts` |
+| Machine account mappings | `PUT /v2026/sources/{sourceId}/machine-account-mappings` |
+| Verify | `GET /v2026/accounts`, `GET /v2026/machine-accounts` |
+
+Aggregation steps return a task ID; the UI polls `GET /beta/task-status/{taskId}` until complete.
+
+**Govern + enforce** defaults:
+
+| Setting | Default |
+|---------|---------|
+| Allow permission | `S3:Read` |
+| Revoke entitlement | `Jira:Admin` |
+| Revoke path | AgentForge direct (`remove-entitlement`) — reliable when ISC UI actions are missing |
+| Principal | `demo-user` |
+
+Override these in the orchestrator panel before running.
+
+### K4 — Dashboard usage
+
+1. Open AgentForge dashboard
+2. Confirm green **ISC connected** banner (tenant + source ID)
+3. Set platform, bulk count, demo agent ID, allow/revoke permissions if needed
+4. Click **Run full sync** — wait for the step log to complete
+5. In ISC, confirm **AI Agent → Access** shows inbound + outbound
+6. Click **Run govern + enforce** — confirm allow then deny in the step log
+
+### K5 — Demo API (optional)
+
+Same steps via API if scripting outside the UI:
+
+```bash
+# List modes and steps
+curl -s https://main.d12mzah9vzl24s.amplifyapp.com/api/demo/run | jq
+
+# Run one step
+curl -s -X POST "https://main.d12mzah9vzl24s.amplifyapp.com/api/demo/run?mode=full-sync" \
+  -H "Content-Type: application/json" \
+  -d '{"step":"entitlement-aggregation"}' | jq
+
+# Poll ISC task
+curl -s https://main.d12mzah9vzl24s.amplifyapp.com/api/demo/task/{taskId} | jq
+```
+
+### K6 — Architecture
+
+```
+ONE-TIME (ISC UI)
+  Web Services source + HTTP ops + entitlement types + schemas
+                    ↓
+DEMO (AgentForge orchestrator)
+  AgentForge bulk create
+  → ISC entitlement agg (×2)
+  → ISC MIS agg
+  → ISC account agg
+  → ISC machine account mappings
+  → ISC verify
+  → AgentForge authorize (allow)
+  → AgentForge revoke (or ISC access-request)
+  → ISC account agg (unoptimized)
+  → AgentForge authorize (deny)
+```
+
+---
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
@@ -582,6 +728,10 @@ Open any agent detail page in AgentForge. The **Simulate authorization** panel l
 | Provision succeeds but ISC unchanged | No re-aggregation | Re-run account aggregation after provision |
 | Provision 404 | Wrong platform URL or nativeIdentity | Match source platform path; use ARN from account agg |
 | Remove entitlement 404 | Value not on agent | Confirm exact entitlement string (`S3:Read` vs `S3 Read`) |
+| Orchestrator: ISC not configured | Missing env vars | Set `ISC_TENANT`, `ISC_CLIENT_ID`, `ISC_CLIENT_SECRET`, `ISC_SOURCE_ID` |
+| Orchestrator: auth failed | Bad client credentials or scopes | Verify OAuth client scopes (Part K2) |
+| Orchestrator: task timed out | Large tenant / slow agg | Re-run single step via `/api/demo/run`; check ISC task monitor |
+| Orchestrator: machine mappings failed | Experimental API | Ensure `ISC_API_VERSION=v2026`; check source has MIS enabled |
 
 ---
 
@@ -601,17 +751,21 @@ Open any agent detail page in AgentForge. The **Simulate authorization** panel l
 ## Quick checklist
 
 ```
-☐ AgentForge agents created (bulk or seed)
+☐ One-time ISC bootstrap (source, HTTP ops, entitlement types, schemas)
+☐ AgentForge ISC env vars set (Part K2)
+☐ AgentForge agents created (orchestrator full sync OR bulk create / seed)
 ☐ Web Services source + test connection
 ☐ Entitlement types: outboundPermissions, inboundCallers (Entitlement ID = name)
 ☐ HTTP ops: test, account, group×2, machine identity
 ☐ Account + machine identity schemas
 ☐ Aggregate: group outbound → group inbound → machine identity → account
+     (or Run full sync on dashboard)
 ☐ Account shows Entitlement Assignments (6 items)
-☐ AI Agent linked to source account
+☐ AI Agent linked to source account (or machine account mappings via orchestrator)
 ☐ AI Agent → Access shows inbound + outbound
 ☐ Provisioning HTTP ops: add/remove entitlement, disable account
 ☐ Provision test: add entitlement → re-aggregate → Access tab updated
 ☐ Authorize API: allow known permission, deny revoked/disabled
+     (or Run govern + enforce on dashboard)
 ☐ Demo!
 ```

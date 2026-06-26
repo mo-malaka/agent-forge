@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AgentCard } from "@/components/AgentCard";
 import { BulkCreateAgentsForm } from "@/components/BulkCreateAgentsForm";
 import { CopyButton } from "@/components/CopyButton";
+import { DemoOrchestratorPanel } from "@/components/DemoOrchestratorPanel";
 import { listAgents } from "@/lib/agents/repository";
 import { serializeAgent } from "@/lib/agents/serializer";
 import { DEFAULT_LIMIT, DEFAULT_PAGE } from "@/lib/constants";
@@ -219,6 +220,8 @@ export default async function DashboardPage() {
           </div>
         </div>
       </section>
+
+      <DemoOrchestratorPanel />
 
       <BulkCreateAgentsForm />
 
