@@ -633,6 +633,8 @@ curl -s https://main.d12mzah9vzl24s.amplifyapp.com/api/demo/config | jq
 
 Expected: `"configured": true` with tenant and sourceId.
 
+**Amplify note:** If `configured` is `false` but vars are set in the console, ensure `amplify.yml` is deployed and trigger a **new build** (not just “Redeploy this version” of an old build from before vars were set).
+
 ### K3 — Demo modes
 
 | Mode | Button | Steps |

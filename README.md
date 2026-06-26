@@ -153,6 +153,8 @@ Required for **Run full sync** and **Run govern + enforce** on the dashboard.
 
 Never expose `ISC_CLIENT_SECRET` to the browser — AgentForge calls ISC only from server routes.
 
+**AWS Amplify:** Console environment variables are **not** passed to Next.js API routes at runtime by default. This repo includes [`amplify.yml`](./amplify.yml), which writes `ISC_*` vars into `.env.production` during build. After changing env vars in Amplify, **redeploy** (a new build is required).
+
 ### Demo modes
 
 | Mode | Steps | What it does |
