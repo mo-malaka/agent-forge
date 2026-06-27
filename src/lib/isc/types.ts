@@ -62,8 +62,12 @@ export interface IscMachineAccountSummary {
 export interface DemoVerifyResult {
   accounts: IscAccountSummary[];
   machineAccounts: IscMachineAccountSummary[];
+  entitlements: unknown[];
   accountCount: number;
   machineAccountCount: number;
+  entitlementCount: number;
+  accessReady: boolean;
+  hints: string[];
 }
 
 export interface AggregationStartResult {

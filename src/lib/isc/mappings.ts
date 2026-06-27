@@ -86,10 +86,30 @@ async function postMachineAccountMappings(
   );
 }
 
+export async function classifySourceMachineAccounts(
+  config: IscConfig,
+): Promise<{ accountsSubmitted?: number; raw: unknown }> {
+  const raw = await iscRequest<Record<string, unknown>>(
+    config,
+    `/sources/${config.sourceId}/classify`,
+    { method: "POST", bodyMode: "none" },
+  );
+
+  const submitted =
+    typeof raw["Accounts submitted for processing"] === "number"
+      ? raw["Accounts submitted for processing"]
+      : undefined;
+
+  return { accountsSubmitted: submitted, raw };
+}
+
 export async function updateMachineAccountMappings(
   config: IscConfig,
   mapping?: MachineAccountAttributeMapping,
-): Promise<MachineAccountAttributeMapping[]> {
+): Promise<{
+  mappings: MachineAccountAttributeMapping[];
+  classification: { accountsSubmitted?: number; raw: unknown };
+}> {
   const sourceName = await getSourceName(config);
   const mappings = [
     mapping ?? buildNativeIdentityMachineAccountMapping(config, sourceName),
@@ -102,16 +122,27 @@ export async function updateMachineAccountMappings(
   ];
 
   let lastError: Error | null = null;
+  let savedMappings: MachineAccountAttributeMapping[] | null = null;
 
   for (const attempt of attempts) {
     try {
-      return await attempt();
+      savedMappings = await attempt();
+      break;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
     }
   }
 
-  throw lastError ?? new Error("Failed to update machine account mappings");
+  if (!savedMappings) {
+    throw lastError ?? new Error("Failed to update machine account mappings");
+  }
+
+  const classification = await classifySourceMachineAccounts(config);
+
+  return {
+    mappings: savedMappings,
+    classification,
+  };
 }
 
 export function getDefaultMachineAccountMappings(

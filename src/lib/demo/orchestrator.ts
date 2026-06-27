@@ -101,7 +101,7 @@ export async function runDemoStep(
         step: payload.step,
         status: "manual",
         message:
-          "Run in ISC: Source → Entitlement Aggregation → Specific Types → outboundPermissions → Start Aggregation. Then run the next step.",
+          "Run in ISC first: Source → Entitlement Aggregation → Specific Types → outboundPermissions → Start. Wait for SUCCESS, then click Run here to acknowledge.",
         system,
         taskId: null,
         result: {
@@ -118,7 +118,7 @@ export async function runDemoStep(
         step: payload.step,
         status: "manual",
         message:
-          "Run in ISC: Source → Entitlement Aggregation → Specific Types → inboundCallers → Start Aggregation. Then continue the remaining steps.",
+          "Run in ISC first: Source → Entitlement Aggregation → Specific Types → inboundCallers → Start. Wait for SUCCESS, then click Run here to acknowledge.",
         system,
         taskId: null,
         result: {
@@ -163,26 +163,34 @@ export async function runDemoStep(
 
     case "machine-account-mappings": {
       const config = requireIscConfig();
-      const mappings = await updateMachineAccountMappings(config);
+      const result = await updateMachineAccountMappings(config);
+      const submitted = result.classification.accountsSubmitted;
 
       return {
         step: payload.step,
         status: "completed",
-        message: "Machine account mappings updated",
+        message:
+          submitted !== undefined
+            ? `Machine account mappings updated; ${submitted} accounts submitted for classification`
+            : "Machine account mappings updated; account classification started",
         system,
         taskId: null,
-        result: { mappings },
+        result,
       };
     }
 
     case "verify": {
       const config = requireIscConfig();
       const verification = await verifySourceData(config);
+      const summary = `Found ${verification.accountCount} accounts, ${verification.machineAccountCount} machine accounts, ${verification.entitlementCount} entitlements`;
+      const message = verification.accessReady
+        ? `${summary}. Link accounts on AI Agent → Accounts if Access is still empty.`
+        : `${summary}. ${verification.hints.join(" ")}`;
 
       return {
         step: payload.step,
-        status: "completed",
-        message: `Found ${verification.accountCount} accounts and ${verification.machineAccountCount} machine accounts`,
+        status: verification.accessReady ? "completed" : "manual",
+        message,
         system,
         taskId: null,
         result: verification,

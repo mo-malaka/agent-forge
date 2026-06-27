@@ -42,14 +42,14 @@ export const DEMO_STEPS: Record<DemoStepId, DemoStepDefinition> = {
     id: "entitlement-aggregation-outbound",
     label: "Entitlement aggregation (outbound)",
     description:
-      "Sync outboundPermissions — run manually in ISC (Specific Types → outboundPermissions)",
+      "Sync outboundPermissions in ISC UI first, then acknowledge here",
     system: "isc",
   },
   "entitlement-aggregation-inbound": {
     id: "entitlement-aggregation-inbound",
     label: "Entitlement aggregation (inbound)",
     description:
-      "Sync inboundCallers catalog — run manually in ISC (Specific Types → inboundCallers)",
+      "Sync inboundCallers in ISC UI first, then acknowledge here",
     system: "isc",
   },
   "machine-identity-aggregation": {

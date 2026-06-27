@@ -15,9 +15,10 @@ export {
 export {
   getMachineAccountMappings,
   updateMachineAccountMappings,
+  classifySourceMachineAccounts,
   getDefaultMachineAccountMappings,
 } from "@/lib/isc/mappings";
-export { verifySourceData, listSourceAccounts, listSourceMachineAccounts } from "@/lib/isc/verify";
+export { verifySourceData, listSourceAccounts, listSourceMachineAccounts, listSourceEntitlements } from "@/lib/isc/verify";
 export {
   revokeEntitlementAccess,
   type RevokeEntitlementInput,
