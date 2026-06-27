@@ -116,7 +116,7 @@ function buildAccessHints(input: {
     input.machineAccountCount > 0
   ) {
     hints.push(
-      "If AI Agent → Access is empty: open DevOps-Bot-Prod → Accounts tab, link the Bedrock source account, then re-run account aggregation.",
+      "If AI Agent → Access is empty: confirm source account nativeIdentity is the full ARN (e.g. arn:aws:bedrock:...:agent/agt_demo_aws_bedrock), not just the agent id. Fix D2 response mapping, re-run account aggregation, then step 6.",
     );
   }
 

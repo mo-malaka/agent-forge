@@ -92,7 +92,11 @@ export async function classifySourceMachineAccounts(
   const raw = await iscRequest<Record<string, unknown>>(
     config,
     `/sources/${config.sourceId}/classify`,
-    { method: "POST", bodyMode: "none" },
+    {
+      method: "POST",
+      bodyMode: "none",
+      experimental: true,
+    },
   );
 
   const submitted =
@@ -137,12 +141,18 @@ export async function updateMachineAccountMappings(
     throw lastError ?? new Error("Failed to update machine account mappings");
   }
 
-  const classification = await classifySourceMachineAccounts(config);
-
-  return {
-    mappings: savedMappings,
-    classification,
-  };
+  try {
+    const classification = await classifySourceMachineAccounts(config);
+    return {
+      mappings: savedMappings,
+      classification,
+    };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Mappings saved, but account classification failed: ${detail}. Re-run step 6 after deploy. If linking still fails, ensure account nativeIdentity is the full ARN (not accountId) and matches the AI agent.`,
+    );
+  }
 }
 
 export function getDefaultMachineAccountMappings(
