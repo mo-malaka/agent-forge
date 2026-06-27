@@ -53,11 +53,11 @@ export function buildDefaultMachineAccountMappings(
   sourceName: string,
 ): MachineAccountAttributeMapping[] {
   const accountAttribute =
-    process.env.ISC_MIS_LINK_ACCOUNT_ATTR?.trim() || "identity";
+    process.env.ISC_MIS_LINK_ACCOUNT_ATTR?.trim() || "nativeIdentity";
   const targetAttribute =
-    process.env.ISC_MIS_LINK_TARGET_ATTR?.trim() || "backendId";
+    process.env.ISC_MIS_LINK_TARGET_ATTR?.trim() || "nativeIdentity";
 
-  const mappings = [
+  return [
     buildMachineAccountMapping(
       config,
       sourceName,
@@ -65,19 +65,6 @@ export function buildDefaultMachineAccountMappings(
       targetAttribute,
     ),
   ];
-
-  if (accountAttribute !== "nativeIdentity" || targetAttribute !== "nativeIdentity") {
-    mappings.push(
-      buildMachineAccountMapping(
-        config,
-        sourceName,
-        "nativeIdentity",
-        "nativeIdentity",
-      ),
-    );
-  }
-
-  return mappings;
 }
 
 /** @deprecated Use buildDefaultMachineAccountMappings */

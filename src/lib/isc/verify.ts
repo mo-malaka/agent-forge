@@ -169,7 +169,7 @@ function buildAccessHints(input: {
     input.machineAccountCount === 0
   ) {
     hints.push(
-      "Accounts exist but no machine accounts — re-run Step 6 to force machine classification and link identity → backendId.",
+      "Accounts exist but no machine accounts — re-run Step 6 to classify and link nativeIdentity → nativeIdentity.",
     );
   }
 
@@ -179,7 +179,7 @@ function buildAccessHints(input: {
     input.machineAccountCount > 0
   ) {
     hints.push(
-      "If AI Agent → Access is still empty, confirm the source account identity attribute (ARN) matches the AI agent backendId, then re-run Steps 5 and 6.",
+      "If AI Agent → Access is still empty, confirm account and AI agent nativeIdentity both hold the full ARN, then re-run Steps 5 and 6.",
     );
   }
 
