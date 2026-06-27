@@ -30,14 +30,20 @@ export async function startOutboundEntitlementAggregation(
 
 export async function startMachineIdentityAggregation(
   config: IscConfig,
-  schemas: string[] = ["bedrock-agent"],
+  datasetIds: string[] = ["bedrock-agent"],
 ): Promise<AggregationStartResult> {
+  if (datasetIds.length === 0) {
+    throw new Error(
+      "Machine identity aggregation requires at least one datasetId (machine identity schema name, e.g. bedrock-agent).",
+    );
+  }
+
   const raw = await iscRequest(
     config,
     `/sources/${config.sourceId}/aggregate-agents`,
     {
       method: "POST",
-      body: { schemas },
+      body: { datasetIds },
       experimental: true,
     },
   );

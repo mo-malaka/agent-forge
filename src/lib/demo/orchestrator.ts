@@ -48,6 +48,22 @@ function defaultAllowPermission(payload: DemoStepPayload): string {
   return payload.permission ?? "S3:Read";
 }
 
+function resolveMachineIdentityDatasetIds(payload: DemoStepPayload): string[] {
+  if (payload.dataset_ids?.length) {
+    return payload.dataset_ids;
+  }
+  if (payload.schemas?.length) {
+    return payload.schemas;
+  }
+  const fromEnv = process.env.ISC_MIS_DATASET_IDS?.split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (fromEnv?.length) {
+    return fromEnv;
+  }
+  return ["bedrock-agent"];
+}
+
 function defaultRevokeEntitlement(payload: DemoStepPayload): string {
   return payload.entitlement ?? "Jira:Admin";
 }
@@ -118,7 +134,7 @@ export async function runDemoStep(
       const config = requireIscConfig();
       const started = await startMachineIdentityAggregation(
         config,
-        payload.schemas ?? ["bedrock-agent"],
+        resolveMachineIdentityDatasetIds(payload),
       );
 
       return {

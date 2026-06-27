@@ -17,6 +17,7 @@ export const demoStepSchema = z.object({
   native_identity: z.string().trim().min(1).optional(),
   assignment_id: z.string().trim().min(1).optional(),
   schemas: z.array(z.string().trim().min(1)).max(10).optional(),
+  dataset_ids: z.array(z.string().trim().min(1)).max(10).optional(),
 });
 
 export type DemoStepPayload = z.infer<typeof demoStepSchema>;
