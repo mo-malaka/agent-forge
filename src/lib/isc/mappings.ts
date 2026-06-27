@@ -40,6 +40,7 @@ export function buildNativeIdentityMachineAccountMapping(
     target: {
       type: "IDENTITY",
       attributeName: "nativeIdentity",
+      sourceId: config.sourceId,
     },
   };
 }
@@ -54,37 +55,63 @@ export async function getMachineAccountMappings(
   );
 }
 
-export async function updateMachineAccountMappings(
+async function putMachineAccountMappings(
   config: IscConfig,
-  mapping?: MachineAccountAttributeMapping,
+  mappings: MachineAccountAttributeMapping[],
+  path: "machine-account-mappings" | "machine-mappings",
 ): Promise<MachineAccountAttributeMapping[]> {
-  const sourceName = await getSourceName(config);
-  const payload =
-    mapping ?? buildNativeIdentityMachineAccountMapping(config, sourceName);
+  return iscRequest<MachineAccountAttributeMapping[]>(
+    config,
+    `/sources/${config.sourceId}/${path}`,
+    {
+      method: "PUT",
+      body: mappings,
+      experimental: true,
+    },
+  );
+}
 
-  try {
-    await iscRequest(
-      config,
-      `/sources/${config.sourceId}/machine-account-mappings`,
-      {
-        method: "DELETE",
-        bodyMode: "none",
-        experimental: true,
-      },
-    );
-  } catch {
-    // No existing mappings to clear.
-  }
-
+async function postMachineAccountMappings(
+  config: IscConfig,
+  mappings: MachineAccountAttributeMapping[],
+): Promise<MachineAccountAttributeMapping[]> {
   return iscRequest<MachineAccountAttributeMapping[]>(
     config,
     `/sources/${config.sourceId}/machine-account-mappings`,
     {
       method: "POST",
-      body: payload,
+      body: mappings,
       experimental: true,
     },
   );
+}
+
+export async function updateMachineAccountMappings(
+  config: IscConfig,
+  mapping?: MachineAccountAttributeMapping,
+): Promise<MachineAccountAttributeMapping[]> {
+  const sourceName = await getSourceName(config);
+  const mappings = [
+    mapping ?? buildNativeIdentityMachineAccountMapping(config, sourceName),
+  ];
+
+  const attempts: Array<() => Promise<MachineAccountAttributeMapping[]>> = [
+    () => putMachineAccountMappings(config, mappings, "machine-account-mappings"),
+    () => putMachineAccountMappings(config, mappings, "machine-mappings"),
+    () => postMachineAccountMappings(config, mappings),
+  ];
+
+  let lastError: Error | null = null;
+
+  for (const attempt of attempts) {
+    try {
+      return await attempt();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+    }
+  }
+
+  throw lastError ?? new Error("Failed to update machine account mappings");
 }
 
 export function getDefaultMachineAccountMappings(
