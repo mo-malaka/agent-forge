@@ -185,6 +185,8 @@ Go to **Source Setup → HTTP Operations**. Create **five** operations.
 | `accountId` | `accountId` |
 | `name` | `name` |
 | `nativeIdentity` | `nativeIdentity` |
+| `identity` | `identity` |
+| `backendId` | `backendId` |
 | `displayName` | `displayName` |
 | `identityName` | `identityName` |
 | `status` | `status` |
@@ -278,8 +280,10 @@ No separate AgentForge URL — reuse the **accounts** endpoint.
 
 | Machine identity attribute | Attribute path |
 |----------------------------|----------------|
-| Native Identity | `nativeIdentity` |
+| Native Identity | `nativeIdentity` (or `backendId` if your schema uses that) |
 | Identity Name | `identityName` |
+| `backendId` | `backendId` |
+| `identity` | `identity` |
 | `owner` | `owner` |
 | `platform` | `platform` |
 

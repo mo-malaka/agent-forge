@@ -164,15 +164,16 @@ export async function runDemoStep(
     case "machine-account-mappings": {
       const config = requireIscConfig();
       const result = await updateMachineAccountMappings(config);
-      const submitted = result.classification.accountsSubmitted;
+      const submitted = result.classification.accountsSubmitted ?? 0;
+      const mode = result.classification.mode;
 
       return {
         step: payload.step,
-        status: "completed",
+        status: submitted > 0 ? "completed" : "manual",
         message:
-          submitted !== undefined
-            ? `Machine account mappings updated; ${submitted} accounts submitted for classification`
-            : "Machine account mappings updated; account classification started",
+          submitted > 0
+            ? `Machine account mappings updated; ${submitted} account(s) classified via ${mode}`
+            : "Mappings saved but 0 accounts classified. Configure machine account classification on the source in ISC, then re-run Step 6.",
         system,
         taskId: null,
         result,

@@ -1,8 +1,8 @@
 import { iscRequest } from "@/lib/isc/client";
+import type { IscConfig } from "@/lib/isc/config";
 import type {
   DemoVerifyResult,
   IscAccountSummary,
-  IscConfig,
   IscMachineAccountSummary,
 } from "@/lib/isc/types";
 
@@ -21,11 +21,23 @@ function asArray<T>(payload: unknown): T[] {
   return [];
 }
 
+function accountMatchesSource(
+  account: IscAccountSummary,
+  sourceId: string,
+): boolean {
+  if (account.sourceId === sourceId) {
+    return true;
+  }
+
+  const source = account.source as { id?: string } | undefined;
+  return source?.id === sourceId;
+}
+
 async function listWithFilterFallback<T>(
   config: IscConfig,
   path: string,
   filterAttempts: string[],
-  options: { experimental?: boolean; limit?: number } = {},
+  options: { experimental?: boolean; limit?: number; apiVersion?: string } = {},
 ): Promise<T[]> {
   const limit = String(options.limit ?? 50);
   let lastError: Error | null = null;
@@ -35,6 +47,7 @@ async function listWithFilterFallback<T>(
       const payload = await iscRequest<unknown>(config, path, {
         query: { filters, limit },
         experimental: options.experimental,
+        apiVersion: options.apiVersion,
       });
       return asArray<T>(payload);
     } catch (error) {
@@ -48,19 +61,57 @@ async function listWithFilterFallback<T>(
   throw lastError ?? new Error(`Failed to list ${path}`);
 }
 
+async function listAccountsWithApiFallback(
+  config: IscConfig,
+  limit: number,
+): Promise<IscAccountSummary[]> {
+  const filterAttempts = [
+    `source.id eq "${config.sourceId}"`,
+    `sourceId eq "${config.sourceId}"`,
+  ];
+  const apiVersions = [config.apiVersion, "v2025"].filter(
+    (value, index, array) => array.indexOf(value) === index,
+  );
+
+  for (const apiVersion of apiVersions) {
+    try {
+      const results = await listWithFilterFallback<IscAccountSummary>(
+        config,
+        "/accounts",
+        filterAttempts,
+        { limit, apiVersion },
+      );
+      if (results.length > 0) {
+        return results;
+      }
+    } catch {
+      // Try next API version or unfiltered fallback.
+    }
+
+    try {
+      const payload = await iscRequest<unknown>(config, "/accounts", {
+        query: { limit: String(Math.max(limit, 250)) },
+        apiVersion,
+      });
+      const filtered = asArray<IscAccountSummary>(payload).filter((account) =>
+        accountMatchesSource(account, config.sourceId),
+      );
+      if (filtered.length > 0) {
+        return filtered;
+      }
+    } catch {
+      // Try next API version.
+    }
+  }
+
+  return [];
+}
+
 export async function listSourceAccounts(
   config: IscConfig,
   limit = 50,
 ): Promise<IscAccountSummary[]> {
-  return listWithFilterFallback<IscAccountSummary>(
-    config,
-    "/accounts",
-    [
-      `source.id eq "${config.sourceId}"`,
-      `sourceId eq "${config.sourceId}"`,
-    ],
-    { limit },
-  );
+  return listAccountsWithApiFallback(config, limit);
 }
 
 export async function listSourceMachineAccounts(
@@ -102,12 +153,24 @@ function buildAccessHints(input: {
 
   if (input.entitlementCount === 0) {
     hints.push(
-      "Entitlement catalog is empty — run outbound + inbound entitlement aggregation in ISC (Steps 2–3), not only the AgentForge acknowledge button.",
+      "Entitlement catalog is empty — run outbound + inbound entitlement aggregation in ISC (Steps 2–3).",
     );
   }
 
   if (input.accountCount === 0) {
-    hints.push("No source accounts found — re-run account aggregation (Step 5).");
+    hints.push(
+      "No source accounts returned from ISC API — re-run account aggregation (Step 5). If accounts exist in the UI, the v2026 accounts API may be empty on this tenant.",
+    );
+  }
+
+  if (
+    input.entitlementCount > 0 &&
+    input.accountCount > 0 &&
+    input.machineAccountCount === 0
+  ) {
+    hints.push(
+      "Accounts exist but no machine accounts — re-run Step 6 to force machine classification and link identity → backendId.",
+    );
   }
 
   if (
@@ -116,7 +179,7 @@ function buildAccessHints(input: {
     input.machineAccountCount > 0
   ) {
     hints.push(
-      "If AI Agent → Access is empty: confirm source account nativeIdentity is the full ARN (e.g. arn:aws:bedrock:...:agent/agt_demo_aws_bedrock), not just the agent id. Fix D2 response mapping, re-run account aggregation, then step 6.",
+      "If AI Agent → Access is still empty, confirm the source account identity attribute (ARN) matches the AI agent backendId, then re-run Steps 5 and 6.",
     );
   }
 

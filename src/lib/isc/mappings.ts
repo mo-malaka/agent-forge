@@ -1,4 +1,5 @@
 import { iscRequest } from "@/lib/isc/client";
+import { listSourceAccounts } from "@/lib/isc/verify";
 import type {
   IscConfig,
   MachineAccountAttributeMapping,
@@ -24,9 +25,11 @@ async function getSourceName(config: IscConfig): Promise<string> {
   return source.name.trim();
 }
 
-export function buildNativeIdentityMachineAccountMapping(
+function buildMachineAccountMapping(
   config: IscConfig,
   sourceName: string,
+  accountAttribute: string,
+  targetAttribute: string,
 ): MachineAccountAttributeMapping {
   return {
     transformDefinition: {
@@ -34,15 +37,55 @@ export function buildNativeIdentityMachineAccountMapping(
       attributes: {
         sourceId: config.sourceId,
         sourceName,
-        attributeName: "nativeIdentity",
+        attributeName: accountAttribute,
       },
     },
     target: {
       type: "IDENTITY",
-      attributeName: "nativeIdentity",
+      attributeName: targetAttribute,
       sourceId: config.sourceId,
     },
   };
+}
+
+export function buildDefaultMachineAccountMappings(
+  config: IscConfig,
+  sourceName: string,
+): MachineAccountAttributeMapping[] {
+  const accountAttribute =
+    process.env.ISC_MIS_LINK_ACCOUNT_ATTR?.trim() || "identity";
+  const targetAttribute =
+    process.env.ISC_MIS_LINK_TARGET_ATTR?.trim() || "backendId";
+
+  const mappings = [
+    buildMachineAccountMapping(
+      config,
+      sourceName,
+      accountAttribute,
+      targetAttribute,
+    ),
+  ];
+
+  if (accountAttribute !== "nativeIdentity" || targetAttribute !== "nativeIdentity") {
+    mappings.push(
+      buildMachineAccountMapping(
+        config,
+        sourceName,
+        "nativeIdentity",
+        "nativeIdentity",
+      ),
+    );
+  }
+
+  return mappings;
+}
+
+/** @deprecated Use buildDefaultMachineAccountMappings */
+export function buildNativeIdentityMachineAccountMapping(
+  config: IscConfig,
+  sourceName: string,
+): MachineAccountAttributeMapping {
+  return buildDefaultMachineAccountMappings(config, sourceName)[0];
 }
 
 export async function getMachineAccountMappings(
@@ -86,9 +129,25 @@ async function postMachineAccountMappings(
   );
 }
 
+export async function classifyAccountAsMachine(
+  config: IscConfig,
+  accountId: string,
+): Promise<unknown> {
+  return iscRequest(
+    config,
+    `/accounts/${accountId}/classify`,
+    {
+      method: "POST",
+      bodyMode: "none",
+      experimental: true,
+      query: { classificationMode: "forceMachine" },
+    },
+  );
+}
+
 export async function classifySourceMachineAccounts(
   config: IscConfig,
-): Promise<{ accountsSubmitted?: number; raw: unknown }> {
+): Promise<{ accountsSubmitted?: number; raw: unknown; mode: string }> {
   const raw = await iscRequest<Record<string, unknown>>(
     config,
     `/sources/${config.sourceId}/classify`,
@@ -104,20 +163,49 @@ export async function classifySourceMachineAccounts(
       ? raw["Accounts submitted for processing"]
       : undefined;
 
-  return { accountsSubmitted: submitted, raw };
+  if (submitted && submitted > 0) {
+    return { accountsSubmitted: submitted, raw, mode: "source" };
+  }
+
+  const accounts = await listSourceAccounts(config, 250);
+  let forced = 0;
+  const failures: Array<{ accountId: string; error: string }> = [];
+
+  for (const account of accounts) {
+    if (!account.id) {
+      continue;
+    }
+
+    try {
+      await classifyAccountAsMachine(config, account.id);
+      forced += 1;
+    } catch (error) {
+      failures.push({
+        accountId: account.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return {
+    accountsSubmitted: forced,
+    raw: { sourceClassify: raw, forcedPerAccount: forced, failures },
+    mode: forced > 0 ? "per-account" : "none",
+  };
 }
 
 export async function updateMachineAccountMappings(
   config: IscConfig,
-  mapping?: MachineAccountAttributeMapping,
 ): Promise<{
   mappings: MachineAccountAttributeMapping[];
-  classification: { accountsSubmitted?: number; raw: unknown };
+  classification: {
+    accountsSubmitted?: number;
+    raw: unknown;
+    mode: string;
+  };
 }> {
   const sourceName = await getSourceName(config);
-  const mappings = [
-    mapping ?? buildNativeIdentityMachineAccountMapping(config, sourceName),
-  ];
+  const mappings = buildDefaultMachineAccountMappings(config, sourceName);
 
   const attempts: Array<() => Promise<MachineAccountAttributeMapping[]>> = [
     () => putMachineAccountMappings(config, mappings, "machine-account-mappings"),
@@ -150,7 +238,7 @@ export async function updateMachineAccountMappings(
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `Mappings saved, but account classification failed: ${detail}. Re-run step 6 after deploy. If linking still fails, ensure account nativeIdentity is the full ARN (not accountId) and matches the AI agent.`,
+      `Mappings saved, but account classification failed: ${detail}. Re-run step 6 after deploy.`,
     );
   }
 }
@@ -159,5 +247,5 @@ export function getDefaultMachineAccountMappings(
   config: IscConfig,
   sourceName: string,
 ): MachineAccountAttributeMapping[] {
-  return [buildNativeIdentityMachineAccountMapping(config, sourceName)];
+  return buildDefaultMachineAccountMappings(config, sourceName);
 }

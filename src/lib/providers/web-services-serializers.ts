@@ -21,6 +21,8 @@ export interface WebServicesAccount {
   displayName: string;
   identityName: string;
   nativeIdentity: string;
+  identity: string;
+  backendId: string;
   status: string;
   agentId: string;
   archetype: string;
@@ -75,6 +77,8 @@ export function buildWebServicesAccount(
     displayName: row.name,
     identityName: row.name,
     nativeIdentity: deployment.resource_id,
+    identity: deployment.resource_id,
+    backendId: deployment.resource_id,
     status: deployment.native_status,
     agentId: row.id,
     archetype: row.archetype,

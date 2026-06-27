@@ -16,7 +16,9 @@ export {
   getMachineAccountMappings,
   updateMachineAccountMappings,
   classifySourceMachineAccounts,
+  classifyAccountAsMachine,
   getDefaultMachineAccountMappings,
+  buildDefaultMachineAccountMappings,
 } from "@/lib/isc/mappings";
 export { verifySourceData, listSourceAccounts, listSourceMachineAccounts, listSourceEntitlements } from "@/lib/isc/verify";
 export {
