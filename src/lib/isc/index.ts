@@ -32,6 +32,7 @@ export {
 export type {
   AggregationStartResult,
   AttributeMapping,
+  MachineAccountAttributeMapping,
   DemoVerifyResult,
   IscAccountSummary,
   IscMachineAccountSummary,

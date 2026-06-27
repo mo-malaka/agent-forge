@@ -24,6 +24,23 @@ export interface AttributeMapping {
   accountAttribute: string;
 }
 
+export interface MachineAccountTransformDefinition {
+  type: string;
+  attributes: Record<string, string>;
+  id?: string;
+}
+
+export interface MachineAccountMappingTarget {
+  type: string;
+  attributeName: string;
+  sourceId?: string;
+}
+
+export interface MachineAccountAttributeMapping {
+  transformDefinition: MachineAccountTransformDefinition;
+  target: MachineAccountMappingTarget;
+}
+
 export interface IscAccountSummary {
   id: string;
   name?: string;
