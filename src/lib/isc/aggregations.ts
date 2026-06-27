@@ -38,6 +38,7 @@ export async function startMachineIdentityAggregation(
     {
       method: "POST",
       body: { schemas },
+      experimental: true,
     },
   );
 
