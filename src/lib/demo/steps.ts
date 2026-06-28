@@ -22,7 +22,25 @@ export interface DemoStepDefinition {
   label: string;
   description: string;
   system: "agentforge" | "isc";
+  /** User must complete this step in the ISC UI and confirm here. */
+  requiresIscUiConfirmation?: boolean;
 }
+
+export const MANUAL_ISC_UI_STEPS: DemoStepId[] = [
+  "entitlement-aggregation-outbound",
+  "entitlement-aggregation-inbound",
+];
+
+export function isManualIscUiStep(step: DemoStepId): boolean {
+  return MANUAL_ISC_UI_STEPS.includes(step);
+}
+
+export const MANUAL_ISC_UI_INSTRUCTIONS: Partial<Record<DemoStepId, string>> = {
+  "entitlement-aggregation-outbound":
+    "Source → Entitlement Aggregation → Specific Types → outboundPermissions → Start. Wait until the task shows Success.",
+  "entitlement-aggregation-inbound":
+    "Source → Entitlement Aggregation → Specific Types → inboundCallers → Start. Wait until the task shows Success.",
+};
 
 export const DEMO_STEPS: Record<DemoStepId, DemoStepDefinition> = {
   "bulk-create": {
@@ -41,16 +59,16 @@ export const DEMO_STEPS: Record<DemoStepId, DemoStepDefinition> = {
   "entitlement-aggregation-outbound": {
     id: "entitlement-aggregation-outbound",
     label: "Entitlement aggregation (outbound)",
-    description:
-      "Sync outboundPermissions in ISC UI first, then acknowledge here",
+    description: "Run in ISC, then confirm below — AgentForge cannot trigger this step",
     system: "isc",
+    requiresIscUiConfirmation: true,
   },
   "entitlement-aggregation-inbound": {
     id: "entitlement-aggregation-inbound",
     label: "Entitlement aggregation (inbound)",
-    description:
-      "Sync inboundCallers in ISC UI first, then acknowledge here",
+    description: "Run in ISC, then confirm below — AgentForge cannot trigger this step",
     system: "isc",
+    requiresIscUiConfirmation: true,
   },
   "machine-identity-aggregation": {
     id: "machine-identity-aggregation",

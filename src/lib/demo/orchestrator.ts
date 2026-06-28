@@ -101,7 +101,7 @@ export async function runDemoStep(
         step: payload.step,
         status: "manual",
         message:
-          "Run in ISC first: Source → Entitlement Aggregation → Specific Types → outboundPermissions → Start. Wait for SUCCESS, then click Run here to acknowledge.",
+          "Confirmed — outboundPermissions aggregation completed in ISC UI",
         system,
         taskId: null,
         result: {
@@ -118,7 +118,7 @@ export async function runDemoStep(
         step: payload.step,
         status: "manual",
         message:
-          "Run in ISC first: Source → Entitlement Aggregation → Specific Types → inboundCallers → Start. Wait for SUCCESS, then click Run here to acknowledge.",
+          "Confirmed — inboundCallers aggregation completed in ISC UI",
         system,
         taskId: null,
         result: {

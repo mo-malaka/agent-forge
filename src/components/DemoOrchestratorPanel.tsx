@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import {
   DEMO_MODES,
   DEMO_STEPS,
+  isManualIscUiStep,
+  MANUAL_ISC_UI_INSTRUCTIONS,
   type DemoModeId,
   type DemoStepId,
 } from "@/lib/demo/steps";
@@ -114,20 +116,20 @@ function stepStatusStyles(status: LogStatus | undefined) {
   }
 }
 
-function stepStatusLabel(status: LogStatus | undefined) {
+function stepStatusLabel(status: LogStatus | undefined, step: DemoStepId) {
   switch (status) {
     case "success":
-      return "Done";
+      return isManualIscUiStep(step) ? "Confirmed" : "Done";
     case "error":
       return "Failed";
     case "manual":
-      return "Manual";
+      return "Pending";
     case "running":
       return "Running";
     case "waiting":
       return "Waiting";
     default:
-      return null;
+      return isManualIscUiStep(step) ? "Manual" : null;
   }
 }
 
@@ -195,6 +197,9 @@ export function DemoOrchestratorPanel() {
   const [revokeEntitlement, setRevokeEntitlement] = useState("Jira:Admin");
   const [runningStep, setRunningStep] = useState<DemoStepId | null>(null);
   const [stepStatus, setStepStatus] = useState<StepStatusMap>({});
+  const [manualAckChecked, setManualAckChecked] = useState<
+    Partial<Record<DemoStepId, boolean>>
+  >({});
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -258,6 +263,10 @@ export function DemoOrchestratorPanel() {
     }
 
     if (body.status === "manual") {
+      if (isManualIscUiStep(step)) {
+        onProgress("success", body.message);
+        return;
+      }
       onProgress("manual", body.message);
       return;
     }
@@ -267,6 +276,14 @@ export function DemoOrchestratorPanel() {
     if (step === "bulk-create") {
       router.refresh();
     }
+  }
+
+  async function confirmManualStep(mode: DemoModeId, step: DemoStepId) {
+    if (!manualAckChecked[step]) {
+      return;
+    }
+    setManualAckChecked((current) => ({ ...current, [step]: false }));
+    await runSingleStep(mode, step);
   }
 
   async function runSingleStep(mode: DemoModeId, step: DemoStepId) {
@@ -299,8 +316,13 @@ export function DemoOrchestratorPanel() {
   ) {
     const result = stepStatus[step];
     const status = result?.status;
-    const label = stepStatusLabel(status);
+    const isManualIsc = isManualIscUiStep(step);
+    const isConfirmed = isManualIsc && status === "success";
+    const label = stepStatusLabel(status, step);
     const requiresIsc = options?.requiresIsc ?? true;
+    const iscInstruction = MANUAL_ISC_UI_INSTRUCTIONS[step];
+    const stepDisabled =
+      (requiresIsc && step !== "bulk-create" && !iscReady) || runningStep !== null;
 
     return (
       <li
@@ -313,7 +335,7 @@ export function DemoOrchestratorPanel() {
               ? "bg-emerald-200 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-200"
               : status === "error"
                 ? "bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200"
-                : status === "manual"
+                : isManualIsc
                   ? "bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
                   : status === "running" || status === "waiting"
                     ? "bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
@@ -327,7 +349,13 @@ export function DemoOrchestratorPanel() {
             {DEMO_STEPS[step].label}
           </p>
           <p className="text-xs text-zinc-500">{DEMO_STEPS[step].description}</p>
-          {result?.message ? (
+          {isManualIsc && iscInstruction ? (
+            <div className="mt-2 rounded border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+              <p className="font-medium">Run this in ISC first</p>
+              <p className="mt-0.5">{iscInstruction}</p>
+            </div>
+          ) : null}
+          {result?.message && !isManualIsc ? (
             <p
               className={`mt-1 text-xs ${
                 status === "success"
@@ -341,6 +369,30 @@ export function DemoOrchestratorPanel() {
             >
               {result.message}
             </p>
+          ) : null}
+          {isConfirmed && result?.message ? (
+            <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
+              {result.message}
+            </p>
+          ) : null}
+          {isManualIsc && !isConfirmed ? (
+            <label className="mt-2 flex cursor-pointer items-start gap-2 text-xs text-zinc-700 dark:text-zinc-300">
+              <input
+                type="checkbox"
+                checked={manualAckChecked[step] ?? false}
+                disabled={stepDisabled}
+                onChange={(event) =>
+                  setManualAckChecked((current) => ({
+                    ...current,
+                    [step]: event.target.checked,
+                  }))
+                }
+                className="mt-0.5 h-3.5 w-3.5 rounded border-zinc-300"
+              />
+              <span>
+                I ran this aggregation in ISC and it completed successfully
+              </span>
+            </label>
           ) : null}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
@@ -357,21 +409,43 @@ export function DemoOrchestratorPanel() {
               {label}
             </span>
           ) : null}
-          <button
-            type="button"
-            onClick={() => void runSingleStep(mode, step)}
-            disabled={
-              (requiresIsc && step !== "bulk-create" && !iscReady) ||
-              runningStep !== null
-            }
-            className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {runningStep === step
-              ? "Running..."
-              : status === "success" || status === "manual"
-                ? "Run again"
-                : "Run"}
-          </button>
+          {isManualIsc ? (
+            isConfirmed ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setManualAckChecked((current) => ({ ...current, [step]: false }));
+                  updateStepStatus(step, "pending", "");
+                }}
+                disabled={stepDisabled}
+                className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                Reset confirmation
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void confirmManualStep(mode, step)}
+                disabled={stepDisabled || !(manualAckChecked[step] ?? false)}
+                className="rounded-md border border-amber-400 bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-900"
+              >
+                {runningStep === step ? "Confirming..." : "Confirm completed in ISC"}
+              </button>
+            )
+          ) : (
+            <button
+              type="button"
+              onClick={() => void runSingleStep(mode, step)}
+              disabled={stepDisabled}
+              className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {runningStep === step
+                ? "Running..."
+                : status === "success"
+                  ? "Run again"
+                  : "Run"}
+            </button>
+          )}
         </div>
       </li>
     );
@@ -530,8 +604,9 @@ export function DemoOrchestratorPanel() {
       ) : null}
 
       <p className="text-xs text-zinc-500">
-        Entitlement aggregations (outbound + inbound) run in ISC under Specific
-        Types. API steps poll ISC until each task completes.
+        Steps 2–3 (outbound and inbound entitlement aggregation) must be run in
+        the ISC UI — check the box and confirm when each task succeeds. Other
+        ISC steps start via API and poll until complete.
       </p>
     </section>
   );
