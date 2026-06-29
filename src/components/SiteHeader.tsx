@@ -1,5 +1,12 @@
 import Link from "next/link";
 
+const NAV_LINKS = [
+  { href: "/demo", label: "Demo" },
+  { href: "/agents", label: "Agents" },
+  { href: "/connector", label: "Connector" },
+  { href: "/setup", label: "Setup" },
+] as const;
+
 export function SiteHeader() {
   return (
     <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
@@ -15,16 +22,19 @@ export function SiteHeader() {
             Synthetic AI agents for identity governance demos
           </p>
         </div>
-        <nav className="flex items-center gap-3">
-          <Link
-            href="/setup"
-            className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-900"
-          >
-            Setup Guide
-          </Link>
+        <nav className="flex items-center gap-2">
+          {NAV_LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="rounded-md px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-100"
+            >
+              {link.label}
+            </Link>
+          ))}
           <Link
             href="/agents/new"
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+            className="ml-1 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
           >
             New Agent
           </Link>
