@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { CopyButton } from "@/components/CopyButton";
 import type { SerializedAgent } from "@/types/agent";
 
 const PROVIDER_BADGE_STYLES: Record<string, string> = {
@@ -8,6 +7,49 @@ const PROVIDER_BADGE_STYLES: Record<string, string> = {
   gcp: "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200",
   azure: "border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200",
 };
+
+const MAX_CHIPS = 4;
+
+function EntitlementChips({
+  items,
+  variant,
+}: {
+  items: Array<{ name: string }>;
+  variant: "outbound" | "inbound";
+}) {
+  if (items.length === 0) {
+    return (
+      <span className="text-xs text-zinc-400">
+        No {variant === "outbound" ? "outbound" : "inbound"}
+      </span>
+    );
+  }
+
+  const visible = items.slice(0, MAX_CHIPS);
+  const remaining = items.length - visible.length;
+  const chipStyle =
+    variant === "outbound"
+      ? "border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-200"
+      : "border-teal-200 bg-teal-50 text-teal-800 dark:border-teal-900 dark:bg-teal-950 dark:text-teal-200";
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {visible.map((item) => (
+        <span
+          key={item.name}
+          className={`rounded-full border px-2 py-0.5 text-xs font-medium ${chipStyle}`}
+        >
+          {item.name}
+        </span>
+      ))}
+      {remaining > 0 ? (
+        <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+          +{remaining}
+        </span>
+      ) : null}
+    </div>
+  );
+}
 
 interface AgentCardProps {
   agent: SerializedAgent;
@@ -44,49 +86,18 @@ export function AgentCard({ agent }: AgentCardProps) {
         </div>
       </div>
 
-      <dl className="mt-4 grid gap-2 text-sm text-zinc-600 dark:text-zinc-400 sm:grid-cols-3">
+      <div className="mt-4 space-y-3">
         <div>
-          <dt className="text-xs uppercase tracking-wide text-zinc-500">
-            Cloud resource
-          </dt>
-          <dd className="mt-1 truncate font-mono text-xs text-zinc-900 dark:text-zinc-100">
-            {agent.deployment.resource_id}
-          </dd>
+          <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-zinc-500">
+            Outbound
+          </p>
+          <EntitlementChips items={agent.iam.outbound_access} variant="outbound" />
         </div>
         <div>
-          <dt className="text-xs uppercase tracking-wide text-zinc-500">
-            Access
-          </dt>
-          <dd className="mt-1 font-medium text-zinc-900 dark:text-zinc-100">
-            {agent.iam.outbound_access.length} out ·{" "}
-            {agent.iam.inbound_access.length} in
-          </dd>
-        </div>
-        <div>
-          <dt className="text-xs uppercase tracking-wide text-zinc-500">
-            Created
-          </dt>
-          <dd className="mt-1 font-medium text-zinc-900 dark:text-zinc-100">
-            {new Date(agent.created_at).toLocaleString()}
-          </dd>
-        </div>
-      </dl>
-
-      <div className="mt-4 space-y-2 rounded-md bg-zinc-50 p-3 dark:bg-zinc-900">
-        <div className="flex items-center justify-between gap-3">
-          <code className="truncate text-xs text-zinc-700 dark:text-zinc-300">
-            {agent.endpoints.web_services}
-          </code>
-          <CopyButton
-            value={agent.endpoints.web_services}
-            label="Copy Web Services URL"
-          />
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <code className="truncate text-xs text-zinc-700 dark:text-zinc-300">
-            {agent.endpoints.self}
-          </code>
-          <CopyButton value={agent.endpoints.self} label="Copy agent URL" />
+          <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-zinc-500">
+            Inbound
+          </p>
+          <EntitlementChips items={agent.iam.inbound_access} variant="inbound" />
         </div>
       </div>
     </article>

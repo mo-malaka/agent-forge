@@ -1,5 +1,8 @@
 import Link from "next/link";
 
+import { HomeContinueDemo } from "@/components/HomeContinueDemo";
+import { getIscPublicStatus } from "@/lib/isc/config";
+
 const PATHS = [
   {
     href: "/demo",
@@ -28,9 +31,29 @@ const PATHS = [
 ] as const;
 
 export default function HomePage() {
+  const isc = getIscPublicStatus();
+
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-12">
-      <section className="space-y-2 text-center">
+      <section className="space-y-3 text-center">
+        <div className="flex justify-center">
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${
+              isc.configured
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+                : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
+            }`}
+          >
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                isc.configured ? "bg-emerald-500" : "bg-amber-500"
+              }`}
+            />
+            {isc.configured
+              ? `ISC connected · ${isc.tenant}`
+              : "ISC not configured"}
+          </span>
+        </div>
         <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
           AgentForge
         </h1>
@@ -39,6 +62,8 @@ export default function HomePage() {
           to start.
         </p>
       </section>
+
+      <HomeContinueDemo />
 
       <div className="grid gap-4">
         {PATHS.map((path) => (

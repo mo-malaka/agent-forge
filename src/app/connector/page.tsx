@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { CopyButton } from "@/components/CopyButton";
+import { ConnectorChecklist } from "@/components/ConnectorChecklist";
 import {
   getPollUrl,
   getProviderConnectorEndpoints,
@@ -35,6 +36,8 @@ export default async function ConnectorPage() {
           for full configuration steps.
         </p>
       </section>
+
+      <ConnectorChecklist />
 
       <section className="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
