@@ -4,6 +4,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import {
+  DemoPreflightPanel,
+  isPreflightBlocking,
+} from "@/components/DemoPreflightPanel";
+import type { PreflightResult } from "@/lib/demo/preflight";
+import {
   clearDemoProgress,
   loadDemoProgress,
   saveDemoProgress,
@@ -216,6 +221,11 @@ export function DemoOrchestratorPanel() {
   const searchParams = useSearchParams();
   const stepRefs = useRef<Partial<Record<DemoStepId, HTMLLIElement | null>>>({});
   const prevStepStatusRef = useRef<StepStatusMap>({});
+  const [preflightResult, setPreflightResult] = useState<PreflightResult | null>(
+    null,
+  );
+  const [preflightRefreshKey, setPreflightRefreshKey] = useState(0);
+  const [resettingDemo, setResettingDemo] = useState(false);
 
   useEffect(() => {
     void fetch("/api/demo/config")
@@ -270,7 +280,50 @@ export function DemoOrchestratorPanel() {
     setManualAckChecked({});
     setError(null);
     prevStepStatusRef.current = {};
+    scrollReadyRef.current = false;
   }
+
+  async function resetDemoData(scope: "demo-agent" | "full-store" = "demo-agent") {
+    setResettingDemo(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/demo/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scope,
+          agent_id: agentId,
+          remove_bulk_agents: scope === "full-store",
+        }),
+      });
+
+      const body = (await response.json()) as {
+        error?: string;
+        agent?: { name: string };
+      };
+
+      if (!response.ok) {
+        throw new Error(body.error ?? "Demo reset failed");
+      }
+
+      clearProgress();
+      setPreflightRefreshKey((current) => current + 1);
+      router.refresh();
+
+      if (body.agent?.name) {
+        setError(null);
+      }
+    } catch (resetError) {
+      setError(
+        resetError instanceof Error ? resetError.message : "Demo reset failed",
+      );
+    } finally {
+      setResettingDemo(false);
+    }
+  }
+
+  const preflightBlocked = isPreflightBlocking(preflightResult);
 
   function updateStepStatus(
     step: DemoStepId,
@@ -332,6 +385,8 @@ export function DemoOrchestratorPanel() {
     if (step === "bulk-create") {
       router.refresh();
     }
+
+    setPreflightRefreshKey((current) => current + 1);
   }
 
   async function confirmManualStep(mode: DemoModeId, step: DemoStepId) {
@@ -443,8 +498,12 @@ export function DemoOrchestratorPanel() {
     const label = stepStatusLabel(status, step);
     const requiresIsc = options?.requiresIsc ?? true;
     const iscInstruction = MANUAL_ISC_UI_INSTRUCTIONS[step];
+    const blockedByPreflight =
+      preflightBlocked && !(mode === "full-sync" && step === "bulk-create");
     const stepDisabled =
-      (requiresIsc && step !== "bulk-create" && !iscReady) || runningStep !== null;
+      (requiresIsc && step !== "bulk-create" && !iscReady) ||
+      runningStep !== null ||
+      blockedByPreflight;
     const expanded = isStepExpanded(step, mode);
     const isNext = getNextIncompleteStep(mode) === step;
 
@@ -716,18 +775,37 @@ export function DemoOrchestratorPanel() {
           <p className="text-xs text-zinc-500">
             {completedCount}/{activeSteps.length} steps complete
           </p>
-          {Object.keys(stepStatus).length > 0 ? (
+          <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
-              onClick={clearProgress}
-              disabled={runningStep !== null}
-              className="text-xs text-zinc-500 hover:text-zinc-800 disabled:opacity-50 dark:hover:text-zinc-300"
+              onClick={() => void resetDemoData("demo-agent")}
+              disabled={runningStep !== null || resettingDemo}
+              className="text-xs font-medium text-indigo-700 hover:text-indigo-900 disabled:opacity-50 dark:text-indigo-300 dark:hover:text-indigo-200"
             >
-              Clear progress
+              {resettingDemo ? "Resetting..." : "Reset demo agent"}
             </button>
-          ) : null}
+            {Object.keys(stepStatus).length > 0 ? (
+              <button
+                type="button"
+                onClick={clearProgress}
+                disabled={runningStep !== null}
+                className="text-xs text-zinc-500 hover:text-zinc-800 disabled:opacity-50 dark:hover:text-zinc-300"
+              >
+                Clear step progress
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
+
+      <DemoPreflightPanel
+        mode={activeMode}
+        agentId={agentId}
+        allowPermission={allowPermission}
+        principal={principal}
+        refreshKey={preflightRefreshKey}
+        onResultChange={setPreflightResult}
+      />
 
       <div className="flex gap-1 rounded-lg border border-zinc-200 bg-white p-1 dark:border-zinc-700 dark:bg-zinc-950">
         {(["full-sync", "govern-enforce"] as const).map((mode) => (
@@ -851,6 +929,20 @@ export function DemoOrchestratorPanel() {
             </>
           )}
         </div>
+        {activeMode === "full-sync" ? (
+          <p className="border-t border-zinc-200 px-3 py-2 text-xs text-zinc-500 dark:border-zinc-700">
+            Full store reset restores all three seed agents and removes bulk-created
+            agents.{" "}
+            <button
+              type="button"
+              onClick={() => void resetDemoData("full-store")}
+              disabled={runningStep !== null || resettingDemo}
+              className="font-medium text-indigo-700 hover:underline disabled:opacity-50 dark:text-indigo-300"
+            >
+              Reset full store to seed
+            </button>
+          </p>
+        ) : null}
       </details>
 
       <ol className="space-y-2">

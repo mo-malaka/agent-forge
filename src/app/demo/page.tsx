@@ -19,11 +19,8 @@ export default function DemoPage() {
         </h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           Run full sync and govern + enforce against your configured ISC tenant.
-          Share a tab with{" "}
-          <code className="rounded bg-zinc-100 px-1 text-xs dark:bg-zinc-800">
-            /demo?tab=govern-enforce
-          </code>
-          .
+          Reset demo agent after govern + enforce to restore Jira:Admin on
+          DevOps-Bot-Prod for the next run.
         </p>
       </section>
       <Suspense fallback={<DemoOrchestratorFallback />}>

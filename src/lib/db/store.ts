@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 
 import type { AgentRow, NewAgentRow } from "@/lib/db/schema";
-import { buildSeedAgents } from "@/lib/db/seed";
+import { buildSeedAgents, SEED_AGENT_IDS } from "@/lib/db/seed";
 import { normalizeAgentRow } from "@/lib/providers/deployment";
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -121,6 +121,60 @@ export function removeAgent(id: string): boolean {
 
   writeStore({ agents: nextAgents });
   return true;
+}
+
+export function upsertAgent(row: NewAgentRow): AgentRow {
+  const store = readStore();
+  const agent = normalizeAgentRow(row);
+  const now = new Date().toISOString();
+  const index = store.agents.findIndex((item) => item.id === row.id);
+
+  if (index === -1) {
+    const created = normalizeAgentRow({
+      ...agent,
+      createdAt: row.createdAt ?? now,
+      updatedAt: now,
+      lastActiveAt: now,
+    });
+    store.agents.unshift(created);
+    writeStore(store);
+    return created;
+  }
+
+  const updated = normalizeAgentRow({
+    ...store.agents[index]!,
+    ...agent,
+    createdAt: store.agents[index]!.createdAt,
+    updatedAt: now,
+    lastActiveAt: now,
+  });
+  store.agents[index] = updated;
+  writeStore(store);
+  return updated;
+}
+
+export function resetStoreToSeed(): AgentRow[] {
+  const agents = buildSeedAgents().map((row) => normalizeAgentRow(row));
+  writeStore({ agents });
+  return agents;
+}
+
+export function removeNonSeedAgents(): string[] {
+  const store = readStore();
+  const removed = store.agents
+    .filter((agent) => !SEED_AGENT_IDS.includes(agent.id))
+    .map((agent) => agent.id);
+  store.agents = store.agents.filter((agent) => SEED_AGENT_IDS.includes(agent.id));
+  writeStore(store);
+  return removed;
+}
+
+export function countAgents(filters?: { status?: string }): number {
+  const store = readStore();
+  if (!filters?.status) {
+    return store.agents.length;
+  }
+  return store.agents.filter((agent) => agent.status === filters.status).length;
 }
 
 export function updateAgent(

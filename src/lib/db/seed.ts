@@ -97,3 +97,22 @@ export function buildSeedAgents(): NewAgentRow[] {
 }
 
 export const SEED_AGENT_IDS = SEED_AGENTS.map((agent) => agent.id);
+
+export const DEMO_RESET_AGENT_ID = "agt_demo_aws_bedrock";
+
+export const DEMO_GOVERN_ALLOW_PERMISSION = "S3:Read";
+export const DEMO_GOVERN_REVOKE_ENTITLEMENT = "Jira:Admin";
+
+export function getSeedAgentRow(id: string): NewAgentRow | null {
+  return buildSeedAgents().find((agent) => agent.id === id) ?? null;
+}
+
+export function getDemoSeedOutboundEntitlements(): string[] {
+  const seed = SEED_AGENTS.find((agent) => agent.id === DEMO_RESET_AGENT_ID);
+  return seed?.entitlements ?? [];
+}
+
+export function getDemoSeedInboundAccess(): string[] {
+  const seed = SEED_AGENTS.find((agent) => agent.id === DEMO_RESET_AGENT_ID);
+  return seed?.inbound_access ?? [];
+}

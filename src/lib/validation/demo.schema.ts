@@ -21,3 +21,18 @@ export const demoStepSchema = z.object({
 });
 
 export type DemoStepPayload = z.infer<typeof demoStepSchema>;
+
+export const demoResetSchema = z.object({
+  scope: z.enum(["demo-agent", "full-store"]).optional(),
+  agent_id: z.string().trim().min(1).optional(),
+  remove_bulk_agents: z.boolean().optional(),
+});
+
+export type DemoResetPayload = z.infer<typeof demoResetSchema>;
+
+export const demoPreflightQuerySchema = z.object({
+  mode: z.enum(["full-sync", "govern-enforce"]),
+  agent_id: z.string().trim().min(1).optional(),
+  allow_permission: z.string().trim().min(1).optional(),
+  principal: z.string().trim().min(1).optional(),
+});
