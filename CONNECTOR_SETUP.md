@@ -963,7 +963,35 @@ If you **do not** add synthetic sources:
    - Account Aggregation
 3. Link the Bedrock account to the AI agent
 
-**Expected:** ~6–14 entitlements, all with source **AI Agents Bedrock**. You will **not** see AWS IAM / Google Workspace as separate source names without Part L.
+**Expected (Tier 1):**
+
+| Check | Expected |
+|-------|----------|
+| AI Agents list | **1** agent: `CloudOps-Navigator:Infra-DevOps-Agent` |
+| AI Agent → Access | **6** entitlements (4 outbound + 2 inbound), all source `AI Agents Bedrock` |
+| AI Agent → Accounts | **1** Bedrock account |
+| AI Agent → Details → Description | Empty unless you map `description` on the machine identity schema (see E2b below) |
+| Identity Graph | Often **empty** on Tier 1 — demo the **Access** tab instead |
+
+> Tier 1 does **not** include AWS IAM / Google Workspace entitlements. Those require [Part L](#part-l--synthetic-sources-optional-multi-source-hero).
+
+### E2b — Optional machine identity attributes (rich Details tab)
+
+To populate **Description**, **foundationModel**, etc. on **AI Agent → Details**:
+
+1. **Machine Identities → Machine Identity Schemas → bedrock-agent → Edit**
+2. Add string attributes: `description`, `foundationModel`, `role`, `version`, `agentAliasStatus`
+3. **Machine Identity Aggregation** response mapping — add paths from the accounts payload:
+
+| Machine identity attribute | Account payload path |
+|----------------------------|----------------------|
+| `description` | `description` |
+| `foundationModel` | `foundationModel` |
+| `role` | `role` |
+| `version` | `version` |
+| `agentAliasStatus` | `agentAliasStatus` |
+
+4. Re-run machine identity + account aggregation
 
 ---
 

@@ -88,6 +88,7 @@ const HERO_AGENTS: HeroSeedAgent[] = [
       aliasName: "Infra-DevOps-Agent",
       aliasId: AWS_ALIAS_ID,
       agentArn: `arn:aws:bedrock:${AWS_REGION}:${AWS_ACCOUNT_ID}:agent/${AWS_AGENT_ID}`,
+      agentAliasArn: `arn:aws:bedrock:${AWS_REGION}:${AWS_ACCOUNT_ID}:agent-alias/${AWS_AGENT_ID}/${AWS_ALIAS_ID}`,
       agentAliasStatus: "PREPARED",
       agentCollaboration: "DISABLED",
       foundationModel: `arn:aws:bedrock:${AWS_REGION}:${AWS_ACCOUNT_ID}:inference-profile/us.amazon.nova-micro-v1:0`,

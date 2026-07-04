@@ -1,8 +1,8 @@
 import type { AgentRow } from "@/lib/db/schema";
 import { SCHEMA_VERSION } from "@/lib/constants";
 import {
-  buildLinkedAccountPayload,
   getAgentDetails,
+  getExtendedEntitlements,
   getLinkedAccounts,
 } from "@/lib/agents/enrichment";
 import {
@@ -49,6 +49,11 @@ export interface WebServicesAccount {
   machineIdentity?: string;
   description?: string;
   agentAliasStatus?: string;
+  agentAliasArn?: string;
+  agentArn?: string;
+  role?: string;
+  version?: string;
+  resources?: unknown;
   connectedAgents?: unknown;
   agentDetails?: Record<string, unknown>;
   createdAt: string;
@@ -79,40 +84,50 @@ export function buildWebServicesAccount(
   const deployment = buildDeployment(row, baseUrl);
   const metadata = parseMetadata(row.metadata);
   const details = getAgentDetails(row);
-  const outboundPermissions = getOutboundAccess(row);
-  const inboundCallers = getInboundAccess(row);
+  const linkedPrimary = getPrimaryPlatformLinkedAccount(row);
+  const outboundPermissions = mergeUniqueStrings(
+    getOutboundAccess(row),
+    collectAttributeValues(row, linkedPrimary, "outboundPermissions"),
+  );
+  const inboundCallers = mergeUniqueStrings(
+    getInboundAccess(row),
+    collectAttributeValues(row, linkedPrimary, "inboundCallers"),
+  );
+  const nativeIdentity =
+    linkedPrimary?.nativeIdentity ??
+    (details.agentAliasArn as string) ??
+    (details.agentArn as string) ??
+    (details.name as string) ??
+    deployment.resource_id;
 
   const base: WebServicesAccount = {
     id: row.id,
     accountId: row.id,
-    name: row.name,
-    displayName: row.name,
+    name: linkedPrimary?.displayName ?? row.name,
+    displayName: linkedPrimary?.displayName ?? row.name,
     identityName: row.name,
-    nativeIdentity:
-      (details.agentArn as string) ??
-      (details.name as string) ??
-      deployment.resource_id,
-    identity:
-      (details.agentArn as string) ??
-      (details.name as string) ??
-      deployment.resource_id,
-    backendId:
-      (details.agentArn as string) ??
-      (details.name as string) ??
-      deployment.resource_id,
-    status: deployment.native_status,
+    nativeIdentity,
+    identity: nativeIdentity,
+    backendId: nativeIdentity,
+    status: linkedPrimary?.status ?? deployment.native_status,
     agentId: row.id,
     machineIdentity: row.name,
     sourceName: `${deployment.provider_label} - spciem`,
     archetype: row.archetype,
     platform: deployment.provider_label,
-    owner: metadata.owner,
+    owner: metadata.owner ?? linkedPrimary?.accountOwner,
     department: metadata.department,
     riskLevel: metadata.risk_level,
     description: (details.description as string) ?? metadata.description,
-    foundationModel: details.foundationModel as string | undefined,
+    foundationModel:
+      (details.foundationModel as string) ?? deployment.config.foundation_model,
     agentAliasStatus: details.agentAliasStatus as string | undefined,
+    agentAliasArn: details.agentAliasArn as string | undefined,
+    agentArn: details.agentArn as string | undefined,
+    role: details.role as string | undefined,
+    version: (details.version as string) ?? metadata.version,
     connectedAgents: details.connectedAgents,
+    resources: details.resources,
     agentDetails: details,
     outboundPermissions,
     inboundCallers,
@@ -150,15 +165,71 @@ export function buildWebServicesAccountsForAgent(
   row: AgentRow,
   baseUrl: string,
 ): WebServicesAccount[] {
-  const linked = getLinkedAccounts(row).map((account) =>
-    buildLinkedAccountPayload(row, account, baseUrl),
-  );
+  // Tier 1: one governed account + machine identity per agent.
+  // Linked accounts are exposed via synthetic source endpoints (Tier 2).
+  return [buildWebServicesAccount(row, baseUrl)];
+}
 
-  if (linked.length > 0) {
-    return linked;
+function getPrimaryPlatformLinkedAccount(
+  row: AgentRow,
+): ReturnType<typeof getLinkedAccounts>[number] | undefined {
+  const linked = getLinkedAccounts(row);
+  if (linked.length === 0) {
+    return undefined;
   }
 
-  return [buildWebServicesAccount(row, baseUrl)];
+  return (
+    linked.find((account) => account.id.includes("primary")) ??
+    linked.find((account) => account.status === "Enabled") ??
+    linked[0]
+  );
+}
+
+function collectAttributeValues(
+  row: AgentRow,
+  linked: ReturnType<typeof getLinkedAccounts>[number] | undefined,
+  attributeName: string,
+): string[] {
+  if (!linked) {
+    return [];
+  }
+
+  const attributes = getEntitlementAttributesForLinkedAccount(row, linked);
+  return attributes[attributeName] ?? [];
+}
+
+function getEntitlementAttributesForLinkedAccount(
+  row: AgentRow,
+  linked: ReturnType<typeof getLinkedAccounts>[number],
+): Record<string, string[]> {
+  const attributes = new Map<string, Set<string>>();
+
+  for (const entitlement of getExtendedEntitlements(row)) {
+    if (
+      entitlement.accountName !== linked.name &&
+      entitlement.accountName !== linked.displayName &&
+      entitlement.accountName !== row.name
+    ) {
+      continue;
+    }
+
+    const values = attributes.get(entitlement.attributeName) ?? new Set<string>();
+    const value =
+      entitlement.attributeName === "outboundPermissions" ||
+      entitlement.attributeName === "inboundCallers"
+        ? entitlement.entitlementName
+        : entitlement.attributeValue;
+    values.add(value);
+    attributes.set(entitlement.attributeName, values);
+  }
+
+  return Object.fromEntries(
+    [...attributes.entries()].map(([key, values]) => [key, [...values]]),
+  );
+}
+
+function mergeUniqueStrings(...groups: string[][]): string[] {
+  return [...new Set(groups.flat())];
 }
 
 export function serializeWebServicesAccountList(
