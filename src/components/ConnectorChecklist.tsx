@@ -26,6 +26,20 @@ const CHECKLIST_ITEMS = [
     href: "/setup#entitlement-aggregation",
   },
   {
+    id: "hero-reset",
+    title: "Load hero agent seed data",
+    description:
+      "Run full-store reset on /demo so CloudOps-Navigator and linked accounts are available.",
+    href: "/demo",
+  },
+  {
+    id: "synthetic-sources",
+    title: "Optional: synthetic ISC sources",
+    description:
+      "Add AWS IAM, Google Workspace, Entra ID, and AD sources for the full multi-source Access tab.",
+    href: "/setup#part-l--synthetic-sources-optional-multi-source-hero",
+  },
+  {
     id: "run-demo",
     title: "Run the demo",
     description: "Full sync agents into ISC, then govern + enforce.",

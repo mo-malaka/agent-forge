@@ -25,6 +25,17 @@ After provisioning, re-run **account aggregation** so ISC reflects updated entit
 
 ---
 
+## Choose your demo tier
+
+| Tier | What you get | Extra ISC setup |
+|------|----------------|-----------------|
+| **Tier 1 — Bedrock only** | Hero agent with ~14 entitlements on **one** source (`AI Agents Bedrock`). Good for govern + enforce. | **No new HTTP operations** — use your existing Bedrock source. Reset hero data + re-aggregate. |
+| **Tier 2 — Full hero** | Multi-source **AI Agent → Access** and **Accounts** like the reference screenshots (AWS IAM, Google Workspace, Entra ID, AD). Rich Identity Graph. | **3–4 additional Web Services sources**, new entitlement types, and HTTP operations per source ([Part L](#part-l--synthetic-sources-optional-multi-source-hero)). |
+
+> **If you only configured the Bedrock source (Parts B–F), Tier 1 is expected.** Tier 2 is optional and matches the multi-source screenshots you shared.
+
+---
+
 ## Prerequisites
 
 - AgentForge reachable from your ISC tenant
@@ -43,7 +54,40 @@ curl -s https://main.d12mzah9vzl24s.amplifyapp.com/api/health
 
 ## Part A — Prepare data in AgentForge
 
-### A1 — Bulk-create agents (recommended)
+### A0 — Load hero agents (Phase 1 — do this first)
+
+AgentForge ships three **hero agents** with rich metadata, linked accounts, and extended entitlements:
+
+| Platform | Agent name | Agent ID |
+|----------|------------|----------|
+| AWS Bedrock | `CloudOps-Navigator:Infra-DevOps-Agent` | `agt_demo_aws_bedrock` |
+| GCP Vertex | `sw-bug-assistant-25924` | `agt_demo_gcp_vertex` |
+| Azure Foundry | `Frontline-Support-Bot` | `agt_demo_azure_foundry` |
+
+**Reset to hero seed:**
+
+1. Open AgentForge → **/demo**
+2. Click **Reset demo agent**
+3. Choose scope **full-store** (removes bulk agents, restores the 3 heroes)
+4. Confirm the AWS hero name is `CloudOps-Navigator:Infra-DevOps-Agent`
+
+Or via API:
+
+```bash
+curl -s -X POST https://YOUR_AGENTFORGE_URL/api/demo/reset \
+  -H "Content-Type: application/json" \
+  -d '{"scope":"full-store","remove_bulk_agents":true}'
+```
+
+**Verify locally:**
+
+```bash
+curl -s https://YOUR_AGENTFORGE_URL/api/agents/agt_demo_aws_bedrock | jq '.agent.name, (.agent.extended_entitlements | length), (.agent.linked_accounts | length)'
+```
+
+Expected: name `CloudOps-Navigator:Infra-DevOps-Agent`, ~14 extended entitlements, 3 linked accounts.
+
+### A1 — Bulk-create agents (optional)
 
 **Option 1 — ISC demo orchestrator (recommended after one-time ISC setup):**
 
@@ -58,7 +102,7 @@ This bulk-creates agents and runs ISC aggregations in order.
 2. Use **Quick bulk create** — pick platform and **5, 10, or 20** agents
 3. Each agent gets random **outbound** permissions and **inbound** callers
 
-Or use the three seed agents (`DevOps-Bot-Prod`, etc.) on a fresh install.
+Or use the three hero seed agents on a fresh install (see [A0](#a0--load-hero-agents-phase-1--do-this-first)).
 
 ### A2 — Understand the payloads
 
@@ -90,28 +134,43 @@ Root path for entitlements: `$.entitlements[*]`
 | GCP Vertex | `/api/connectors/web-services/gcp-vertex/accounts` | `/api/connectors/web-services/gcp-vertex/entitlements` |
 | Azure AI Foundry | `/api/connectors/web-services/azure-ai-foundry/accounts` | `/api/connectors/web-services/azure-ai-foundry/entitlements` |
 
-**Sample account:**
+**Synthetic sources (Tier 2 only)** — see [Part L](#part-l--synthetic-sources-optional-multi-source-hero):
+
+| Source | Accounts | Entitlements |
+|--------|----------|--------------|
+| AWS IAM | `/api/connectors/web-services/synthetic/aws-iam/accounts` | `.../entitlements` |
+| Google Workspace | `/api/connectors/web-services/synthetic/google-workspace/accounts` | `.../entitlements` |
+| Entra ID | `/api/connectors/web-services/synthetic/entra-id/accounts` | `.../entitlements` |
+| Active Directory | `/api/connectors/web-services/synthetic/active-directory/accounts` | `.../entitlements` |
+
+**Sample account (hero AWS Bedrock):**
 
 ```json
 {
-  "accountId": "agt_demo_aws_bedrock",
-  "name": "DevOps-Bot-Prod",
-  "nativeIdentity": "arn:aws:bedrock:us-east-1:123456789012:agent/agt_demo_aws_bedrock",
-  "identityName": "DevOps-Bot-Prod",
-  "owner": "platform-ops@sailpoint.com",
+  "accountId": "acct_aws_bedrock_primary",
+  "name": "CloudOps-Navigator:LVA0UBIDXW",
+  "nativeIdentity": "arn:aws:bedrock:us-west-2:718666815581:agent-alias/OBK4WA6JJN/LVA0UBIDXW",
+  "identityName": "CloudOps-Navigator:Infra-DevOps-Agent",
+  "machineIdentity": "CloudOps-Navigator:Infra-DevOps-Agent",
+  "sourceName": "AWS Bedrock - spciem",
+  "owner": "mostafa.helmy@sailpoint.com",
   "outboundPermissions": ["S3:Read", "Jira:Admin", "EC2:Describe", "Bedrock:InvokeModel"],
   "inboundCallers": ["invoke:engineering-team", "invoke:service-now-workflow"]
 }
 ```
 
-**Sample entitlement:**
+**Sample entitlement (extended — Tier 2 sources):**
 
 ```json
 {
-  "entitlementId": "ent_s3_read",
-  "name": "S3:Read",
+  "entitlementId": "ent_aws_security_audit",
+  "name": "SecurityAudit",
+  "attributeName": "AWSManagedPolicies",
+  "attributeValue": "arn:aws:iam::aws:policy/SecurityAudit",
+  "sourceName": "AWS IAM - spciem",
+  "accountName": "AmazonBedrockExecutionRoleForAgents",
   "accessDirection": "outbound",
-  "riskScore": 3
+  "riskScore": 5
 }
 ```
 
@@ -756,10 +815,165 @@ DEMO (AgentForge orchestrator)
 
 ---
 
+## Part L — Synthetic sources (optional multi-source hero)
+
+Use this when you want **AI Agent → Access** and **Accounts** to show entitlements from **AWS IAM**, **Google Workspace**, **Entra ID**, and **Active Directory** — like the reference ISC screenshots.
+
+**Prerequisite:** Complete [A0](#a0--load-hero-agents-phase-1--do-this-first) and your existing Bedrock source (Parts B–F). Deploy the latest AgentForge build so synthetic endpoints exist.
+
+### L1 — What you are adding
+
+For each synthetic source, create **one new Web Services SaaS source** in ISC. All sources use the **same AgentForge Base URL**; only the **Context URL** paths differ.
+
+Copy URLs from AgentForge **/connector** → **Synthetic source endpoints**.
+
+| ISC source name (suggested) | Context path prefix | Entitlement attribute types needed |
+|-----------------------------|---------------------|-----------------------------------|
+| `AgentForge AWS IAM` | `/api/connectors/web-services/synthetic/aws-iam/` | `AWSManagedPolicies`, `CustomerManagedPolicies`, `InlinePolicies` |
+| `AgentForge Google Workspace` | `/api/connectors/web-services/synthetic/google-workspace/` | `resourcePermissions` |
+| `AgentForge Entra ID` | `/api/connectors/web-services/synthetic/entra-id/` | `appRoleAssignments` |
+| `AgentForge Active Directory` | `/api/connectors/web-services/synthetic/active-directory/` | `memberOf` |
+
+### L2 — Repeat per synthetic source (example: AWS IAM)
+
+Do steps L2a–L2e for **each** of the four sources above.
+
+#### L2a — Create the source
+
+1. **Admin → Connections → Sources → Create source**
+2. Type: **Web Services SaaS**
+3. Name: e.g. `AgentForge AWS IAM`
+4. **Connection Settings → Authentication:**
+   - **Authentication Type:** Custom Authentication
+   - **Base URL:** your AgentForge URL (same as Bedrock source)
+5. Save
+
+#### L2b — Create entitlement types (AWS IAM example)
+
+Create **one entitlement type per attribute** used by that source. Names must match `attributeName` in the payload **exactly**.
+
+**For AWS IAM**, create three types:
+
+| Entitlement type name | Entitlement ID field | Entitlement Name field |
+|-----------------------|----------------------|------------------------|
+| `AWSManagedPolicies` | `name` | `name` |
+| `CustomerManagedPolicies` | `name` | `name` |
+| `InlinePolicies` | `name` | `name` |
+
+Schema attributes (each type): `entitlementId` (string), `name` (string), optional `attributeName`, `attributeValue`, `riskScore`.
+
+**For Google Workspace:** one type `resourcePermissions`  
+**For Entra ID:** one type `appRoleAssignments`  
+**For Active Directory:** one type `memberOf`
+
+#### L2c — HTTP operations (per source)
+
+Go to **Source Setup → HTTP Operations**. Create these operations (replace `aws-iam` with the slug for each source):
+
+| # | Operation Type | Context URL | Method | Root path |
+|---|----------------|-------------|--------|-----------|
+| 1 | Test Connection | `/api/health` | GET | — |
+| 2 | Account Aggregation | `/api/connectors/web-services/synthetic/aws-iam/accounts` | GET | `$.accounts[*]` |
+| 3 | Group Aggregation - AWSManagedPolicies | `/api/connectors/web-services/synthetic/aws-iam/entitlements` | GET | `$.entitlements[*]` |
+| 4 | Group Aggregation - CustomerManagedPolicies | same URL | GET | `$.entitlements[*]` |
+| 5 | Group Aggregation - InlinePolicies | same URL | GET | `$.entitlements[*]` |
+
+**Account aggregation response mapping** (same as Part D2):
+
+| Schema attribute | Attribute path |
+|------------------|----------------|
+| `accountId` | `accountId` |
+| `name` | `name` |
+| `nativeIdentity` | `nativeIdentity` |
+| `identityName` | `identityName` |
+| `machineIdentity` | `machineIdentity` |
+| `status` | `status` |
+| `owner` | `accountOwner` |
+| `AWSManagedPolicies` | `AWSManagedPolicies` |
+| `CustomerManagedPolicies` | `CustomerManagedPolicies` |
+| `InlinePolicies` | `InlinePolicies` |
+
+> Map only the entitlement attributes that exist for that source. Google Workspace accounts use `resourcePermissions` instead of the IAM fields.
+
+**Group aggregation response mapping** (per entitlement type):
+
+| Schema attribute | Attribute path |
+|------------------|----------------|
+| `entitlementId` | `entitlementId` |
+| `name` | `name` |
+| `attributeName` | `attributeName` |
+| `attributeValue` | `attributeValue` |
+| `accessDirection` | `accessDirection` |
+| `riskScore` | `riskScore` |
+
+For Google Workspace / Entra / AD sources, create **one** Group Aggregation operation per entitlement type (`resourcePermissions`, `appRoleAssignments`, or `memberOf`).
+
+#### L2d — Account schema
+
+**Account Management → Account Schema** — add entitlement attributes matching the types you created:
+
+| Source | Multi-valued account attributes (type = matching entitlement type) |
+|--------|---------------------------------------------------------------------|
+| AWS IAM | `AWSManagedPolicies`, `CustomerManagedPolicies`, `InlinePolicies` |
+| Google Workspace | `resourcePermissions` |
+| Entra ID | `appRoleAssignments` |
+| Active Directory | `memberOf` |
+
+Set **Account ID** = `accountId`, **Account Name** = `name`.
+
+#### L2e — Run aggregations (per source)
+
+For each synthetic source, in ISC UI:
+
+```
+1. Group Aggregation → each entitlement type (e.g. AWSManagedPolicies, …)
+2. Account Aggregation
+```
+
+### L3 — Link accounts to the AI agent
+
+After all sources are aggregated:
+
+1. **Admin → Identities → AI Agents → CloudOps-Navigator:Infra-DevOps-Agent**
+2. **Accounts** tab — link accounts from each source:
+   - `AmazonBedrockExecutionRoleForAgents` (AWS IAM)
+   - `sp-readonly@readonly-integration` (Google Workspace)
+   - Bedrock alias account (AWS Bedrock source)
+3. Or use **machine account mappings** (`nativeIdentity` → `nativeIdentity`) via the orchestrator if configured for each source.
+
+### L4 — Verify
+
+| Check | Location | Expected (AWS hero) |
+|-------|----------|---------------------|
+| Entitlement catalog | Each source → Entitlements | IAM policies, GWS roles, etc. |
+| Accounts | Each source → Accounts | 1+ accounts per synthetic source |
+| AI Agent → Accounts | Hero agent | 3–4 linked accounts |
+| AI Agent → Access | Hero agent | 10–15 entitlements across sources |
+| Identity Graph | Viewing agent | Branches per source name |
+
+### L5 — Tier 1 shortcut (Bedrock source only)
+
+If you **do not** add synthetic sources:
+
+1. [A0](#a0--load-hero-agents-phase-1--do-this-first) — full-store reset
+2. Re-run aggregations on your **existing Bedrock source only**:
+   - Group Aggregation → `outboundPermissions`
+   - Group Aggregation → `inboundCallers`
+   - Machine Identity Aggregation
+   - Account Aggregation
+3. Link the Bedrock account to the AI agent
+
+**Expected:** ~6–14 entitlements, all with source **AI Agents Bedrock**. You will **not** see AWS IAM / Google Workspace as separate source names without Part L.
+
+---
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
+| Still shows `DevOps-Bot-Prod` / 4 entitlements | Old AgentForge data or stale ISC aggregation | [A0](#a0--load-hero-agents-phase-1--do-this-first) full-store reset; redeploy AgentForge; re-aggregate all sources |
+| Access shows only Bedrock source | Tier 1 only — synthetic sources not configured | Complete [Part L](#part-l--synthetic-sources-optional-multi-source-hero) for multi-source Access tab |
+| *No configuration for Group Aggregation-AWSManagedPolicies* | Missing typed HTTP operation | Add **Group Aggregation - AWSManagedPolicies** on the AWS IAM source (L2c) |
 | *Multiple Entitlement attributes with same type* | Both access fields typed as `group` | Create separate types `outboundPermissions` and `inboundCallers` |
 | *No configuration for Group Aggregation-outboundPermissions* | Missing HTTP operation | Add operation type **Group Aggregation - outboundPermissions** (D3) |
 | *datasetIds empty* on machine identity agg | No schema selected | Create machine identity schema; use **Specific Schemas** |
@@ -798,20 +1012,20 @@ DEMO (AgentForge orchestrator)
 ## Quick checklist
 
 ```
+☐ Tier chosen: Tier 1 (Bedrock only) OR Tier 2 (+ synthetic sources)
+☐ Hero agents loaded — full-store reset (Part A0)
 ☐ One-time ISC bootstrap (source, HTTP ops, entitlement types, schemas)
 ☐ AgentForge ISC env vars set (Part K2)
-☐ AgentForge agents created (orchestrator full sync OR bulk create / seed)
-☐ Web Services source + test connection
+☐ Web Services Bedrock source + test connection
 ☐ Entitlement types: outboundPermissions, inboundCallers (Entitlement ID = name)
 ☐ HTTP ops: test, account, group×2, machine identity
 ☐ Account + machine identity schemas
 ☐ Aggregate: group outbound → group inbound → machine identity → account
      (or Run full sync on dashboard)
-☐ Account shows Entitlement Assignments (6 items)
-☐ AI Agent linked to source account (or machine account mappings via orchestrator)
-☐ AI Agent → Access shows inbound + outbound
+☐ Optional Tier 2: 4 synthetic sources + entitlement types + HTTP ops (Part L)
+☐ AI Agent linked to source account(s)
+☐ AI Agent → Access shows inbound + outbound (Tier 1) or multi-source (Tier 2)
 ☐ Provisioning HTTP ops: add/remove entitlement, disable account
-☐ Provision test: add entitlement → re-aggregate → Access tab updated
 ☐ Authorize API: allow known permission, deny revoked/disabled
      (or Run govern + enforce on dashboard)
 ☐ Demo!

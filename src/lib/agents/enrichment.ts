@@ -108,6 +108,7 @@ export function buildLinkedAccountPayload(
   baseUrl: string,
 ) {
   const deployment = buildDeployment(row, baseUrl);
+  const entitlementAttributes = getEntitlementsForLinkedAccount(row, linked);
 
   return {
     id: linked.id,
@@ -125,9 +126,34 @@ export function buildLinkedAccountPayload(
     archetype: row.archetype,
     platform: deployment.provider_label,
     accountOwner: linked.accountOwner,
-    outboundPermissions: [] as string[],
-    inboundCallers: [] as string[],
+    outboundPermissions: entitlementAttributes.outboundPermissions ?? [],
+    inboundCallers: entitlementAttributes.inboundCallers ?? [],
+    ...entitlementAttributes,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+function getEntitlementsForLinkedAccount(
+  row: AgentRow,
+  linked: LinkedAccount,
+): Record<string, string[]> {
+  const attributes = new Map<string, Set<string>>();
+
+  for (const entitlement of getExtendedEntitlements(row)) {
+    if (
+      entitlement.accountName !== linked.name &&
+      entitlement.accountName !== linked.displayName
+    ) {
+      continue;
+    }
+
+    const values = attributes.get(entitlement.attributeName) ?? new Set<string>();
+    values.add(entitlement.attributeValue);
+    attributes.set(entitlement.attributeName, values);
+  }
+
+  return Object.fromEntries(
+    [...attributes.entries()].map(([key, values]) => [key, [...values]]),
+  );
 }
