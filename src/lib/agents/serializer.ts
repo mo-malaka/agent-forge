@@ -13,6 +13,11 @@ import {
   scoreInboundAccess,
   slugifyAccessName,
 } from "@/lib/agents/access";
+import {
+  getAgentDetails,
+  getExtendedEntitlements,
+  getLinkedAccounts,
+} from "@/lib/agents/enrichment";
 import type {
   AgentDetailResponse,
   AgentListResponse,
@@ -112,6 +117,9 @@ export function serializeAgent(row: AgentRow, baseUrl: string): SerializedAgent 
   const inboundAccess = inboundNames.map(parseInboundAccess);
   const entitlements = outboundNames.map(parseEntitlement);
   const deployment = buildDeployment(row, baseUrl);
+  const details = getAgentDetails(row);
+  const linkedAccounts = getLinkedAccounts(row);
+  const extendedEntitlements = getExtendedEntitlements(row);
 
   return {
     id: row.id,
@@ -129,6 +137,9 @@ export function serializeAgent(row: AgentRow, baseUrl: string): SerializedAgent 
     updated_at: row.updatedAt,
     last_active_at: row.lastActiveAt,
     metadata,
+    details,
+    linked_accounts: linkedAccounts,
+    extended_entitlements: extendedEntitlements,
     iam: {
       outbound_access: outboundAccess,
       inbound_access: inboundAccess,

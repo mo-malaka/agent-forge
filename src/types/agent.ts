@@ -29,6 +29,27 @@ export interface SerializedAccessEntitlement {
   risk_score: number;
 }
 
+export interface SerializedLinkedAccount {
+  id: string;
+  name: string;
+  displayName: string;
+  nativeIdentity: string;
+  sourceName: string;
+  status: "Enabled" | "Disabled";
+  accountOwner?: string;
+}
+
+export interface SerializedExtendedEntitlement {
+  id: string;
+  entitlementName: string;
+  displayName: string;
+  attributeName: string;
+  attributeValue: string;
+  sourceName: string;
+  accountName: string;
+  accessDirection: "outbound" | "inbound";
+}
+
 export interface SerializedAgent {
   id: string;
   external_id: string;
@@ -45,6 +66,9 @@ export interface SerializedAgent {
   updated_at: string;
   last_active_at: string;
   metadata: AgentMetadata;
+  details: Record<string, unknown>;
+  linked_accounts: SerializedLinkedAccount[];
+  extended_entitlements: SerializedExtendedEntitlement[];
   iam: {
     outbound_access: SerializedAccessEntitlement[];
     inbound_access: SerializedAccessEntitlement[];

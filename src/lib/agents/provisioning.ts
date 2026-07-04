@@ -3,6 +3,7 @@ import {
   getInboundAccess,
   getOutboundAccess,
 } from "@/lib/agents/access";
+import { getLinkedAccounts } from "@/lib/agents/enrichment";
 import type { AgentRow } from "@/lib/db/schema";
 import { buildDeployment } from "@/lib/providers/deployment";
 import type { DeploymentProvider } from "@/lib/providers/profiles";
@@ -42,12 +43,25 @@ export function findAgentForProvisioning(
     if (byId) {
       return byId;
     }
+
+    const byLinkedId = agents.find((agent) =>
+      getLinkedAccounts(agent).some((account) => account.id === ref.accountId),
+    );
+    if (byLinkedId) {
+      return byLinkedId;
+    }
   }
 
   if (ref.nativeIdentity) {
     const byNative = agents.find((agent) => {
       const deployment = buildDeployment(agent, baseUrl);
-      return deployment.resource_id === ref.nativeIdentity;
+      if (deployment.resource_id === ref.nativeIdentity) {
+        return true;
+      }
+
+      return getLinkedAccounts(agent).some(
+        (account) => account.nativeIdentity === ref.nativeIdentity,
+      );
     });
     if (byNative) {
       return byNative;

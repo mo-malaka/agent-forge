@@ -8,6 +8,9 @@ export interface AgentRow {
   metadata: string;
   entitlements: string;
   inboundAccess: string;
+  agentDetails: string;
+  linkedAccounts: string;
+  extendedEntitlements: string;
   createdAt: string;
   updatedAt: string;
   lastActiveAt: string;

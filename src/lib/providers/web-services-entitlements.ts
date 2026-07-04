@@ -4,6 +4,10 @@ import {
   collectAccessEntitlements,
   type AccessDirection,
 } from "@/lib/agents/access";
+import {
+  collectExtendedEntitlements,
+  serializeExtendedEntitlementForWebServices,
+} from "@/lib/agents/enrichment";
 import { DEPLOYMENT_PROVIDERS } from "@/lib/providers/profiles";
 
 interface Pagination {
@@ -20,10 +24,18 @@ export function serializeWebServicesEntitlementList(
   direction?: AccessDirection,
 ) {
   const platform = DEPLOYMENT_PROVIDERS[deploymentProvider].label;
-  const entitlements = collectAccessEntitlements(rows, {
+  const simpleEntitlements = collectAccessEntitlements(rows, {
     direction,
     platform,
   });
+  const extendedEntitlements = collectExtendedEntitlements(rows)
+    .filter((entitlement) => !direction || entitlement.accessDirection === direction)
+    .map((entitlement) =>
+      serializeExtendedEntitlementForWebServices(entitlement, platform),
+    );
+
+  const entitlements =
+    extendedEntitlements.length > 0 ? extendedEntitlements : simpleEntitlements;
 
   const offset = (pagination.page - 1) * pagination.limit;
   const pageItems = entitlements.slice(offset, offset + pagination.limit);

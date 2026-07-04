@@ -7,11 +7,12 @@ import { CopyButton } from "@/components/CopyButton";
 import { SimulateAccessPanel } from "@/components/SimulateAccessPanel";
 import type { SerializedAgent } from "@/types/agent";
 
-type TabId = "access" | "overview" | "authorize" | "api";
+type TabId = "details" | "access" | "accounts" | "authorize" | "api";
 
 const TABS: { id: TabId; label: string }[] = [
+  { id: "details", label: "Details" },
   { id: "access", label: "Access" },
-  { id: "overview", label: "Overview" },
+  { id: "accounts", label: "Accounts" },
   { id: "authorize", label: "Authorize" },
   { id: "api", label: "API" },
 ];
@@ -27,8 +28,10 @@ export function AgentDetailTabs({
   entitlementUrl,
   pollUrl,
 }: AgentDetailTabsProps) {
-  const [activeTab, setActiveTab] = useState<TabId>("access");
+  const [activeTab, setActiveTab] = useState<TabId>("details");
   const deployment = agent.deployment;
+  const extendedEntitlements = agent.extended_entitlements;
+  const linkedAccounts = agent.linked_accounts;
 
   return (
     <div className="space-y-4">
@@ -49,29 +52,9 @@ export function AgentDetailTabs({
         ))}
       </div>
 
-      {activeTab === "access" ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          <InfoPanel title="Outbound access">
-            <AccessList
-              items={agent.iam.outbound_access}
-              emptyLabel="No outbound permissions."
-            />
-          </InfoPanel>
-          <InfoPanel title="Inbound access">
-            <AccessList
-              items={agent.iam.inbound_access}
-              emptyLabel="No inbound callers configured."
-            />
-          </InfoPanel>
-        </div>
-      ) : null}
-
-      {activeTab === "overview" ? (
+      {activeTab === "details" ? (
         <div className="space-y-4">
-          <section className="space-y-3 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
-            <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-              Cloud deployment (mocked)
-            </h2>
+          <InfoPanel title="Platform details">
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
               <DetailItem label="Platform" value={deployment.provider_label} />
               <DetailItem label="Native status" value={deployment.native_status} />
@@ -96,7 +79,27 @@ export function AgentDetailTabs({
                 <DetailItem label="Region" value={deployment.region} />
               ) : null}
             </dl>
-          </section>
+          </InfoPanel>
+
+          <InfoPanel title="Agent attributes">
+            {Object.keys(agent.details).length > 0 ? (
+              <dl className="space-y-3 text-sm">
+                {Object.entries(agent.details).map(([key, value]) => (
+                  <div key={key}>
+                    <dt className="text-xs uppercase tracking-wide text-zinc-500">
+                      {key}
+                    </dt>
+                    <dd className="mt-1 break-all text-zinc-900 dark:text-zinc-100">
+                      {formatDetailValue(value)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <p className="text-sm text-zinc-500">No extended details configured.</p>
+            )}
+          </InfoPanel>
+
           <InfoPanel title="Metadata">
             <dl className="space-y-2 text-sm">
               {Object.entries(agent.metadata).map(([key, value]) => (
@@ -113,6 +116,109 @@ export function AgentDetailTabs({
             </dl>
           </InfoPanel>
         </div>
+      ) : null}
+
+      {activeTab === "access" ? (
+        <div className="space-y-4">
+          {extendedEntitlements.length > 0 ? (
+            <InfoPanel title="Entitlements (ISC-style)">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-200 text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                      <th className="py-2 pr-3 font-medium">Entitlement</th>
+                      <th className="py-2 pr-3 font-medium">Attribute</th>
+                      <th className="py-2 pr-3 font-medium">Source</th>
+                      <th className="py-2 font-medium">Account</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {extendedEntitlements.map((item) => (
+                      <tr
+                        key={item.id}
+                        className="border-b border-zinc-100 dark:border-zinc-900"
+                      >
+                        <td className="py-2 pr-3 font-medium text-zinc-900 dark:text-zinc-100">
+                          {item.entitlementName}
+                        </td>
+                        <td className="py-2 pr-3 text-zinc-600 dark:text-zinc-400">
+                          {item.attributeName}
+                        </td>
+                        <td className="py-2 pr-3 text-zinc-600 dark:text-zinc-400">
+                          {item.sourceName}
+                        </td>
+                        <td className="py-2 text-zinc-600 dark:text-zinc-400">
+                          {item.accountName}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </InfoPanel>
+          ) : null}
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <InfoPanel title="Outbound access">
+              <AccessList
+                items={agent.iam.outbound_access}
+                emptyLabel="No outbound permissions."
+              />
+            </InfoPanel>
+            <InfoPanel title="Inbound access">
+              <AccessList
+                items={agent.iam.inbound_access}
+                emptyLabel="No inbound callers configured."
+              />
+            </InfoPanel>
+          </div>
+        </div>
+      ) : null}
+
+      {activeTab === "accounts" ? (
+        <InfoPanel title="Linked accounts">
+          {linkedAccounts.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-200 text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                    <th className="py-2 pr-3 font-medium">Name</th>
+                    <th className="py-2 pr-3 font-medium">Status</th>
+                    <th className="py-2 pr-3 font-medium">Source</th>
+                    <th className="py-2 pr-3 font-medium">Owner</th>
+                    <th className="py-2 font-medium">Native identity</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {linkedAccounts.map((account) => (
+                    <tr
+                      key={account.id}
+                      className="border-b border-zinc-100 dark:border-zinc-900"
+                    >
+                      <td className="py-2 pr-3 font-medium text-zinc-900 dark:text-zinc-100">
+                        {account.displayName}
+                      </td>
+                      <td className="py-2 pr-3">
+                        <StatusBadge status={account.status} />
+                      </td>
+                      <td className="py-2 pr-3 text-zinc-600 dark:text-zinc-400">
+                        {account.sourceName}
+                      </td>
+                      <td className="py-2 pr-3 text-zinc-600 dark:text-zinc-400">
+                        {account.accountOwner ?? "—"}
+                      </td>
+                      <td className="py-2 font-mono text-xs text-zinc-600 dark:text-zinc-400">
+                        {account.nativeIdentity}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-zinc-500">No linked accounts configured.</p>
+          )}
+        </InfoPanel>
       ) : null}
 
       {activeTab === "authorize" ? (
@@ -154,6 +260,34 @@ export function AgentDetailTabs({
         </section>
       ) : null}
     </div>
+  );
+}
+
+function formatDetailValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "—";
+  }
+
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  return JSON.stringify(value, null, 2);
+}
+
+function StatusBadge({ status }: { status: "Enabled" | "Disabled" }) {
+  const enabled = status === "Enabled";
+
+  return (
+    <span
+      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+        enabled
+          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+          : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+      }`}
+    >
+      {status}
+    </span>
   );
 }
 

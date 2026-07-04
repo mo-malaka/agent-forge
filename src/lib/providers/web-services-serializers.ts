@@ -1,6 +1,10 @@
 import type { AgentRow } from "@/lib/db/schema";
 import { SCHEMA_VERSION } from "@/lib/constants";
 import {
+  buildLinkedAccountPayload,
+  getLinkedAccounts,
+} from "@/lib/agents/enrichment";
+import {
   getInboundAccess,
   getOutboundAccess,
 } from "@/lib/agents/access";
@@ -40,6 +44,8 @@ export interface WebServicesAccount {
   workspace?: string;
   resourceGroup?: string;
   subscriptionId?: string;
+  sourceName?: string;
+  machineIdentity?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -81,6 +87,8 @@ export function buildWebServicesAccount(
     backendId: deployment.resource_id,
     status: deployment.native_status,
     agentId: row.id,
+    machineIdentity: row.name,
+    sourceName: `${deployment.provider_label} - spciem`,
     archetype: row.archetype,
     platform: deployment.provider_label,
     owner: metadata.owner,
@@ -118,16 +126,37 @@ export function buildWebServicesAccount(
   };
 }
 
+export function buildWebServicesAccountsForAgent(
+  row: AgentRow,
+  baseUrl: string,
+): WebServicesAccount[] {
+  const linked = getLinkedAccounts(row).map((account) =>
+    buildLinkedAccountPayload(row, account, baseUrl),
+  );
+
+  if (linked.length > 0) {
+    return linked;
+  }
+
+  return [buildWebServicesAccount(row, baseUrl)];
+}
+
 export function serializeWebServicesAccountList(
   rows: AgentRow[],
   pagination: Pagination,
   baseUrl: string,
 ) {
+  const accounts = rows.flatMap((row) => buildWebServicesAccountsForAgent(row, baseUrl));
+
   return {
     schema_version: SCHEMA_VERSION,
     source: "agentforge_web_services",
     generated_at: new Date().toISOString(),
-    pagination,
-    accounts: rows.map((row) => buildWebServicesAccount(row, baseUrl)),
+    pagination: {
+      ...pagination,
+      total: accounts.length,
+      has_more: pagination.page * pagination.limit < accounts.length,
+    },
+    accounts,
   };
 }

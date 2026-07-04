@@ -139,5 +139,8 @@ export function normalizeAgentRow(row: AgentRow): AgentRow {
       mergeDeploymentConfig(provider, parseConfig(row.deploymentConfig)),
     ),
     inboundAccess: row.inboundAccess ?? "[]",
+    agentDetails: row.agentDetails ?? "{}",
+    linkedAccounts: row.linkedAccounts ?? "[]",
+    extendedEntitlements: row.extendedEntitlements ?? "[]",
   };
 }

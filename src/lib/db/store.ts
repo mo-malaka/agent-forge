@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 
 import type { AgentRow, NewAgentRow } from "@/lib/db/schema";
-import { buildSeedAgents, SEED_AGENT_IDS } from "@/lib/db/seed";
+import { buildHeroSeedAgents, HERO_AGENT_IDS } from "@/lib/db/hero-seed-data";
 import { normalizeAgentRow } from "@/lib/providers/deployment";
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -18,7 +18,7 @@ function seedIfEmpty(store: AgentStoreFile): AgentStoreFile {
   }
 
   const seeded: AgentStoreFile = {
-    agents: buildSeedAgents().map((agent) => normalizeAgentRow(agent)),
+    agents: buildHeroSeedAgents().map((agent) => normalizeAgentRow(agent)),
   };
 
   writeStore(seeded);
@@ -43,6 +43,9 @@ function readStore(): AgentStoreFile {
             deploymentProvider: agent.deploymentProvider ?? "aws_bedrock",
             deploymentConfig: agent.deploymentConfig ?? "{}",
             inboundAccess: agent.inboundAccess ?? "[]",
+            agentDetails: agent.agentDetails ?? "{}",
+            linkedAccounts: agent.linkedAccounts ?? "[]",
+            extendedEntitlements: agent.extendedEntitlements ?? "[]",
           } as AgentRow),
         )
       : [],
@@ -154,7 +157,7 @@ export function upsertAgent(row: NewAgentRow): AgentRow {
 }
 
 export function resetStoreToSeed(): AgentRow[] {
-  const agents = buildSeedAgents().map((row) => normalizeAgentRow(row));
+  const agents = buildHeroSeedAgents().map((row) => normalizeAgentRow(row));
   writeStore({ agents });
   return agents;
 }
@@ -162,9 +165,9 @@ export function resetStoreToSeed(): AgentRow[] {
 export function removeNonSeedAgents(): string[] {
   const store = readStore();
   const removed = store.agents
-    .filter((agent) => !SEED_AGENT_IDS.includes(agent.id))
+    .filter((agent) => !HERO_AGENT_IDS.includes(agent.id))
     .map((agent) => agent.id);
-  store.agents = store.agents.filter((agent) => SEED_AGENT_IDS.includes(agent.id));
+  store.agents = store.agents.filter((agent) => HERO_AGENT_IDS.includes(agent.id));
   writeStore(store);
   return removed;
 }
