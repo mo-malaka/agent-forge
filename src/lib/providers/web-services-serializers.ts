@@ -2,6 +2,7 @@ import type { AgentRow } from "@/lib/db/schema";
 import { SCHEMA_VERSION } from "@/lib/constants";
 import {
   buildLinkedAccountPayload,
+  getAgentDetails,
   getLinkedAccounts,
 } from "@/lib/agents/enrichment";
 import {
@@ -46,6 +47,10 @@ export interface WebServicesAccount {
   subscriptionId?: string;
   sourceName?: string;
   machineIdentity?: string;
+  description?: string;
+  agentAliasStatus?: string;
+  connectedAgents?: unknown;
+  agentDetails?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }
@@ -73,6 +78,7 @@ export function buildWebServicesAccount(
 ): WebServicesAccount {
   const deployment = buildDeployment(row, baseUrl);
   const metadata = parseMetadata(row.metadata);
+  const details = getAgentDetails(row);
   const outboundPermissions = getOutboundAccess(row);
   const inboundCallers = getInboundAccess(row);
 
@@ -82,9 +88,18 @@ export function buildWebServicesAccount(
     name: row.name,
     displayName: row.name,
     identityName: row.name,
-    nativeIdentity: deployment.resource_id,
-    identity: deployment.resource_id,
-    backendId: deployment.resource_id,
+    nativeIdentity:
+      (details.agentArn as string) ??
+      (details.name as string) ??
+      deployment.resource_id,
+    identity:
+      (details.agentArn as string) ??
+      (details.name as string) ??
+      deployment.resource_id,
+    backendId:
+      (details.agentArn as string) ??
+      (details.name as string) ??
+      deployment.resource_id,
     status: deployment.native_status,
     agentId: row.id,
     machineIdentity: row.name,
@@ -94,6 +109,11 @@ export function buildWebServicesAccount(
     owner: metadata.owner,
     department: metadata.department,
     riskLevel: metadata.risk_level,
+    description: (details.description as string) ?? metadata.description,
+    foundationModel: details.foundationModel as string | undefined,
+    agentAliasStatus: details.agentAliasStatus as string | undefined,
+    connectedAgents: details.connectedAgents,
+    agentDetails: details,
     outboundPermissions,
     inboundCallers,
     createdAt: row.createdAt,

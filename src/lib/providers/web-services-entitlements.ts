@@ -24,18 +24,39 @@ export function serializeWebServicesEntitlementList(
   direction?: AccessDirection,
 ) {
   const platform = DEPLOYMENT_PROVIDERS[deploymentProvider].label;
-  const simpleEntitlements = collectAccessEntitlements(rows, {
-    direction,
-    platform,
-  });
   const extendedEntitlements = collectExtendedEntitlements(rows)
     .filter((entitlement) => !direction || entitlement.accessDirection === direction)
     .map((entitlement) =>
       serializeExtendedEntitlementForWebServices(entitlement, platform),
     );
 
-  const entitlements =
-    extendedEntitlements.length > 0 ? extendedEntitlements : simpleEntitlements;
+  const simpleEntitlements = collectAccessEntitlements(rows, {
+    direction,
+    platform,
+  });
+
+  const catalog = new Map<string, ReturnType<typeof serializeExtendedEntitlementForWebServices>>();
+  for (const entitlement of extendedEntitlements) {
+    catalog.set(entitlement.id, entitlement);
+  }
+  for (const entitlement of simpleEntitlements) {
+    if (!catalog.has(entitlement.id)) {
+      catalog.set(entitlement.id, {
+        ...entitlement,
+        attributeName:
+          entitlement.accessDirection === "inbound"
+            ? "inboundCallers"
+            : "outboundPermissions",
+        attributeValue: entitlement.value,
+        sourceName: `${platform} - spciem`,
+        accountName: rows[0]?.name ?? "agent",
+      });
+    }
+  }
+
+  const entitlements = [...catalog.values()].sort((left, right) =>
+    left.name.localeCompare(right.name),
+  );
 
   const offset = (pagination.page - 1) * pagination.limit;
   const pageItems = entitlements.slice(offset, offset + pagination.limit);

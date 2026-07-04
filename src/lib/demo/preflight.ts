@@ -161,7 +161,7 @@ export async function runDemoPreflight(
         label: "Demo agent",
         status: "fail",
         message: `Agent ${agentId} not found — run demo reset or full sync step 1`,
-        detail: { expected_id: agentId, expected_name: "DevOps-Bot-Prod" },
+        detail: { expected_id: agentId, expected_name: "CloudOps-Navigator:Infra-DevOps-Agent" },
       });
     } else {
       checks.push({

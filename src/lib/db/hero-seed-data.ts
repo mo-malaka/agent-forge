@@ -39,6 +39,7 @@ function ext(
   attributeValue: string,
   sourceName: string,
   accountName: string,
+  accessDirection: "outbound" | "inbound" = "outbound",
 ): ExtendedEntitlement {
   return {
     id,
@@ -48,7 +49,7 @@ function ext(
     attributeValue,
     sourceName,
     accountName,
-    accessDirection: "outbound",
+    accessDirection,
   };
 }
 
@@ -231,6 +232,24 @@ const HERO_AGENTS: HeroSeedAgent[] = [
         "CN=DevOps-Operations,OU=Groups,DC=spciem,DC=com",
         "Active Directory",
         "AmazonBedrockExecutionRoleForAgents",
+      ),
+      ext(
+        "ent_aws_invoke_engineering",
+        "invoke:engineering-team",
+        "inboundCallers",
+        "invoke:engineering-team",
+        `AWS Bedrock - ${TENANT}`,
+        "CloudOps-Navigator:Infra-DevOps-Agent",
+        "inbound",
+      ),
+      ext(
+        "ent_aws_invoke_servicenow",
+        "invoke:service-now-workflow",
+        "inboundCallers",
+        "invoke:service-now-workflow",
+        `AWS Bedrock - ${TENANT}`,
+        "CloudOps-Navigator:Infra-DevOps-Agent",
+        "inbound",
       ),
     ],
   },

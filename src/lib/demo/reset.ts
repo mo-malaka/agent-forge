@@ -83,6 +83,10 @@ export function resetDemoData(options: DemoResetOptions = {}): DemoResetResult {
     lastActiveAt: new Date().toISOString(),
   });
 
+  if (removeBulkAgents) {
+    removedAgentIds = removeNonSeedAgents();
+  }
+
   return {
     reset_at: new Date().toISOString(),
     scope,

@@ -21,6 +21,8 @@ export async function handleWebServicesAccountListRequest(
       ...query,
       deployment_provider: deploymentProvider,
       status: query.status ?? "active",
+      page: 1,
+      limit: 1000,
     });
 
     const baseUrl = resolveBaseUrl(request.headers);

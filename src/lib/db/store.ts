@@ -12,6 +12,44 @@ interface AgentStoreFile {
   agents: AgentRow[];
 }
 
+function heroNeedsRefresh(agent: AgentRow | undefined): boolean {
+  if (!agent) {
+    return true;
+  }
+
+  return (
+    !agent.agentDetails ||
+    agent.agentDetails === "{}" ||
+    !agent.extendedEntitlements ||
+    agent.extendedEntitlements === "[]" ||
+    !agent.linkedAccounts ||
+    agent.linkedAccounts === "[]"
+  );
+}
+
+function ensureHeroAgents(store: AgentStoreFile): AgentStoreFile {
+  const heroes = buildHeroSeedAgents().map((row) => normalizeAgentRow(row));
+  const agentsById = new Map(store.agents.map((agent) => [agent.id, agent]));
+  let changed = false;
+
+  for (const hero of heroes) {
+    const existing = agentsById.get(hero.id);
+    if (heroNeedsRefresh(existing)) {
+      agentsById.set(hero.id, hero);
+      changed = true;
+    }
+  }
+
+  if (!changed) {
+    return store;
+  }
+
+  const nonHero = store.agents.filter((agent) => !HERO_AGENT_IDS.includes(agent.id));
+  const refreshed = { agents: [...heroes, ...nonHero] };
+  writeStore(refreshed);
+  return refreshed;
+}
+
 function seedIfEmpty(store: AgentStoreFile): AgentStoreFile {
   if (store.agents.length > 0) {
     return store;
@@ -51,7 +89,7 @@ function readStore(): AgentStoreFile {
       : [],
   };
 
-  return seedIfEmpty(store);
+  return ensureHeroAgents(seedIfEmpty(store));
 }
 
 function writeStore(store: AgentStoreFile) {
