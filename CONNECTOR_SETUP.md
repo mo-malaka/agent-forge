@@ -415,13 +415,14 @@ Correlating in **Machine Accounts** alone may not populate **AI Agent → Accoun
 
 **Manual:**
 
-1. **Admin → Identities → AI Agents → DevOps-Bot-Prod**
-2. **Accounts** tab → link **AgentForge Bedrock** account  
-   — or edit the source account → **Machine Identity** → pick **DevOps-Bot-Prod**
+ISC does **not** show **Add account** on **AI Agent → Accounts**. Correlate from the **account** side:
 
-If multiple **DevOps-Bot-Prod** entries appear in the dropdown, pick the one whose native/cloud identity **matches the account ARN**.
+1. **Admin → Identity Management → Accounts → Uncorrelated Accounts** (or Human Accounts)
+2. Find the Bedrock / IAM / GWS account → **Actions → Update Correlation → Machine**
+3. Select **CloudOps-Navigator:Infra-DevOps-Agent**
+4. Or: open the **source account** → set **Machine Identity** to the agent
 
-**nativeIdentity must align:** Account `nativeIdentity` (ARN) = AI Agent `cloudIdentity`. If regions differ (`us-east-1` vs `us-west-2`), auto-linking fails. AgentForge seed agents use `us-east-1`; bulk-created AWS agents default to `us-east-1` for consistency.
+**Automated:** **Run full sync** applies machine account mappings via `PUT /v2026/sources/{sourceId}/machine-account-mappings`. For synthetic sources use `machineIdentity` → `identityName`, not `nativeIdentity` → `nativeIdentity`. See [Part L3](#l3--link-accounts-to-the-ai-agent).
 
 ---
 
@@ -932,14 +933,56 @@ For each synthetic source, in ISC UI:
 
 ### L3 — Link accounts to the AI agent
 
-After all sources are aggregated:
+ISC does **not** provide an **Add account** button on **AI Agent → Accounts**. Accounts appear there only after they are **correlated as machine accounts** to the agent.
 
-1. **Admin → Identities → AI Agents → CloudOps-Navigator:Infra-DevOps-Agent**
-2. **Accounts** tab — link accounts from each source:
-   - `AmazonBedrockExecutionRoleForAgents` (AWS IAM)
-   - `sp-readonly@readonly-integration` (Google Workspace)
-   - Bedrock alias account (AWS Bedrock source)
-3. Or use **machine account mappings** (`nativeIdentity` → `nativeIdentity`) via the orchestrator if configured for each source.
+#### Option A — Update Correlation (recommended)
+
+Do this for **each** aggregated account on your synthetic sources.
+
+1. **Admin → Identity Management → Accounts**
+2. Open **Uncorrelated Accounts** first (new Web Services accounts often land here). If not found, try **Human Accounts** or **Machine Accounts**.
+3. Search for:
+   - `AmazonBedrockExecutionRoleForAgents` (AWS IAM source)
+   - `sp-readonly@readonly-integration` (Google Workspace source)
+4. Select the account → **Actions → Update Correlation**
+5. Classification type: **Machine** (requires Machine Identity Security / AIS)
+6. Machine identity: **CloudOps-Navigator:Infra-DevOps-Agent**
+7. **Save**
+8. Repeat for the second synthetic account
+9. Refresh **AI Agent → Accounts** — you should see **3 accounts** (Bedrock + IAM + GWS)
+
+> If **Machine** is not in the dropdown, your tenant may need AIS/MIS enabled, or the account must be classified as a machine account first (Option B).
+
+#### Option B — From the source account
+
+1. **Admin → Connections → Sources → AgentForge AWS IAM**
+2. **Account Management → Accounts**
+3. Open **AmazonBedrockExecutionRoleForAgents**
+4. **Actions → Update Correlation** (or **Update Account** → set **Machine Identity**)
+5. Select **CloudOps-Navigator:Infra-DevOps-Agent**
+6. Repeat on the Google Workspace source for `sp-readonly@readonly-integration`
+
+#### Option C — Machine account mappings (auto-link on aggregation)
+
+On **each synthetic source** (and optionally Bedrock), configure mappings so aggregated accounts auto-correlate:
+
+1. Source → **Machine Accounts** (or **Machine Account Mappings** in source setup)
+2. Add mapping:
+   - **Account attribute:** `machineIdentity`
+   - **Target identity attribute:** `identityName` (on the AI agent from **AI Agents Bedrock** / MIS aggregation)
+3. Re-run **Account Aggregation** on the synthetic source
+
+AgentForge sends `machineIdentity: "CloudOps-Navigator:Infra-DevOps-Agent"` on every synthetic account payload — this value must match the agent name exactly.
+
+> Default orchestrator mappings (`nativeIdentity` → `nativeIdentity`) only work for the Bedrock account where ARNs align. Synthetic IAM/GWS accounts **must** use `machineIdentity` → `identityName` (or manual correlation).
+
+#### Verify
+
+| Check | Expected |
+|-------|----------|
+| AI Agent → Accounts | 3 rows (Bedrock, IAM, GWS) |
+| AI Agent → Access | ~13 entitlements across 3 source names |
+| Identity Graph | Branches per source (after Access populates) |
 
 ### L4 — Verify
 
