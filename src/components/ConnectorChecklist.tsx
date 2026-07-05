@@ -29,15 +29,15 @@ const CHECKLIST_ITEMS = [
     id: "hero-reset",
     title: "Load hero agent seed data",
     description:
-      "Run full-store reset on /demo so CloudOps-Navigator and linked accounts are available.",
+      "Run full-store reset on /demo so CloudOps-Navigator ships ~14 Bedrock entitlements.",
     href: "/demo",
   },
   {
-    id: "synthetic-sources",
-    title: "Optional: synthetic ISC sources",
+    id: "privilege-classification",
+    title: "Optional: privilege classification",
     description:
-      "Add AWS IAM, Google Workspace, Entra ID, and AD sources for the full multi-source Access tab.",
-    href: "/setup#part-l--synthetic-sources-optional-multi-source-hero",
+      "Map riskScore / privilegeLevel to ISC direct privilege for Identity Graph ring colors.",
+    href: "/setup#part-m--privilege-classification-identity-graph-colors",
   },
   {
     id: "run-demo",

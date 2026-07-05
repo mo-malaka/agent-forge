@@ -25,14 +25,18 @@ After provisioning, re-run **account aggregation** so ISC reflects updated entit
 
 ---
 
-## Choose your demo tier
+## Recommended demo path (single Bedrock source)
 
-| Tier | What you get | Extra ISC setup |
-|------|----------------|-----------------|
-| **Tier 1 — Bedrock only** | Hero agent with ~14 entitlements on **one** source (`AI Agents Bedrock`). Good for govern + enforce. | **No new HTTP operations** — use your existing Bedrock source. Reset hero data + re-aggregate. |
-| **Tier 2 — Full hero** | Multi-source **AI Agent → Access** and **Accounts** like the reference screenshots (AWS IAM, Google Workspace, Entra ID, AD). Rich Identity Graph. | **3–4 additional Web Services sources**, new entitlement types, and HTTP operations per source ([Part L](#part-l--synthetic-sources-optional-multi-source-hero)). |
+Use **one Web Services source** per platform (e.g. `AI Agents Bedrock`). The hero agent `CloudOps-Navigator:Infra-DevOps-Agent` ships **~14 entitlements** on that single source — IAM policies, Google Workspace roles, AD groups, and classic outbound/inbound permissions are all modeled as `outboundPermissions` / `inboundCallers` on the Bedrock account payload.
 
-> **If you only configured the Bedrock source (Parts B–F), Tier 1 is expected.** Tier 2 is optional and matches the multi-source screenshots you shared.
+| Check | Expected (AWS hero) |
+|-------|---------------------|
+| AI Agents list | **1** agent: `CloudOps-Navigator:Infra-DevOps-Agent` |
+| AI Agent → Access | **~14** entitlements, all source `AI Agents Bedrock` |
+| AI Agent → Accounts | **1** Bedrock account |
+| Identity Graph | Blue entitlement leaves under one source; optional privilege rings after [Part M](#part-m--privilege-classification-identity-graph-colors) |
+
+> No extra ISC sources are required. Deploy the latest AgentForge build, run [A0](#a0--load-hero-agents-phase-1--do-this-first) full-store reset, then re-aggregate your Bedrock source.
 
 ---
 
@@ -85,7 +89,7 @@ curl -s -X POST https://YOUR_AGENTFORGE_URL/api/demo/reset \
 curl -s https://YOUR_AGENTFORGE_URL/api/agents/agt_demo_aws_bedrock | jq '.agent.name, (.agent.extended_entitlements | length), (.agent.linked_accounts | length)'
 ```
 
-Expected: name `CloudOps-Navigator:Infra-DevOps-Agent`, ~14 extended entitlements, 3 linked accounts.
+Expected: name `CloudOps-Navigator:Infra-DevOps-Agent`, **14** extended entitlements, **1** linked account.
 
 ### A1 — Bulk-create agents (optional)
 
@@ -134,15 +138,6 @@ Root path for entitlements: `$.entitlements[*]`
 | GCP Vertex | `/api/connectors/web-services/gcp-vertex/accounts` | `/api/connectors/web-services/gcp-vertex/entitlements` |
 | Azure AI Foundry | `/api/connectors/web-services/azure-ai-foundry/accounts` | `/api/connectors/web-services/azure-ai-foundry/entitlements` |
 
-**Synthetic sources (Tier 2 only)** — see [Part L](#part-l--synthetic-sources-optional-multi-source-hero):
-
-| Source | Accounts | Entitlements |
-|--------|----------|--------------|
-| AWS IAM | `/api/connectors/web-services/synthetic/aws-iam/accounts` | `.../entitlements` |
-| Google Workspace | `/api/connectors/web-services/synthetic/google-workspace/accounts` | `.../entitlements` |
-| Entra ID | `/api/connectors/web-services/synthetic/entra-id/accounts` | `.../entitlements` |
-| Active Directory | `/api/connectors/web-services/synthetic/active-directory/accounts` | `.../entitlements` |
-
 **Sample account (hero AWS Bedrock):**
 
 ```json
@@ -154,23 +149,33 @@ Root path for entitlements: `$.entitlements[*]`
   "machineIdentity": "CloudOps-Navigator:Infra-DevOps-Agent",
   "sourceName": "AWS Bedrock - spciem",
   "owner": "mostafa.helmy@sailpoint.com",
-  "outboundPermissions": ["S3:Read", "Jira:Admin", "EC2:Describe", "Bedrock:InvokeModel"],
+  "outboundPermissions": [
+    "S3:Read",
+    "Jira:Admin",
+    "EC2:Describe",
+    "Bedrock:InvokeModel",
+    "AIDevOpsAgentReadOnlyAccess",
+    "AmazonBedrockAgentInferenceProfilesCrossRegionPolicy",
+    "SecurityAudit",
+    "DevOps-Operations"
+  ],
   "inboundCallers": ["invoke:engineering-team", "invoke:service-now-workflow"]
 }
 ```
 
-**Sample entitlement (extended — Tier 2 sources):**
+**Sample entitlement (hero — single Bedrock source):**
 
 ```json
 {
-  "entitlementId": "ent_aws_security_audit",
-  "name": "SecurityAudit",
-  "attributeName": "AWSManagedPolicies",
-  "attributeValue": "arn:aws:iam::aws:policy/SecurityAudit",
-  "sourceName": "AWS IAM - spciem",
-  "accountName": "AmazonBedrockExecutionRoleForAgents",
+  "entitlementId": "ent_aws_jira_admin",
+  "name": "Jira:Admin",
+  "attributeName": "outboundPermissions",
+  "attributeValue": "Jira:Admin",
+  "sourceName": "AWS Bedrock - spciem",
+  "accountName": "CloudOps-Navigator:Infra-DevOps-Agent",
   "accessDirection": "outbound",
-  "riskScore": 5
+  "riskScore": 8,
+  "privilegeLevel": "high"
 }
 ```
 
@@ -202,7 +207,7 @@ ISC allows **only one account attribute per entitlement type**. Do **not** set b
 
 1. **Entitlement Management → Entitlement Types → Add**
 2. Name: **`outboundPermissions`**
-3. Add schema attributes: `entitlementId` (string), `name` (string), optional `riskScore` (string)
+3. Add schema attributes: `entitlementId` (string), `name` (string), optional `riskScore` (string), optional `privilegeLevel` (string)
 4. Edit entitlement type settings:
 
 | Setting | Value |
@@ -290,6 +295,7 @@ Use the **same response mapping** as D3.
 | `value` | `value` |
 | `accessDirection` | `accessDirection` |
 | `riskScore` | `riskScore` |
+| `privilegeLevel` | `privilegeLevel` |
 
 > If you see **`KeyID cannot be empty`** during Group Aggregation, the default `group` entitlement type Entitlement ID field does not match any populated attribute in the HTTP response mapping. Align Entitlement ID = `name` and map `name` → `name`.
 
@@ -312,6 +318,7 @@ Use the **same response mapping** as D3.
 | `name` | `name` |
 | `accessDirection` | `accessDirection` |
 | `riskScore` | `riskScore` |
+| `privilegeLevel` | `privilegeLevel` |
 
 > If aggregation fails with *"No configuration found for Group Aggregation-outboundPermissions"*, this operation is missing or the operation type name does not match the entitlement type name exactly.
 
@@ -422,7 +429,7 @@ ISC does **not** show **Add account** on **AI Agent → Accounts**. Correlate fr
 3. Select **CloudOps-Navigator:Infra-DevOps-Agent**
 4. Or: open the **source account** → set **Machine Identity** to the agent
 
-**Automated:** **Run full sync** applies machine account mappings via `PUT /v2026/sources/{sourceId}/machine-account-mappings`. For synthetic sources use `machineIdentity` → `identityName`, not `nativeIdentity` → `nativeIdentity`. See [Part L3](#l3--link-accounts-to-the-ai-agent).
+**Automated:** **Run full sync** applies machine account mappings via `PUT /v2026/sources/{sourceId}/machine-account-mappings`. Use `nativeIdentity` → `nativeIdentity` on the Bedrock source (ARN alignment).
 
 ---
 
@@ -458,10 +465,10 @@ Show: `invoke:engineering-team`, `invoke:service-now-workflow` (attribute `inbou
 ### Identity Graph (optional)
 
 - Open from **AI Agent → View in Identity Graph**
-- Agent-root graph may show **0 Direct Entitlements** — expected for Web Services account-scoped entitlements
+- With the single-source hero, expect **~12 blue outbound leaves + 2 inbound** under one Bedrock source node (after account aggregation links entitlements)
+- Configure [Part M](#part-m--privilege-classification-identity-graph-colors) for colored **privilege rings** on grouped nodes
 - **Do not** add Account ID filters unless you know the graph’s internal ID (wrong filter = empty graph)
-- Alternative: **Home → Identity Graph** → search `S3:Read` for reverse path
-- Alternative: open graph from **Machine Accounts** row (account-centric view)
+- Alternative: **Home → Identity Graph** → search `Jira:Admin` for reverse path
 
 **One-liner for audiences:**
 
@@ -816,207 +823,66 @@ DEMO (AgentForge orchestrator)
 
 ---
 
-## Part L — Synthetic sources (optional multi-source hero)
+## Part M — Privilege classification (Identity Graph colors)
 
-Use this when you want **AI Agent → Access** and **Accounts** to show entitlements from **AWS IAM**, **Google Workspace**, **Entra ID**, and **Active Directory** — like the reference ISC screenshots.
+Identity Graph uses **node fill colors** for access object type (blue = assigned entitlement, grey = nested, green = role, pink = access profile) and **colored rings** around nodes for **privilege mix** (high / medium / low). AgentForge cannot paint the graph directly — you configure **Privilege Classification** in ISC after entitlements aggregate.
 
-**Prerequisite:** Complete [A0](#a0--load-hero-agents-phase-1--do-this-first) and your existing Bedrock source (Parts B–F). Deploy the latest AgentForge build so synthetic endpoints exist.
+### What AgentForge sends
 
-### L1 — What you are adding
+Each hero entitlement in the group aggregation payload includes:
 
-For each synthetic source, create **one new Web Services SaaS source** in ISC. All sources use the **same AgentForge Base URL**; only the **Context URL** paths differ.
+| Field | Example | Purpose |
+|-------|---------|---------|
+| `riskScore` | `8` | Numeric hint (0–10 scale in seed data) |
+| `privilegeLevel` | `high` | Optional string hint: `high`, `medium`, or `low` |
 
-Copy URLs from AgentForge **/connector** → **Synthetic source endpoints**.
+Map both fields in your **group aggregation response mapping** if you add `privilegeLevel` to the entitlement type schema (optional but recommended for criteria-based classification).
 
-| ISC source name (suggested) | Context path prefix | Entitlement attribute types needed |
-|-----------------------------|---------------------|-----------------------------------|
-| `AgentForge AWS IAM` | `/api/connectors/web-services/synthetic/aws-iam/` | `AWSManagedPolicies`, `CustomerManagedPolicies`, `InlinePolicies` |
-| `AgentForge Google Workspace` | `/api/connectors/web-services/synthetic/google-workspace/` | `resourcePermissions` |
-| `AgentForge Entra ID` | `/api/connectors/web-services/synthetic/entra-id/` | `appRoleAssignments` |
-| `AgentForge Active Directory` | `/api/connectors/web-services/synthetic/active-directory/` | `memberOf` |
+### M1 — Enable privilege classification on the Bedrock source
 
-### L2 — Repeat per synthetic source (example: AWS IAM)
+1. **Admin → Connections → Sources →** your Bedrock Web Services source
+2. **Entitlement Management → Privilege Classification**
+3. Enable **Automatic Privilege Classification**
 
-Do steps L2a–L2e for **each** of the four sources above.
+### M2 — Recommended: custom criteria using `riskScore`
 
-#### L2a — Create the source
+Use **Define custom criteria logic** on each privilege level tab:
 
-1. **Admin → Connections → Sources → Create source**
-2. Type: **Web Services SaaS**
-3. Name: e.g. `AgentForge AWS IAM`
-4. **Connection Settings → Authentication:**
-   - **Authentication Type:** Custom Authentication
-   - **Base URL:** your AgentForge URL (same as Bedrock source)
-5. Save
+| Direct privilege | Criteria (Attribute = `riskScore`, Operator = Contains or Equals) |
+|------------------|---------------------------------------------------------------------|
+| **High** | `7`, `8`, `9` |
+| **Medium** | `5`, `6` |
+| **Low** | `3`, `4` |
 
-#### L2b — Create entitlement types (AWS IAM example)
+Save, then re-run **Group Aggregation** for `outboundPermissions` and `inboundCallers` if entitlements were already aggregated.
 
-Create **one entitlement type per attribute** used by that source. Names must match `attributeName` in the payload **exactly**.
+### M3 — Alternative: criteria on `privilegeLevel`
 
-**For AWS IAM**, create three types:
+If you mapped `privilegeLevel` in the entitlement schema and group aggregation:
 
-| Entitlement type name | Entitlement ID field | Entitlement Name field |
-|-----------------------|----------------------|------------------------|
-| `AWSManagedPolicies` | `name` | `name` |
-| `CustomerManagedPolicies` | `name` | `name` |
-| `InlinePolicies` | `name` | `name` |
+| Direct privilege | Criteria (Attribute = `privilegeLevel`, Operator = Equals) |
+|------------------|-------------------------------------------------------------|
+| **High** | `high` |
+| **Medium** | `medium` |
+| **Low** | `low` |
 
-Schema attributes (each type): `entitlementId` (string), `name` (string), optional `attributeName`, `attributeValue`, `riskScore`.
+### M4 — Alternative: name-based criteria
 
-**For Google Workspace:** one type `resourcePermissions`  
-**For Entra ID:** one type `appRoleAssignments`  
-**For Active Directory:** one type `memberOf`
+Match entitlement `name` for demo polish without schema changes:
 
-#### L2c — HTTP operations (per source)
+| Direct privilege | Example `name` Contains values |
+|------------------|--------------------------------|
+| **High** | `Admin`, `Secrets`, `Security Auditor`, `AIDevOps` |
+| **Medium** | `SecurityAudit`, `service-now`, `DevOps-Operations`, `Inference` |
+| **Low** | `Read`, `Describe`, `Viewer`, `engineering-team` |
 
-Go to **Source Setup → HTTP Operations**. Create these operations (replace `aws-iam` with the slug for each source):
+### M5 — Verify in Identity Graph
 
-| # | Operation Type | Context URL | Method | Root path |
-|---|----------------|-------------|--------|-----------|
-| 1 | Test Connection | `/api/health` | GET | — |
-| 2 | Account Aggregation | `/api/connectors/web-services/synthetic/aws-iam/accounts` | GET | `$.accounts[*]` |
-| 3 | Group Aggregation - AWSManagedPolicies | `/api/connectors/web-services/synthetic/aws-iam/entitlements` | GET | `$.entitlements[*]` |
-| 4 | Group Aggregation - CustomerManagedPolicies | same URL | GET | `$.entitlements[*]` |
-| 5 | Group Aggregation - InlinePolicies | same URL | GET | `$.entitlements[*]` |
+1. Open **AI Agent → View in Identity Graph**
+2. **Help → Legend** — confirm ring colors for high / medium / low
+3. Hover a grouped source node — percentage of high-privilege entitlements should reflect mixed `riskScore` values from the hero seed
 
-**Account aggregation response mapping** (same as Part D2):
-
-| Schema attribute | Attribute path |
-|------------------|----------------|
-| `accountId` | `accountId` |
-| `name` | `name` |
-| `nativeIdentity` | `nativeIdentity` |
-| `identityName` | `identityName` |
-| `machineIdentity` | `machineIdentity` |
-| `status` | `status` |
-| `owner` | `accountOwner` |
-| `AWSManagedPolicies` | `AWSManagedPolicies` |
-| `CustomerManagedPolicies` | `CustomerManagedPolicies` |
-| `InlinePolicies` | `InlinePolicies` |
-
-> Map only the entitlement attributes that exist for that source. Google Workspace accounts use `resourcePermissions` instead of the IAM fields.
-
-**Group aggregation response mapping** (per entitlement type):
-
-| Schema attribute | Attribute path |
-|------------------|----------------|
-| `entitlementId` | `entitlementId` |
-| `name` | `name` |
-| `attributeName` | `attributeName` |
-| `attributeValue` | `attributeValue` |
-| `accessDirection` | `accessDirection` |
-| `riskScore` | `riskScore` |
-
-For Google Workspace / Entra / AD sources, create **one** Group Aggregation operation per entitlement type (`resourcePermissions`, `appRoleAssignments`, or `memberOf`).
-
-#### L2d — Account schema
-
-**Account Management → Account Schema** — add entitlement attributes matching the types you created:
-
-| Source | Multi-valued account attributes (type = matching entitlement type) |
-|--------|---------------------------------------------------------------------|
-| AWS IAM | `AWSManagedPolicies`, `CustomerManagedPolicies`, `InlinePolicies` |
-| Google Workspace | `resourcePermissions` |
-| Entra ID | `appRoleAssignments` |
-| Active Directory | `memberOf` |
-
-Set **Account ID** = `accountId`, **Account Name** = `name`.
-
-#### L2e — Run aggregations (per source)
-
-For each synthetic source, in ISC UI:
-
-```
-1. Group Aggregation → each entitlement type (e.g. AWSManagedPolicies, …)
-2. Account Aggregation
-```
-
-### L3 — Link accounts to the AI agent
-
-ISC does **not** provide an **Add account** button on **AI Agent → Accounts**. Accounts appear there only after they are **correlated as machine accounts** to the agent.
-
-#### Option A — Update Correlation (recommended)
-
-Do this for **each** aggregated account on your synthetic sources.
-
-1. **Admin → Identity Management → Accounts**
-2. Open **Uncorrelated Accounts** first (new Web Services accounts often land here). If not found, try **Human Accounts** or **Machine Accounts**.
-3. Search for:
-   - `AmazonBedrockExecutionRoleForAgents` (AWS IAM source)
-   - `sp-readonly@readonly-integration` (Google Workspace source)
-4. Select the account → **Actions → Update Correlation**
-5. Classification type: **Machine** (requires Machine Identity Security / AIS)
-6. Machine identity: **CloudOps-Navigator:Infra-DevOps-Agent**
-7. **Save**
-8. Repeat for the second synthetic account
-9. Refresh **AI Agent → Accounts** — you should see **3 accounts** (Bedrock + IAM + GWS)
-
-> If **Machine** is not in the dropdown, your tenant may need AIS/MIS enabled, or the account must be classified as a machine account first (Option B).
-
-#### Option B — From the source account
-
-1. **Admin → Connections → Sources → AgentForge AWS IAM**
-2. **Account Management → Accounts**
-3. Open **AmazonBedrockExecutionRoleForAgents**
-4. **Actions → Update Correlation** (or **Update Account** → set **Machine Identity**)
-5. Select **CloudOps-Navigator:Infra-DevOps-Agent**
-6. Repeat on the Google Workspace source for `sp-readonly@readonly-integration`
-
-#### Option C — Machine account mappings (auto-link on aggregation)
-
-On **each synthetic source** (and optionally Bedrock), configure mappings so aggregated accounts auto-correlate:
-
-1. Source → **Machine Accounts** (or **Machine Account Mappings** in source setup)
-2. Add mapping:
-   - **Account attribute:** `machineIdentity`
-   - **Target identity attribute:** `identityName` (on the AI agent from **AI Agents Bedrock** / MIS aggregation)
-3. Re-run **Account Aggregation** on the synthetic source
-
-AgentForge sends `machineIdentity: "CloudOps-Navigator:Infra-DevOps-Agent"` on every synthetic account payload — this value must match the agent name exactly.
-
-> Default orchestrator mappings (`nativeIdentity` → `nativeIdentity`) only work for the Bedrock account where ARNs align. Synthetic IAM/GWS accounts **must** use `machineIdentity` → `identityName` (or manual correlation).
-
-#### Verify
-
-| Check | Expected |
-|-------|----------|
-| AI Agent → Accounts | 3 rows (Bedrock, IAM, GWS) |
-| AI Agent → Access | ~13 entitlements across 3 source names |
-| Identity Graph | Branches per source (after Access populates) |
-
-### L4 — Verify
-
-| Check | Location | Expected (AWS hero) |
-|-------|----------|---------------------|
-| Entitlement catalog | Each source → Entitlements | IAM policies, GWS roles, etc. |
-| Accounts | Each source → Accounts | 1+ accounts per synthetic source |
-| AI Agent → Accounts | Hero agent | 3–4 linked accounts |
-| AI Agent → Access | Hero agent | 10–15 entitlements across sources |
-| Identity Graph | Viewing agent | Branches per source name |
-
-### L5 — Tier 1 shortcut (Bedrock source only)
-
-If you **do not** add synthetic sources:
-
-1. [A0](#a0--load-hero-agents-phase-1--do-this-first) — full-store reset
-2. Re-run aggregations on your **existing Bedrock source only**:
-   - Group Aggregation → `outboundPermissions`
-   - Group Aggregation → `inboundCallers`
-   - Machine Identity Aggregation
-   - Account Aggregation
-3. Link the Bedrock account to the AI agent
-
-**Expected (Tier 1):**
-
-| Check | Expected |
-|-------|----------|
-| AI Agents list | **1** agent: `CloudOps-Navigator:Infra-DevOps-Agent` |
-| AI Agent → Access | **6** entitlements (4 outbound + 2 inbound), all source `AI Agents Bedrock` |
-| AI Agent → Accounts | **1** Bedrock account |
-| AI Agent → Details → Description | Empty unless you map `description` on the machine identity schema (see E2b below) |
-| Identity Graph | Often **empty** on Tier 1 — demo the **Access** tab instead |
-
-> Tier 1 does **not** include AWS IAM / Google Workspace entitlements. Those require [Part L](#part-l--synthetic-sources-optional-multi-source-hero).
+> **Note:** Ring indicators appear on access objects that **contain** classified entitlements (e.g. grouped source nodes). Individual blue entitlement leaves stay blue; privilege shows as rings on parent/group nodes.
 
 ### E2b — Optional machine identity attributes (rich Details tab)
 
@@ -1042,8 +908,8 @@ To populate **Description**, **foundationModel**, etc. on **AI Agent → Details
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| Still shows `DevOps-Bot-Prod` / 4 entitlements | Old AgentForge data or stale ISC aggregation | [A0](#a0--load-hero-agents-phase-1--do-this-first) full-store reset; redeploy AgentForge; re-aggregate all sources |
-| Access shows only Bedrock source | Tier 1 only — synthetic sources not configured | Complete [Part L](#part-l--synthetic-sources-optional-multi-source-hero) for multi-source Access tab |
+| Still shows `DevOps-Bot-Prod` / 4 entitlements | Old AgentForge data or stale ISC aggregation | [A0](#a0--load-hero-agents-phase-1--do-this-first) full-store reset; redeploy AgentForge; re-aggregate Bedrock source |
+| Access shows only 6 entitlements | Stale aggregation before hero seed update | Full-store reset; re-run group + account aggregation on Bedrock |
 | *No configuration for Group Aggregation-AWSManagedPolicies* | Missing typed HTTP operation | Add **Group Aggregation - AWSManagedPolicies** on the AWS IAM source (L2c) |
 | *Multiple Entitlement attributes with same type* | Both access fields typed as `group` | Create separate types `outboundPermissions` and `inboundCallers` |
 | *No configuration for Group Aggregation-outboundPermissions* | Missing HTTP operation | Add operation type **Group Aggregation - outboundPermissions** (D3) |
@@ -1052,7 +918,7 @@ To populate **Description**, **foundationModel**, etc. on **AI Agent → Details
 | Catalog shows `S3 Read`, account has `S3:Read` | Display normalization | OK if Entitlement Assignments on account are populated |
 | AI Agent → Access empty | Account not linked to agent | Correlate on **AI Agent → Accounts** |
 | AI Agent → Accounts empty | nativeIdentity / ARN mismatch | Align ARN; re-aggregate; link manually |
-| Identity Graph empty / all zeros | Account entitlements not "direct" on identity | Demo **Access** tab; optional access profiles for richer graph |
+| Identity Graph has no privilege rings | Privilege classification not configured | [Part M](#part-m--privilege-classification-identity-graph-colors) |
 | Graph *Filter Returned No Results* | Bad Account ID filter | Clear filters in Explorer |
 | 0 accounts in aggregation | Wrong URL or root path | `$.accounts[*]`; platform-specific path |
 | KeyID / 0 accounts (ISC) | Wrong endpoint | Use Web Services `/accounts`, not `/connectors/aws-bedrock/agents` |
@@ -1083,19 +949,19 @@ To populate **Description**, **foundationModel**, etc. on **AI Agent → Details
 ## Quick checklist
 
 ```
-☐ Tier chosen: Tier 1 (Bedrock only) OR Tier 2 (+ synthetic sources)
 ☐ Hero agents loaded — full-store reset (Part A0)
 ☐ One-time ISC bootstrap (source, HTTP ops, entitlement types, schemas)
 ☐ AgentForge ISC env vars set (Part K2)
 ☐ Web Services Bedrock source + test connection
 ☐ Entitlement types: outboundPermissions, inboundCallers (Entitlement ID = name)
+☐ Group aggregation maps riskScore (+ optional privilegeLevel)
 ☐ HTTP ops: test, account, group×2, machine identity
 ☐ Account + machine identity schemas
 ☐ Aggregate: group outbound → group inbound → machine identity → account
      (or Run full sync on dashboard)
-☐ Optional Tier 2: 4 synthetic sources + entitlement types + HTTP ops (Part L)
-☐ AI Agent linked to source account(s)
-☐ AI Agent → Access shows inbound + outbound (Tier 1) or multi-source (Tier 2)
+☐ AI Agent linked to Bedrock account
+☐ AI Agent → Access shows ~14 entitlements on one source
+☐ Optional: privilege classification for Identity Graph rings (Part M)
 ☐ Provisioning HTTP ops: add/remove entitlement, disable account
 ☐ Authorize API: allow known permission, deny revoked/disabled
      (or Run govern + enforce on dashboard)

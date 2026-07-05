@@ -133,21 +133,3 @@ export function getWebServicesProvisionEndpoints(baseUrl: string) {
     getAccountUrl: `${baseUrl}/api/connectors/web-services/${profile.connectorSlug}/account`,
   }));
 }
-
-const SYNTHETIC_SOURCE_SLUGS = [
-  { slug: "aws-iam", label: "AWS IAM (synthetic)" },
-  { slug: "google-workspace", label: "Google Workspace (synthetic)" },
-  { slug: "entra-id", label: "Entra ID (synthetic)" },
-  { slug: "active-directory", label: "Active Directory (synthetic)" },
-] as const;
-
-export function getSyntheticWebServicesEndpoints(baseUrl: string) {
-  return SYNTHETIC_SOURCE_SLUGS.map((source) => ({
-    label: source.label,
-    slug: source.slug,
-    accountsUrl: `${baseUrl}/api/connectors/web-services/synthetic/${source.slug}/accounts`,
-    entitlementsUrl: `${baseUrl}/api/connectors/web-services/synthetic/${source.slug}/entitlements`,
-    accountsRootPath: "$.accounts[*]",
-    entitlementsRootPath: "$.entitlements[*]",
-  }));
-}

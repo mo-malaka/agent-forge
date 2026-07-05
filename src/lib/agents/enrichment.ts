@@ -1,5 +1,11 @@
 import type { AgentRow } from "@/lib/db/schema";
+import {
+  scoreInboundAccess,
+  scoreOutboundAccess,
+} from "@/lib/agents/access";
 import { buildDeployment } from "@/lib/providers/deployment";
+
+export type PrivilegeLevel = "high" | "medium" | "low";
 
 export interface LinkedAccount {
   id: string;
@@ -20,6 +26,8 @@ export interface ExtendedEntitlement {
   sourceName: string;
   accountName: string;
   accessDirection: "outbound" | "inbound";
+  riskScore?: number;
+  privilegeLevel?: PrivilegeLevel;
 }
 
 export type AgentDetails = Record<string, unknown>;
@@ -81,6 +89,16 @@ export function collectExtendedEntitlements(
   );
 }
 
+function resolveEntitlementRiskScore(entitlement: ExtendedEntitlement): number {
+  if (entitlement.riskScore !== undefined) {
+    return entitlement.riskScore;
+  }
+
+  return entitlement.accessDirection === "inbound"
+    ? scoreInboundAccess(entitlement.entitlementName)
+    : scoreOutboundAccess(entitlement.entitlementName);
+}
+
 export function serializeExtendedEntitlementForWebServices(
   entitlement: ExtendedEntitlement,
   platform: string,
@@ -98,7 +116,10 @@ export function serializeExtendedEntitlementForWebServices(
     type: entitlement.accessDirection,
     accessDirection: entitlement.accessDirection,
     platform,
-    riskScore: 5,
+    riskScore: resolveEntitlementRiskScore(entitlement),
+    ...(entitlement.privilegeLevel
+      ? { privilegeLevel: entitlement.privilegeLevel }
+      : {}),
   };
 }
 

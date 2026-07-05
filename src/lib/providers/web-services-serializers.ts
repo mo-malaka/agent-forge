@@ -165,8 +165,7 @@ export function buildWebServicesAccountsForAgent(
   row: AgentRow,
   baseUrl: string,
 ): WebServicesAccount[] {
-  // Tier 1: one governed account + machine identity per agent.
-  // Linked accounts are exposed via synthetic source endpoints (Tier 2).
+  // One governed account + machine identity per agent on the platform Web Services source.
   return [buildWebServicesAccount(row, baseUrl)];
 }
 

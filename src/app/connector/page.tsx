@@ -6,7 +6,6 @@ import {
   getPollUrl,
   getProviderConnectorEndpoints,
   getRequestBaseUrl,
-  getSyntheticWebServicesEndpoints,
   getWebServicesAccountEndpoints,
   getWebServicesEntitlementEndpoints,
   getWebServicesProvisionEndpoints,
@@ -19,7 +18,6 @@ export default async function ConnectorPage() {
   const entitlementEndpoints = getWebServicesEntitlementEndpoints(baseUrl);
   const provisionEndpoints = getWebServicesProvisionEndpoints(baseUrl);
   const referenceEndpoints = getProviderConnectorEndpoints(baseUrl);
-  const syntheticEndpoints = getSyntheticWebServicesEndpoints(baseUrl);
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-6 py-8">
@@ -161,45 +159,6 @@ export default async function ConnectorPage() {
                 </code>
                 <CopyButton value={endpoint.getAccountUrl} label="Copy" />
               </div>
-            </div>
-          </div>
-        ))}
-      </section>
-
-      <section className="space-y-3 rounded-lg border border-amber-200 bg-amber-50/50 p-4 dark:border-amber-900 dark:bg-amber-950/20">
-        <p className="text-xs font-medium uppercase tracking-wide text-amber-800 dark:text-amber-300">
-          Synthetic source endpoints (multi-source hero demo)
-        </p>
-        <p className="text-xs text-zinc-600 dark:text-zinc-400">
-          Optional — create additional ISC Web Services sources for AWS IAM,
-          Google Workspace, Entra ID, and Active Directory. See the{" "}
-          <Link
-            href="/setup#part-l--synthetic-sources-optional-multi-source-hero"
-            className="font-medium underline underline-offset-2"
-          >
-            setup guide Part L
-          </Link>
-          .
-        </p>
-        {syntheticEndpoints.map((endpoint) => (
-          <div
-            key={endpoint.slug}
-            className="space-y-2 rounded-md border border-amber-200 bg-white p-3 dark:border-amber-900 dark:bg-zinc-950"
-          >
-            <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-              {endpoint.label}
-            </p>
-            <div className="flex items-center justify-between gap-3">
-              <code className="truncate text-sm text-zinc-800 dark:text-zinc-200">
-                Accounts: {endpoint.accountsUrl}
-              </code>
-              <CopyButton value={endpoint.accountsUrl} label="Copy" />
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <code className="truncate text-sm text-zinc-800 dark:text-zinc-200">
-                Entitlements: {endpoint.entitlementsUrl}
-              </code>
-              <CopyButton value={endpoint.entitlementsUrl} label="Copy" />
             </div>
           </div>
         ))}
