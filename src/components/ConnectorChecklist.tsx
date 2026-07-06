@@ -16,7 +16,7 @@ const CHECKLIST_ITEMS = [
     id: "account-aggregation",
     title: "Configure account aggregation",
     description: "Paste the platform account URL and set root path $.accounts[*].",
-    href: "/connector",
+    href: "/setup#endpoints",
   },
   {
     id: "entitlement-aggregation",
@@ -156,14 +156,7 @@ export function ConnectorChecklist() {
         })}
       </ol>
       <p className="mt-3 text-xs text-zinc-500">
-        Full walkthrough in the{" "}
-        <Link
-          href="/setup"
-          className="font-medium underline underline-offset-2 hover:text-zinc-700 dark:hover:text-zinc-300"
-        >
-          setup guide
-        </Link>
-        .
+        Full walkthrough in the guide below.
       </p>
     </section>
   );

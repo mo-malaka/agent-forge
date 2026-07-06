@@ -61,7 +61,7 @@ const HERO_CONFIGS: HeroSeedConfig[] = [
       agent_alias: "Infra-DevOps-Agent",
     },
     metadata: {
-      owner: "mostafa.helmy@sailpoint.com",
+      owner: "mo.malaka@sailpoint.com",
       version: "2",
       department: "Platform Operations",
       risk_level: "High",
@@ -104,7 +104,7 @@ const HERO_CONFIGS: HeroSeedConfig[] = [
         nativeIdentity: `arn:aws:bedrock:${AWS_REGION}:${AWS_ACCOUNT_ID}:agent-alias/${AWS_AGENT_ID}/${AWS_ALIAS_ID}`,
         sourceName: BEDROCK_SOURCE,
         status: "Enabled",
-        accountOwner: "mostafa.helmy@sailpoint.com",
+        accountOwner: "mo.malaka@sailpoint.com",
       },
     ],
     entitlementTuning: [
@@ -134,7 +134,7 @@ const HERO_CONFIGS: HeroSeedConfig[] = [
       location: "us-central1",
     },
     metadata: {
-      owner: "mostafa.helmy@sailpoint.com",
+      owner: "mo.malaka@sailpoint.com",
       version: "1.4.2",
       department: "Engineering",
       risk_level: "Medium",
@@ -164,7 +164,7 @@ const HERO_CONFIGS: HeroSeedConfig[] = [
         nativeIdentity: GCP_REASONING_ENGINE,
         sourceName: GCP_VERTEX_SOURCE,
         status: "Enabled",
-        accountOwner: "mostafa.helmy@sailpoint.com",
+        accountOwner: "mo.malaka@sailpoint.com",
       },
     ],
     entitlementTuning: [
@@ -195,7 +195,7 @@ const HERO_CONFIGS: HeroSeedConfig[] = [
       location: "eastus",
     },
     metadata: {
-      owner: "mostafa.helmy@sailpoint.com",
+      owner: "mo.malaka@sailpoint.com",
       version: "1.0.0",
       department: "Customer Success",
       risk_level: "Medium",
@@ -240,7 +240,7 @@ const HERO_CONFIGS: HeroSeedConfig[] = [
         nativeIdentity: `${TENANT}-callcenter:asst_mrMrcFIXltnANB4YlPKp4HHd`,
         sourceName: AZURE_FOUNDRY_SOURCE,
         status: "Enabled",
-        accountOwner: "mostafa.helmy@sailpoint.com",
+        accountOwner: "mo.malaka@sailpoint.com",
       },
     ],
     entitlementTuning: [

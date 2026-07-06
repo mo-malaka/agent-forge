@@ -148,7 +148,7 @@ Root path for entitlements: `$.entitlements[*]`
   "identityName": "CloudOps-Navigator:Infra-DevOps-Agent",
   "machineIdentity": "CloudOps-Navigator:Infra-DevOps-Agent",
   "sourceName": "AWS Bedrock - spciem",
-  "owner": "mostafa.helmy@sailpoint.com",
+  "owner": "mo.malaka@sailpoint.com",
   "outboundPermissions": [
     "S3:Read",
     "Jira:Admin",
@@ -460,7 +460,7 @@ Show: `invoke:engineering-team`, `invoke:service-now-workflow` (attribute `inbou
 | Source account → Attributes | Raw connector data |
 | Source account → Entitlement Assignments | Proves catalog linking worked |
 | Source → Entitlements | Entitlement catalog |
-| AgentForge dashboard | Bulk create + copy endpoints |
+| Setup page (`/setup`) | Checklist, copy endpoints, bulk create on `/agents` |
 
 ### Identity Graph (optional)
 

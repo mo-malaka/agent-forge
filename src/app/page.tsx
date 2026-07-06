@@ -13,11 +13,11 @@ const PATHS = [
     primary: true,
   },
   {
-    href: "/connector",
-    title: "Configure connector",
+    href: "/setup",
+    title: "Setup ISC source",
     description:
-      "Copy Web Services URLs for accounts, entitlements, and provisioning when setting up your ISC source.",
-    cta: "View endpoints",
+      "Checklist, copy-paste Web Services URLs, and the full SailPoint configuration guide.",
+    cta: "Open setup",
     primary: false,
   },
   {
