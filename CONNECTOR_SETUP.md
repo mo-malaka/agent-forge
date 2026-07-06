@@ -78,7 +78,7 @@ AgentForge ships three **hero agents** with rich metadata, linked accounts, and 
 Or via API:
 
 ```bash
-curl -s -X POST https://YOUR_AGENTFORGE_URL/api/demo/reset \
+curl -s -X POST https://https://main.d12mzah9vzl24s.amplifyapp.com/api/demo/reset \
   -H "Content-Type: application/json" \
   -d '{"scope":"full-store","remove_bulk_agents":true}'
 ```
@@ -86,7 +86,7 @@ curl -s -X POST https://YOUR_AGENTFORGE_URL/api/demo/reset \
 **Verify locally:**
 
 ```bash
-curl -s https://YOUR_AGENTFORGE_URL/api/agents/agt_demo_aws_bedrock | jq '.agent.name, (.agent.extended_entitlements | length), (.agent.linked_accounts | length)'
+curl -s https://https://main.d12mzah9vzl24s.amplifyapp.com/api/agents/agt_demo_aws_bedrock | jq '.agent.name, (.agent.extended_entitlements | length), (.agent.linked_accounts | length)'
 ```
 
 Expected: name `CloudOps-Navigator:Infra-DevOps-Agent`, **14** extended entitlements, **1** linked account.

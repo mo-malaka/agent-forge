@@ -1,29 +1,15 @@
-import type {
-  AgentDetails,
-  ExtendedEntitlement,
-  LinkedAccount,
-  PrivilegeLevel,
-} from "@/lib/agents/enrichment";
+import type { AgentDetails, LinkedAccount } from "@/lib/agents/enrichment";
+import {
+  buildAgentEnrichment,
+  type EntitlementTuning,
+} from "@/lib/agents/enrichment-builder";
 import type { NewAgentRow } from "@/lib/db/schema";
+import type { Archetype } from "@/lib/constants";
 import { mergeDeploymentConfig } from "@/lib/providers/deployment";
 import type { DeploymentProvider } from "@/lib/providers/profiles";
 
 const SEED_TIMESTAMP = "2026-01-15T10:00:00.000Z";
 const TENANT = "spciem";
-
-interface HeroSeedAgent {
-  id: string;
-  name: string;
-  archetype: string;
-  deploymentProvider: DeploymentProvider;
-  deploymentConfig: Record<string, string>;
-  metadata: Record<string, string>;
-  entitlements: string[];
-  inbound_access: string[];
-  agentDetails: AgentDetails;
-  linkedAccounts: LinkedAccount[];
-  extendedEntitlements: ExtendedEntitlement[];
-}
 
 const AWS_ACCOUNT_ID = "718666815581";
 const AWS_REGION = "us-west-2";
@@ -33,71 +19,39 @@ const GCP_PROJECT = "infra-agents-484421";
 const GCP_REASONING_ENGINE =
   "projects/1096451098857/locations/us-central1/reasoningEngines/8850643092596850688";
 
-function platformExt(
-  id: string,
-  entitlementName: string,
-  sourceName: string,
-  accountName: string,
-  accessDirection: "outbound" | "inbound" = "outbound",
-  options?: {
-    riskScore?: number;
-    privilegeLevel?: PrivilegeLevel;
-  },
-): ExtendedEntitlement {
-  const attributeName =
-    accessDirection === "inbound" ? "inboundCallers" : "outboundPermissions";
-
-  return {
-    id,
-    entitlementName,
-    displayName: entitlementName,
-    attributeName,
-    attributeValue: entitlementName,
-    sourceName,
-    accountName,
-    accessDirection,
-    riskScore: options?.riskScore,
-    privilegeLevel: options?.privilegeLevel,
-  };
-}
-
+const BEDROCK_SOURCE = `AWS Bedrock - ${TENANT}`;
+const BEDROCK_ACCOUNT = "CloudOps-Navigator:Infra-DevOps-Agent";
 const GCP_VERTEX_SOURCE = `GCP Vertex - ${TENANT}`;
 const GCP_VERTEX_ACCOUNT = "sw-bug-assistant-25924";
 const AZURE_FOUNDRY_SOURCE = `Azure AI Foundry - ${TENANT}`;
 const AZURE_FOUNDRY_ACCOUNT = "Frontline-Support-Bot";
-const BEDROCK_SOURCE = `AWS Bedrock - ${TENANT}`;
-const BEDROCK_ACCOUNT = "CloudOps-Navigator:Infra-DevOps-Agent";
 
-function ext(
+function tune(
   id: string,
-  entitlementName: string,
-  accessDirection: "outbound" | "inbound" = "outbound",
-  options?: {
-    riskScore?: number;
-    privilegeLevel?: PrivilegeLevel;
-  },
-): ExtendedEntitlement {
-  const attributeName =
-    accessDirection === "inbound" ? "inboundCallers" : "outboundPermissions";
-
-  return {
-    id,
-    entitlementName,
-    displayName: entitlementName,
-    attributeName,
-    attributeValue: entitlementName,
-    sourceName: BEDROCK_SOURCE,
-    accountName: BEDROCK_ACCOUNT,
-    accessDirection,
-    riskScore: options?.riskScore,
-    privilegeLevel: options?.privilegeLevel,
-  };
+  name: string,
+  direction: "outbound" | "inbound",
+  riskScore: number,
+  privilegeLevel: EntitlementTuning["privilegeLevel"],
+): EntitlementTuning {
+  return { id, name, direction, riskScore, privilegeLevel };
 }
 
-const HERO_AGENTS: HeroSeedAgent[] = [
+interface HeroSeedConfig {
+  id: string;
+  name: string;
+  archetype: Archetype;
+  deploymentProvider: DeploymentProvider;
+  deploymentConfig: Record<string, string>;
+  metadata: Record<string, string>;
+  entitlementTuning: EntitlementTuning[];
+  agentDetails: AgentDetails;
+  linkedAccounts: LinkedAccount[];
+}
+
+const HERO_CONFIGS: HeroSeedConfig[] = [
   {
     id: "agt_demo_aws_bedrock",
-    name: "CloudOps-Navigator:Infra-DevOps-Agent",
+    name: BEDROCK_ACCOUNT,
     archetype: "devops_bot",
     deploymentProvider: "aws_bedrock",
     deploymentConfig: {
@@ -117,13 +71,6 @@ const HERO_AGENTS: HeroSeedAgent[] = [
       description:
         "Your intelligent assistant for AWS cloud operations. Ask questions and execute routine tasks to maintain an efficient cloud footprint.",
     },
-    entitlements: [
-      "S3:Read",
-      "EC2:Describe",
-      "Jira:Admin",
-      "Bedrock:InvokeModel",
-    ],
-    inbound_access: ["invoke:engineering-team", "invoke:service-now-workflow"],
     agentDetails: {
       agentName: "CloudOps-Navigator",
       aliasName: "Infra-DevOps-Agent",
@@ -160,80 +107,26 @@ const HERO_AGENTS: HeroSeedAgent[] = [
         accountOwner: "mostafa.helmy@sailpoint.com",
       },
     ],
-    extendedEntitlements: [
-      ext("ent_aws_aid_devops_readonly", "AIDevOpsAgentReadOnlyAccess", "outbound", {
-        riskScore: 7,
-        privilegeLevel: "high",
-      }),
-      ext(
-        "ent_aws_bedrock_inference",
-        "AmazonBedrockAgentInferenceProfilesCrossRegionPolicy",
-        "outbound",
-        { riskScore: 6, privilegeLevel: "medium" },
-      ),
-      ext(
-        "ent_aws_bedrock_kb",
-        "AmazonBedrockAgentRetrieveKnowledgeBasePolicy",
-        "outbound",
-        { riskScore: 5, privilegeLevel: "medium" },
-      ),
-      ext("ent_aws_devops_secrets", "DevOps_Agent_Secrets", "outbound", {
-        riskScore: 9,
-        privilegeLevel: "high",
-      }),
-      ext("ent_aws_security_audit", "SecurityAudit", "outbound", {
-        riskScore: 6,
-        privilegeLevel: "medium",
-      }),
-      ext(
-        "ent_aws_gws_security_auditor",
-        "Security Auditor (on) spciem.com [Organization]",
-        "outbound",
-        { riskScore: 8, privilegeLevel: "high" },
-      ),
-      ext(
-        "ent_aws_gws_viewer",
-        "Viewer (on) spciem.com [Organization]",
-        "outbound",
-        { riskScore: 3, privilegeLevel: "low" },
-      ),
-      ext("ent_aws_s3_read", "S3:Read", "outbound", {
-        riskScore: 3,
-        privilegeLevel: "low",
-      }),
-      ext("ent_aws_jira_admin", "Jira:Admin", "outbound", {
-        riskScore: 8,
-        privilegeLevel: "high",
-      }),
-      ext("ent_aws_ec2_describe", "EC2:Describe", "outbound", {
-        riskScore: 3,
-        privilegeLevel: "low",
-      }),
-      ext(
-        "ent_aws_entra_read_agents",
-        "Read agent identities [on] Microsoft Graph",
-        "outbound",
-        { riskScore: 5, privilegeLevel: "medium" },
-      ),
-      ext("ent_aws_ad_devops_ops", "DevOps-Operations", "outbound", {
-        riskScore: 6,
-        privilegeLevel: "medium",
-      }),
-      ext("ent_aws_invoke_engineering", "invoke:engineering-team", "inbound", {
-        riskScore: 4,
-        privilegeLevel: "low",
-      }),
-      ext(
-        "ent_aws_invoke_servicenow",
-        "invoke:service-now-workflow",
-        "inbound",
-        { riskScore: 6, privilegeLevel: "medium" },
-      ),
+    entitlementTuning: [
+      tune("ent_aws_aid_devops_readonly", "AIDevOpsAgentReadOnlyAccess", "outbound", 7, "high"),
+      tune("ent_aws_bedrock_inference", "AmazonBedrockAgentInferenceProfilesCrossRegionPolicy", "outbound", 6, "medium"),
+      tune("ent_aws_bedrock_kb", "AmazonBedrockAgentRetrieveKnowledgeBasePolicy", "outbound", 5, "medium"),
+      tune("ent_aws_devops_secrets", "DevOps_Agent_Secrets", "outbound", 9, "high"),
+      tune("ent_aws_security_audit", "SecurityAudit", "outbound", 6, "medium"),
+      tune("ent_aws_gws_security_auditor", "Security Auditor (on) spciem.com [Organization]", "outbound", 8, "high"),
+      tune("ent_aws_gws_viewer", "Viewer (on) spciem.com [Organization]", "outbound", 3, "low"),
+      tune("ent_aws_s3_read", "S3:Read", "outbound", 3, "low"),
+      tune("ent_aws_jira_admin", "Jira:Admin", "outbound", 8, "high"),
+      tune("ent_aws_ec2_describe", "EC2:Describe", "outbound", 3, "low"),
+      tune("ent_aws_entra_read_agents", "Read agent identities [on] Microsoft Graph", "outbound", 5, "medium"),
+      tune("ent_aws_ad_devops_ops", "DevOps-Operations", "outbound", 6, "medium"),
+      tune("ent_aws_invoke_engineering", "invoke:engineering-team", "inbound", 4, "low"),
+      tune("ent_aws_invoke_servicenow", "invoke:service-now-workflow", "inbound", 6, "medium"),
     ],
   },
   {
     id: "agt_demo_gcp_vertex",
-    name: "sw-bug-assistant-25924",
+    name: GCP_VERTEX_ACCOUNT,
     archetype: "customer_support",
     deploymentProvider: "gcp_vertex",
     deploymentConfig: {
@@ -250,13 +143,6 @@ const HERO_AGENTS: HeroSeedAgent[] = [
       source: `Google Workspace - ${TENANT}`,
       description: "Software bug assistant using ADK",
     },
-    entitlements: [
-      "VertexAI:User",
-      "CloudTasks:Admin",
-      "BigQuery:User",
-      "Editor:Development",
-    ],
-    inbound_access: ["invoke:slack-bot", "invoke:api-gateway"],
     agentDetails: {
       description: "Software bug assistant using ADK",
       projectId: GCP_PROJECT,
@@ -281,116 +167,25 @@ const HERO_AGENTS: HeroSeedAgent[] = [
         accountOwner: "mostafa.helmy@sailpoint.com",
       },
     ],
-    extendedEntitlements: [
-      platformExt(
-        "ent_gcp_vertex_user_org",
-        "Vertex AI User (on) spciem.com [Organization]",
-        GCP_VERTEX_SOURCE,
-        GCP_VERTEX_ACCOUNT,
-        "outbound",
-        { riskScore: 5, privilegeLevel: "medium" },
-      ),
-      platformExt(
-        "ent_gcp_vertex_user_project",
-        "Vertex AI User (on) infra-agents [Project]",
-        GCP_VERTEX_SOURCE,
-        GCP_VERTEX_ACCOUNT,
-        "outbound",
-        { riskScore: 5, privilegeLevel: "medium" },
-      ),
-      platformExt(
-        "ent_gcp_cloud_tasks_admin",
-        "Cloud Tasks Admin (on) infra-agents [Project]",
-        GCP_VERTEX_SOURCE,
-        GCP_VERTEX_ACCOUNT,
-        "outbound",
-        { riskScore: 8, privilegeLevel: "high" },
-      ),
-      platformExt(
-        "ent_gcp_editor_dev",
-        "Editor (on) Development [Project]",
-        GCP_VERTEX_SOURCE,
-        GCP_VERTEX_ACCOUNT,
-        "outbound",
-        { riskScore: 7, privilegeLevel: "high" },
-      ),
-      platformExt(
-        "ent_gcp_support_user",
-        "Support User (on) infra-agents [Project]",
-        GCP_VERTEX_SOURCE,
-        GCP_VERTEX_ACCOUNT,
-        "outbound",
-        { riskScore: 6, privilegeLevel: "medium" },
-      ),
-      platformExt(
-        "ent_gcp_bigquery_user",
-        "BigQuery User (on) infra-agents [Project]",
-        GCP_VERTEX_SOURCE,
-        GCP_VERTEX_ACCOUNT,
-        "outbound",
-        { riskScore: 4, privilegeLevel: "low" },
-      ),
-      platformExt(
-        "ent_gcp_entra_create_agents",
-        "Create agent identities linked to itself [on] Microsoft Graph",
-        GCP_VERTEX_SOURCE,
-        GCP_VERTEX_ACCOUNT,
-        "outbound",
-        { riskScore: 7, privilegeLevel: "high" },
-      ),
-      platformExt(
-        "ent_gcp_entra_read_directory",
-        "Read directory data [on] Microsoft Graph",
-        GCP_VERTEX_SOURCE,
-        GCP_VERTEX_ACCOUNT,
-        "outbound",
-        { riskScore: 5, privilegeLevel: "medium" },
-      ),
-      platformExt(
-        "ent_gcp_vertex_simple",
-        "VertexAI:User",
-        GCP_VERTEX_SOURCE,
-        GCP_VERTEX_ACCOUNT,
-        "outbound",
-        { riskScore: 4, privilegeLevel: "low" },
-      ),
-      platformExt(
-        "ent_gcp_ad_engineering",
-        "Engineering-Developers",
-        GCP_VERTEX_SOURCE,
-        GCP_VERTEX_ACCOUNT,
-        "outbound",
-        { riskScore: 5, privilegeLevel: "medium" },
-      ),
-      platformExt(
-        "ent_gcp_aws_readonly",
-        "AIDevOpsAgentReadOnlyAccess",
-        GCP_VERTEX_SOURCE,
-        GCP_VERTEX_ACCOUNT,
-        "outbound",
-        { riskScore: 7, privilegeLevel: "high" },
-      ),
-      platformExt(
-        "ent_gcp_invoke_slack",
-        "invoke:slack-bot",
-        GCP_VERTEX_SOURCE,
-        GCP_VERTEX_ACCOUNT,
-        "inbound",
-        { riskScore: 4, privilegeLevel: "low" },
-      ),
-      platformExt(
-        "ent_gcp_invoke_gateway",
-        "invoke:api-gateway",
-        GCP_VERTEX_SOURCE,
-        GCP_VERTEX_ACCOUNT,
-        "inbound",
-        { riskScore: 6, privilegeLevel: "medium" },
-      ),
+    entitlementTuning: [
+      tune("ent_gcp_vertex_user_org", "Vertex AI User (on) spciem.com [Organization]", "outbound", 5, "medium"),
+      tune("ent_gcp_vertex_user_project", "Vertex AI User (on) infra-agents [Project]", "outbound", 5, "medium"),
+      tune("ent_gcp_cloud_tasks_admin", "Cloud Tasks Admin (on) infra-agents [Project]", "outbound", 8, "high"),
+      tune("ent_gcp_editor_dev", "Editor (on) Development [Project]", "outbound", 7, "high"),
+      tune("ent_gcp_support_user", "Support User (on) infra-agents [Project]", "outbound", 6, "medium"),
+      tune("ent_gcp_bigquery_user", "BigQuery User (on) infra-agents [Project]", "outbound", 4, "low"),
+      tune("ent_gcp_entra_create_agents", "Create agent identities linked to itself [on] Microsoft Graph", "outbound", 7, "high"),
+      tune("ent_gcp_entra_read_directory", "Read directory data [on] Microsoft Graph", "outbound", 5, "medium"),
+      tune("ent_gcp_vertex_simple", "VertexAI:User", "outbound", 4, "low"),
+      tune("ent_gcp_ad_engineering", "Engineering-Developers", "outbound", 5, "medium"),
+      tune("ent_gcp_aws_readonly", "AIDevOpsAgentReadOnlyAccess", "outbound", 7, "high"),
+      tune("ent_gcp_invoke_slack", "invoke:slack-bot", "inbound", 4, "low"),
+      tune("ent_gcp_invoke_gateway", "invoke:api-gateway", "inbound", 6, "medium"),
     ],
   },
   {
     id: "agt_demo_azure_foundry",
-    name: "Frontline-Support-Bot",
+    name: AZURE_FOUNDRY_ACCOUNT,
     archetype: "hr",
     deploymentProvider: "azure_ai_foundry",
     deploymentConfig: {
@@ -409,13 +204,6 @@ const HERO_AGENTS: HeroSeedAgent[] = [
       source: `Entra ID - ${TENANT}`,
       description: "Direct-to-customer general support and FAQ handling.",
     },
-    entitlements: [
-      "Workday:Read",
-      "Slack:Read",
-      "CognitiveServices:OpenAI:User",
-      "SharePoint:Read",
-    ],
-    inbound_access: ["invoke:copilot-studio", "invoke:engineering-team"],
     agentDetails: {
       model: "gpt-4.1-mini",
       temperature: "0.6",
@@ -455,147 +243,71 @@ const HERO_AGENTS: HeroSeedAgent[] = [
         accountOwner: "mostafa.helmy@sailpoint.com",
       },
     ],
-    extendedEntitlements: [
-      platformExt(
-        "ent_az_ad_callcenter_data",
-        "CallCenter-Customer Data",
-        AZURE_FOUNDRY_SOURCE,
-        AZURE_FOUNDRY_ACCOUNT,
-        "outbound",
-        { riskScore: 6, privilegeLevel: "medium" },
-      ),
-      platformExt(
-        "ent_az_ad_password_reset",
-        "CallCenter-PasswordReset",
-        AZURE_FOUNDRY_SOURCE,
-        AZURE_FOUNDRY_ACCOUNT,
-        "outbound",
-        { riskScore: 8, privilegeLevel: "high" },
-      ),
-      platformExt(
-        "ent_az_ad_hr_all",
-        "HR_All",
-        AZURE_FOUNDRY_SOURCE,
-        AZURE_FOUNDRY_ACCOUNT,
-        "outbound",
-        { riskScore: 7, privilegeLevel: "high" },
-      ),
-      platformExt(
-        "ent_az_ad_customer_claims",
-        "CallCenter-Customer claims",
-        AZURE_FOUNDRY_SOURCE,
-        AZURE_FOUNDRY_ACCOUNT,
-        "outbound",
-        { riskScore: 6, privilegeLevel: "medium" },
-      ),
-      platformExt(
-        "ent_az_entra_read_profiles",
-        "Read all users' full profiles [on] Microsoft Graph",
-        AZURE_FOUNDRY_SOURCE,
-        AZURE_FOUNDRY_ACCOUNT,
-        "outbound",
-        { riskScore: 8, privilegeLevel: "high" },
-      ),
-      platformExt(
-        "ent_az_entra_send_mail",
-        "Send mail as any user [on] Microsoft Graph",
-        AZURE_FOUNDRY_SOURCE,
-        AZURE_FOUNDRY_ACCOUNT,
-        "outbound",
-        { riskScore: 9, privilegeLevel: "high" },
-      ),
-      platformExt(
-        "ent_az_entra_create_agents",
-        "Create agent identities linked to itself [on] Microsoft Graph",
-        AZURE_FOUNDRY_SOURCE,
-        AZURE_FOUNDRY_ACCOUNT,
-        "outbound",
-        { riskScore: 7, privilegeLevel: "high" },
-      ),
-      platformExt(
-        "ent_az_gws_bigquery",
-        "BigQuery User (on) infra-agents [Project]",
-        AZURE_FOUNDRY_SOURCE,
-        AZURE_FOUNDRY_ACCOUNT,
-        "outbound",
-        { riskScore: 4, privilegeLevel: "low" },
-      ),
-      platformExt(
-        "ent_az_gws_tech_support",
-        "Tech Support Viewer (on) infra-agents [Project]",
-        AZURE_FOUNDRY_SOURCE,
-        AZURE_FOUNDRY_ACCOUNT,
-        "outbound",
-        { riskScore: 3, privilegeLevel: "low" },
-      ),
-      platformExt(
-        "ent_az_sharepoint_read",
-        "Read items in all site collections [on] Office 365 SharePoint Online",
-        AZURE_FOUNDRY_SOURCE,
-        AZURE_FOUNDRY_ACCOUNT,
-        "outbound",
-        { riskScore: 5, privilegeLevel: "medium" },
-      ),
-      platformExt(
-        "ent_az_workday_read",
-        "Workday:Read",
-        AZURE_FOUNDRY_SOURCE,
-        AZURE_FOUNDRY_ACCOUNT,
-        "outbound",
-        { riskScore: 4, privilegeLevel: "low" },
-      ),
-      platformExt(
-        "ent_az_slack_read",
-        "Slack:Read",
-        AZURE_FOUNDRY_SOURCE,
-        AZURE_FOUNDRY_ACCOUNT,
-        "outbound",
-        { riskScore: 3, privilegeLevel: "low" },
-      ),
-      platformExt(
-        "ent_az_invoke_copilot",
-        "invoke:copilot-studio",
-        AZURE_FOUNDRY_SOURCE,
-        AZURE_FOUNDRY_ACCOUNT,
-        "inbound",
-        { riskScore: 5, privilegeLevel: "medium" },
-      ),
-      platformExt(
-        "ent_az_invoke_engineering",
-        "invoke:engineering-team",
-        AZURE_FOUNDRY_SOURCE,
-        AZURE_FOUNDRY_ACCOUNT,
-        "inbound",
-        { riskScore: 4, privilegeLevel: "low" },
-      ),
+    entitlementTuning: [
+      tune("ent_az_ad_callcenter_data", "CallCenter-Customer Data", "outbound", 6, "medium"),
+      tune("ent_az_ad_password_reset", "CallCenter-PasswordReset", "outbound", 8, "high"),
+      tune("ent_az_ad_hr_all", "HR_All", "outbound", 7, "high"),
+      tune("ent_az_ad_customer_claims", "CallCenter-Customer claims", "outbound", 6, "medium"),
+      tune("ent_az_entra_read_profiles", "Read all users' full profiles [on] Microsoft Graph", "outbound", 8, "high"),
+      tune("ent_az_entra_send_mail", "Send mail as any user [on] Microsoft Graph", "outbound", 9, "high"),
+      tune("ent_az_entra_create_agents", "Create agent identities linked to itself [on] Microsoft Graph", "outbound", 7, "high"),
+      tune("ent_az_gws_bigquery", "BigQuery User (on) infra-agents [Project]", "outbound", 4, "low"),
+      tune("ent_az_gws_tech_support", "Tech Support Viewer (on) infra-agents [Project]", "outbound", 3, "low"),
+      tune("ent_az_sharepoint_read", "Read items in all site collections [on] Office 365 SharePoint Online", "outbound", 5, "medium"),
+      tune("ent_az_workday_read", "Workday:Read", "outbound", 4, "low"),
+      tune("ent_az_slack_read", "Slack:Read", "outbound", 3, "low"),
+      tune("ent_az_invoke_copilot", "invoke:copilot-studio", "inbound", 5, "medium"),
+      tune("ent_az_invoke_engineering", "invoke:engineering-team", "inbound", 4, "low"),
     ],
   },
 ];
 
-export function buildHeroSeedAgents(): NewAgentRow[] {
-  return HERO_AGENTS.map((seed) => ({
-    id: seed.id,
-    name: seed.name,
-    archetype: seed.archetype,
-    deploymentProvider: seed.deploymentProvider,
-    deploymentConfig: JSON.stringify(
-      mergeDeploymentConfig(seed.deploymentProvider, seed.deploymentConfig),
-    ),
+function buildHeroRow(config: HeroSeedConfig): NewAgentRow {
+  const deploymentConfig = mergeDeploymentConfig(
+    config.deploymentProvider,
+    config.deploymentConfig,
+  );
+  const enrichment = buildAgentEnrichment({
+    id: config.id,
+    name: config.name,
+    archetype: config.archetype,
+    deploymentProvider: config.deploymentProvider,
+    deploymentConfig,
+    metadata: config.metadata,
+    entitlements: [],
+    inboundAccess: [],
+    entitlementTuning: config.entitlementTuning,
+    overrides: {
+      linkedAccounts: config.linkedAccounts,
+      agentDetails: config.agentDetails,
+    },
+  });
+
+  return {
+    id: config.id,
+    name: config.name,
+    archetype: config.archetype,
+    deploymentProvider: config.deploymentProvider,
+    deploymentConfig: JSON.stringify(deploymentConfig),
     status: "active",
-    metadata: JSON.stringify(seed.metadata),
-    entitlements: JSON.stringify(seed.entitlements),
-    inboundAccess: JSON.stringify(seed.inbound_access),
-    agentDetails: JSON.stringify(seed.agentDetails),
-    linkedAccounts: JSON.stringify(seed.linkedAccounts),
-    extendedEntitlements: JSON.stringify(seed.extendedEntitlements),
+    metadata: JSON.stringify(config.metadata),
+    entitlements: JSON.stringify(enrichment.entitlements),
+    inboundAccess: JSON.stringify(enrichment.inboundAccess),
+    agentDetails: JSON.stringify(enrichment.agentDetails),
+    linkedAccounts: JSON.stringify(enrichment.linkedAccounts),
+    extendedEntitlements: JSON.stringify(enrichment.extendedEntitlements),
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     lastActiveAt: SEED_TIMESTAMP,
-  }));
+  };
 }
 
-export const HERO_AGENT_IDS = HERO_AGENTS.map((agent) => agent.id);
+export function buildHeroSeedAgents(): NewAgentRow[] {
+  return HERO_CONFIGS.map(buildHeroRow);
+}
 
-export function getHeroSeedById(id: string): HeroSeedAgent | undefined {
-  return HERO_AGENTS.find((agent) => agent.id === id);
+export const HERO_AGENT_IDS = HERO_CONFIGS.map((agent) => agent.id);
+
+export function getHeroSeedById(id: string): HeroSeedConfig | undefined {
+  return HERO_CONFIGS.find((agent) => agent.id === id);
 }

@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 
-import type { AgentRow } from "@/lib/db/schema";
+import type { AgentRow, NewAgentRow } from "@/lib/db/schema";
 import {
   findAgentById,
   findAgents,
@@ -20,7 +20,8 @@ import {
   type ProvisioningAccountRef,
 } from "@/lib/agents/provisioning";
 import { generateRandomAgentBatch } from "@/lib/agents/bulk-generator";
-import { pickInboundCallers } from "@/lib/agents/access";
+import { buildAgentEnrichment } from "@/lib/agents/enrichment-builder";
+import type { Archetype } from "@/lib/constants";
 import type { BulkCreateAgentsPayload } from "@/lib/validation/agent.schema";
 import { mergeDeploymentConfig } from "@/lib/providers/deployment";
 import type { DeploymentProvider } from "@/lib/providers/profiles";
@@ -30,6 +31,47 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+function buildEnrichedAgentRow(input: {
+  id: string;
+  name: string;
+  archetype: Archetype;
+  deploymentProvider: DeploymentProvider;
+  deploymentConfig: Record<string, string>;
+  metadata: Record<string, string>;
+  entitlements: string[];
+  inboundAccess: string[];
+  timestamp: string;
+}): NewAgentRow {
+  const enrichment = buildAgentEnrichment({
+    id: input.id,
+    name: input.name,
+    archetype: input.archetype,
+    deploymentProvider: input.deploymentProvider,
+    deploymentConfig: input.deploymentConfig,
+    metadata: input.metadata,
+    entitlements: input.entitlements,
+    inboundAccess: input.inboundAccess,
+  });
+
+  return {
+    id: input.id,
+    name: input.name,
+    archetype: input.archetype,
+    deploymentProvider: input.deploymentProvider,
+    deploymentConfig: JSON.stringify(input.deploymentConfig),
+    status: "active",
+    metadata: JSON.stringify(input.metadata),
+    entitlements: JSON.stringify(enrichment.entitlements),
+    inboundAccess: JSON.stringify(enrichment.inboundAccess),
+    agentDetails: JSON.stringify(enrichment.agentDetails),
+    linkedAccounts: JSON.stringify(enrichment.linkedAccounts),
+    extendedEntitlements: JSON.stringify(enrichment.extendedEntitlements),
+    createdAt: input.timestamp,
+    updatedAt: input.timestamp,
+    lastActiveAt: input.timestamp,
+  };
+}
+
 export async function createAgent(input: CreateAgentInput): Promise<AgentRow> {
   const timestamp = nowIso();
   const deploymentConfig = mergeDeploymentConfig(
@@ -37,23 +79,19 @@ export async function createAgent(input: CreateAgentInput): Promise<AgentRow> {
     (input.deployment_config ?? {}) as Record<string, string>,
   );
 
-  return insertAgent({
-    id: `agt_${nanoid(12)}`,
-    name: input.name,
-    archetype: input.archetype,
-    deploymentProvider: input.deployment_provider,
-    deploymentConfig: JSON.stringify(deploymentConfig),
-    status: "active",
-    metadata: JSON.stringify(input.metadata),
-    entitlements: JSON.stringify(input.entitlements),
-    inboundAccess: JSON.stringify(input.inbound_access ?? []),
-    agentDetails: "{}",
-    linkedAccounts: "[]",
-    extendedEntitlements: "[]",
-    createdAt: timestamp,
-    updatedAt: timestamp,
-    lastActiveAt: timestamp,
-  });
+  return insertAgent(
+    buildEnrichedAgentRow({
+      id: `agt_${nanoid(12)}`,
+      name: input.name,
+      archetype: input.archetype,
+      deploymentProvider: input.deployment_provider,
+      deploymentConfig,
+      metadata: input.metadata,
+      entitlements: input.entitlements,
+      inboundAccess: input.inbound_access ?? [],
+      timestamp,
+    }),
+  );
 }
 
 export async function getAgentById(id: string): Promise<AgentRow | null> {
@@ -85,23 +123,17 @@ export async function createAgentsBulk(
       (payload.deployment_config ?? {}) as Record<string, string>,
     );
 
-    return {
+    return buildEnrichedAgentRow({
       id: `agt_${nanoid(12)}`,
       name: payload.name,
       archetype: payload.archetype,
       deploymentProvider: payload.deployment_provider,
-      deploymentConfig: JSON.stringify(deploymentConfig),
-      status: "active" as const,
-      metadata: JSON.stringify(payload.metadata),
-      entitlements: JSON.stringify(payload.entitlements),
-      inboundAccess: JSON.stringify(payload.inbound_access ?? []),
-      agentDetails: "{}",
-      linkedAccounts: "[]",
-      extendedEntitlements: "[]",
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      lastActiveAt: timestamp,
-    };
+      deploymentConfig,
+      metadata: payload.metadata,
+      entitlements: payload.entitlements,
+      inboundAccess: payload.inbound_access ?? [],
+      timestamp,
+    });
   });
 
   return insertAgents(rows);

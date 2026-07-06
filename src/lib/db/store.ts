@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 
 import type { AgentRow, NewAgentRow } from "@/lib/db/schema";
+import { agentNeedsEnrichment, enrichAgentRow } from "@/lib/agents/enrichment-builder";
 import { buildHeroSeedAgents, HERO_AGENT_IDS } from "@/lib/db/hero-seed-data";
 import { normalizeAgentRow } from "@/lib/providers/deployment";
 
@@ -34,7 +35,7 @@ function ensureHeroAgents(store: AgentStoreFile): AgentStoreFile {
 
   for (const hero of heroes) {
     const existing = agentsById.get(hero.id);
-    if (heroNeedsRefresh(existing)) {
+    if (!existing || heroNeedsRefresh(existing)) {
       agentsById.set(hero.id, hero);
       changed = true;
     }
@@ -63,6 +64,26 @@ function seedIfEmpty(store: AgentStoreFile): AgentStoreFile {
   return seeded;
 }
 
+function ensureBulkAgentsEnriched(store: AgentStoreFile): AgentStoreFile {
+  let changed = false;
+  const agents = store.agents.map((agent) => {
+    if (HERO_AGENT_IDS.includes(agent.id) || !agentNeedsEnrichment(agent)) {
+      return agent;
+    }
+
+    changed = true;
+    return normalizeAgentRow(enrichAgentRow(agent));
+  });
+
+  if (!changed) {
+    return store;
+  }
+
+  const refreshed = { agents };
+  writeStore(refreshed);
+  return refreshed;
+}
+
 function readStore(): AgentStoreFile {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 
@@ -89,7 +110,7 @@ function readStore(): AgentStoreFile {
       : [],
   };
 
-  return ensureHeroAgents(seedIfEmpty(store));
+  return ensureBulkAgentsEnriched(ensureHeroAgents(seedIfEmpty(store)));
 }
 
 function writeStore(store: AgentStoreFile) {
