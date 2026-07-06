@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import type { PreflightCheck, PreflightResult } from "@/lib/demo/preflight";
 import type { DemoModeId } from "@/lib/demo/steps";
+import type { DeploymentProvider } from "@/lib/providers/profiles";
 
 function statusStyles(status: PreflightCheck["status"]) {
   switch (status) {
@@ -32,6 +33,7 @@ interface DemoPreflightPanelProps {
   agentId: string;
   allowPermission: string;
   principal: string;
+  deploymentProvider?: DeploymentProvider;
   refreshKey?: number;
   onResultChange?: (result: PreflightResult | null) => void;
 }
@@ -41,6 +43,7 @@ export function DemoPreflightPanel({
   agentId,
   allowPermission,
   principal,
+  deploymentProvider,
   refreshKey = 0,
   onResultChange,
 }: DemoPreflightPanelProps) {
@@ -59,6 +62,9 @@ export function DemoPreflightPanel({
         allow_permission: allowPermission,
         principal,
       });
+      if (deploymentProvider) {
+        params.set("deployment_provider", deploymentProvider);
+      }
       const response = await fetch(`/api/demo/preflight?${params.toString()}`);
       const body = (await response.json()) as PreflightResult & { error?: string };
 
@@ -77,7 +83,7 @@ export function DemoPreflightPanel({
     } finally {
       setLoading(false);
     }
-  }, [mode, agentId, allowPermission, principal, onResultChange]);
+  }, [mode, agentId, allowPermission, principal, deploymentProvider, onResultChange]);
 
   useEffect(() => {
     void loadPreflight();

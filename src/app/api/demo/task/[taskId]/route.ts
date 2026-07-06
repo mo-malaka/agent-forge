@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getIscConfig } from "@/lib/isc/config";
+import { getAnyIscConfig } from "@/lib/isc/config";
 import {
   getTaskStatus,
   isTaskComplete,
@@ -18,10 +18,10 @@ type RouteContext = {
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
-    const config = getIscConfig();
+    const config = getAnyIscConfig();
     if (!config) {
       return jsonError(
-        "ISC is not configured. Set ISC_TENANT, ISC_CLIENT_ID, ISC_CLIENT_SECRET, and ISC_SOURCE_ID.",
+        "ISC is not configured. Set ISC_TENANT, ISC_CLIENT_ID, and ISC_CLIENT_SECRET, and save at least one platform source ID on the Demo page.",
         503,
       );
     }

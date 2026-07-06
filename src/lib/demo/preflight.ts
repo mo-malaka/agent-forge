@@ -18,7 +18,13 @@ import {
   getDemoGovernExpectedInbound,
   getDemoGovernRequiredEntitlements,
 } from "@/lib/demo/reset";
-import { getIscConfig, getIscPublicStatus } from "@/lib/isc/config";
+import {
+  getIscConfigForProvider,
+  getIscCredentials,
+  getIscPublicStatus,
+} from "@/lib/isc/config";
+import { getIscSourceId } from "@/lib/isc/settings-store";
+import { DEPLOYMENT_PROVIDERS, type DeploymentProvider } from "@/lib/providers/profiles";
 import { verifySourceData } from "@/lib/isc/verify";
 
 export type PreflightStatus = "pass" | "warn" | "fail";
@@ -48,6 +54,7 @@ export async function runDemoPreflight(
     agentId?: string;
     allowPermission?: string;
     principal?: string;
+    deploymentProvider?: DeploymentProvider;
   },
 ): Promise<PreflightResult> {
   const agentId = options?.agentId ?? DEMO_RESET_AGENT_ID;
@@ -63,15 +70,31 @@ export async function runDemoPreflight(
   });
 
   const iscStatus = getIscPublicStatus();
+  const credentials = getIscCredentials();
   checks.push({
     id: "isc_config",
     label: "ISC configuration",
-    status: iscStatus.configured ? "pass" : "fail",
-    message: iscStatus.configured
+    status: credentials ? "pass" : "fail",
+    message: credentials
       ? `Connected to tenant ${iscStatus.tenant}`
-      : "Set ISC_TENANT, ISC_CLIENT_ID, ISC_CLIENT_SECRET, and ISC_SOURCE_ID",
+      : "Set ISC_TENANT, ISC_CLIENT_ID, and ISC_CLIENT_SECRET",
     detail: iscStatus,
   });
+
+  if (credentials) {
+    for (const provider of Object.keys(DEPLOYMENT_PROVIDERS) as DeploymentProvider[]) {
+      const sourceId = getIscSourceId(provider);
+      checks.push({
+        id: `isc_source_${provider}`,
+        label: `${DEPLOYMENT_PROVIDERS[provider].label} source`,
+        status: sourceId ? "pass" : "warn",
+        message: sourceId
+          ? `Source ID saved (${sourceId})`
+          : "Not configured — save source ID on Demo → ISC sources",
+        detail: { provider, sourceId },
+      });
+    }
+  }
 
   const activeAgentCount = countAgents({ status: "active" });
   checks.push({
@@ -117,7 +140,9 @@ export async function runDemoPreflight(
     });
 
     if (iscStatus.configured) {
-      const config = getIscConfig();
+      const provider =
+        options?.deploymentProvider ?? ("aws_bedrock" as DeploymentProvider);
+      const config = getIscConfigForProvider(provider);
       if (config) {
         try {
           const verify = await verifySourceData(config);
@@ -127,17 +152,17 @@ export async function runDemoPreflight(
             verify.entitlementCount > 0;
           checks.push({
             id: "isc_sync",
-            label: "ISC sync state",
+            label: `ISC sync state (${DEPLOYMENT_PROVIDERS[provider].label})`,
             status: synced ? "pass" : "warn",
             message: synced
               ? `ISC has ${verify.accountCount} accounts, ${verify.machineAccountCount} machine accounts, ${verify.entitlementCount} entitlements`
-              : "ISC not fully synced yet — complete full sync steps or run verify",
-            detail: verify,
+              : `ISC not fully synced for ${DEPLOYMENT_PROVIDERS[provider].label} — complete full sync steps or run verify`,
+            detail: { provider, ...verify },
           });
         } catch (error) {
           checks.push({
             id: "isc_sync",
-            label: "ISC sync state",
+            label: `ISC sync state (${DEPLOYMENT_PROVIDERS[provider].label})`,
             status: "warn",
             message:
               error instanceof Error

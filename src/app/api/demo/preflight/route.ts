@@ -13,12 +13,14 @@ export async function GET(request: Request) {
       agent_id: searchParams.get("agent_id") ?? undefined,
       allow_permission: searchParams.get("allow_permission") ?? undefined,
       principal: searchParams.get("principal") ?? undefined,
+      deployment_provider: searchParams.get("deployment_provider") ?? undefined,
     });
 
     const result = await runDemoPreflight(query.mode, {
       agentId: query.agent_id,
       allowPermission: query.allow_permission,
       principal: query.principal,
+      deploymentProvider: query.deployment_provider,
     });
 
     return NextResponse.json(result);

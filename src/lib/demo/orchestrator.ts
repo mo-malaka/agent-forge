@@ -6,7 +6,16 @@ import {
 } from "@/lib/agents/repository";
 import { serializeAgent } from "@/lib/agents/serializer";
 import { DEMO_STEPS, type DemoStepId } from "@/lib/demo/steps";
-import { getIscConfig } from "@/lib/isc/config";
+import type { AgentRow } from "@/lib/db/schema";
+import {
+  getIscConfigForProvider,
+  type IscConfig,
+} from "@/lib/isc/config";
+import { resolveDeploymentProvider as resolveProviderFromRow } from "@/lib/providers/deployment";
+import {
+  DEPLOYMENT_PROVIDERS,
+  type DeploymentProvider,
+} from "@/lib/providers/profiles";
 import {
   startAccountAggregation,
   startOutboundEntitlementAggregation,
@@ -26,11 +35,24 @@ export interface DemoStepResult {
   result: unknown;
 }
 
-function requireIscConfig() {
-  const config = getIscConfig();
+function resolveDemoDeploymentProvider(
+  payload: DemoStepPayload,
+  agentRow?: AgentRow | null,
+): DeploymentProvider {
+  if (payload.deployment_provider) {
+    return payload.deployment_provider;
+  }
+  if (agentRow) {
+    return resolveProviderFromRow(agentRow.deploymentProvider);
+  }
+  return "aws_bedrock";
+}
+
+function requireIscConfig(provider: DeploymentProvider): IscConfig {
+  const config = getIscConfigForProvider(provider);
   if (!config) {
     throw new Error(
-      "ISC is not configured. Set ISC_TENANT, ISC_CLIENT_ID, ISC_CLIENT_SECRET, and ISC_SOURCE_ID.",
+      `ISC source not configured for ${DEPLOYMENT_PROVIDERS[provider].label}. Save the source ID under ISC sources on the Demo page.`,
     );
   }
   return config;
@@ -48,20 +70,35 @@ function defaultAllowPermission(payload: DemoStepPayload): string {
   return payload.permission ?? "S3:Read";
 }
 
-function resolveMachineIdentityDatasetIds(payload: DemoStepPayload): string[] {
+function resolveMachineIdentityDatasetIds(
+  payload: DemoStepPayload,
+  provider: DeploymentProvider,
+): string[] {
   if (payload.dataset_ids?.length) {
     return payload.dataset_ids;
   }
   if (payload.schemas?.length) {
     return payload.schemas;
   }
-  const fromEnv = process.env.ISC_MIS_DATASET_IDS?.split(",")
+  const envKey =
+    provider === "aws_bedrock"
+      ? "ISC_MIS_DATASET_IDS_BEDROCK"
+      : provider === "gcp_vertex"
+        ? "ISC_MIS_DATASET_IDS_GCP_VERTEX"
+        : "ISC_MIS_DATASET_IDS_AZURE_FOUNDRY";
+  const fromEnv = process.env[envKey]?.split(",")
     .map((value) => value.trim())
     .filter(Boolean);
   if (fromEnv?.length) {
     return fromEnv;
   }
-  return ["bedrock-agent"];
+  const legacy = process.env.ISC_MIS_DATASET_IDS?.split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (legacy?.length && provider === "aws_bedrock") {
+    return legacy;
+  }
+  return [DEPLOYMENT_PROVIDERS[provider].misSchemaId];
 }
 
 function defaultRevokeEntitlement(payload: DemoStepPayload): string {
@@ -74,6 +111,12 @@ export async function runDemoStep(
 ): Promise<DemoStepResult> {
   const definition = DEMO_STEPS[payload.step];
   const system = definition.system;
+  const agentForProvider =
+    payload.agent_id != null ? await getAgentById(payload.agent_id) : null;
+  const deploymentProvider = resolveDemoDeploymentProvider(
+    payload,
+    agentForProvider,
+  );
 
   switch (payload.step) {
     case "bulk-create": {
@@ -131,10 +174,10 @@ export async function runDemoStep(
     }
 
     case "machine-identity-aggregation": {
-      const config = requireIscConfig();
+      const config = requireIscConfig(deploymentProvider);
       const started = await startMachineIdentityAggregation(
         config,
-        resolveMachineIdentityDatasetIds(payload),
+        resolveMachineIdentityDatasetIds(payload, deploymentProvider),
       );
 
       return {
@@ -148,7 +191,7 @@ export async function runDemoStep(
     }
 
     case "account-aggregation": {
-      const config = requireIscConfig();
+      const config = requireIscConfig(deploymentProvider);
       const started = await startAccountAggregation(config);
 
       return {
@@ -162,7 +205,7 @@ export async function runDemoStep(
     }
 
     case "machine-account-mappings": {
-      const config = requireIscConfig();
+      const config = requireIscConfig(deploymentProvider);
       const result = await updateMachineAccountMappings(config);
       const submitted = result.classification.accountsSubmitted ?? 0;
       const mode = result.classification.mode;
@@ -181,7 +224,7 @@ export async function runDemoStep(
     }
 
     case "verify": {
-      const config = requireIscConfig();
+      const config = requireIscConfig(deploymentProvider);
       const verification = await verifySourceData(config);
       const summary = `Found ${verification.accountCount} accounts, ${verification.machineAccountCount} machine accounts, ${verification.entitlementCount} entitlements`;
       const message = verification.accessReady
@@ -226,7 +269,7 @@ export async function runDemoStep(
       const entitlement = defaultRevokeEntitlement(payload);
 
       if (revokeVia === "isc") {
-        const config = requireIscConfig();
+        const config = requireIscConfig(deploymentProvider);
         if (
           !payload.identity_id ||
           !payload.entitlement_id ||
@@ -274,7 +317,7 @@ export async function runDemoStep(
     }
 
     case "account-aggregation-refresh": {
-      const config = requireIscConfig();
+      const config = requireIscConfig(deploymentProvider);
       const started = await startAccountAggregation(config, {
         disableOptimization: true,
       });

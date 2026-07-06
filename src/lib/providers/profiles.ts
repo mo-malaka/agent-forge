@@ -5,6 +5,8 @@ export const DEPLOYMENT_PROVIDERS = {
     infrastructure: "bedrock",
     connectorSlug: "aws-bedrock",
     nativeStatusActive: "PREPARED",
+    misSchemaId: "bedrock-agent",
+    demoHeroAgentId: "agt_demo_aws_bedrock",
     defaultConfig: {
       region: "us-east-1",
       account_id: "123456789012",
@@ -18,6 +20,8 @@ export const DEPLOYMENT_PROVIDERS = {
     infrastructure: "vertex_ai",
     connectorSlug: "gcp-vertex",
     nativeStatusActive: "ACTIVE",
+    misSchemaId: "vertex-agent",
+    demoHeroAgentId: "agt_demo_gcp_vertex",
     defaultConfig: {
       project_id: "demo-ai-governance",
       location: "us-central1",
@@ -29,6 +33,8 @@ export const DEPLOYMENT_PROVIDERS = {
     infrastructure: "ai_foundry",
     connectorSlug: "azure-ai-foundry",
     nativeStatusActive: "Succeeded",
+    misSchemaId: "foundry-agent",
+    demoHeroAgentId: "agt_demo_azure_foundry",
     defaultConfig: {
       subscription_id: "00000000-0000-0000-0000-000000000001",
       resource_group: "rg-ai-agents",

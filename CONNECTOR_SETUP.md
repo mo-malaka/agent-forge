@@ -723,7 +723,7 @@ Set on AgentForge (`.env.local` locally, Amplify environment variables in produc
 | `ISC_TENANT` | Yes | Tenant slug (e.g. `acme`) |
 | `ISC_CLIENT_ID` | Yes | API client ID |
 | `ISC_CLIENT_SECRET` | Yes | API client secret — **server only, never expose to browser** |
-| `ISC_SOURCE_ID` | Yes | Web Services source ID for AgentForge |
+| Platform source IDs | Yes | Set on **Demo → ISC sources** (saved server-side; one ID per Bedrock / Vertex / Foundry source) |
 | `ISC_API_VERSION` | No | Default `v2026` |
 | `ISC_DOMAIN` | No | Default `identitynow.com` |
 | `ISC_DEMO_AGENT_ID` | No | Agent for govern + enforce (default `agt_demo_aws_bedrock`) |

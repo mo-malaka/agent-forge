@@ -35,4 +35,5 @@ export const demoPreflightQuerySchema = z.object({
   agent_id: z.string().trim().min(1).optional(),
   allow_permission: z.string().trim().min(1).optional(),
   principal: z.string().trim().min(1).optional(),
+  deployment_provider: deploymentProviderSchema.optional(),
 });

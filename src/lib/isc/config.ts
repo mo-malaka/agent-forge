@@ -1,3 +1,13 @@
+import {
+  DEPLOYMENT_PROVIDER_VALUES,
+  type DeploymentProvider,
+} from "@/lib/providers/profiles";
+
+import {
+  getConfiguredIscSourceIds,
+  getIscSourceId,
+} from "@/lib/isc/settings-store";
+
 export interface IscConfig {
   tenant: string;
   clientId: string;
@@ -7,13 +17,16 @@ export interface IscConfig {
   domain: string;
 }
 
-export function getIscConfig(): IscConfig | null {
+export type IscCredentials = Omit<IscConfig, "sourceId">;
+
+export { getConfiguredIscSourceIds, getIscSourceId };
+
+export function getIscCredentials(): IscCredentials | null {
   const tenant = process.env.ISC_TENANT?.trim();
   const clientId = process.env.ISC_CLIENT_ID?.trim();
   const clientSecret = process.env.ISC_CLIENT_SECRET?.trim();
-  const sourceId = process.env.ISC_SOURCE_ID?.trim();
 
-  if (!tenant || !clientId || !clientSecret || !sourceId) {
+  if (!tenant || !clientId || !clientSecret) {
     return null;
   }
 
@@ -21,23 +34,66 @@ export function getIscConfig(): IscConfig | null {
     tenant,
     clientId,
     clientSecret,
-    sourceId,
     apiVersion: process.env.ISC_API_VERSION?.trim() || "v2026",
     domain: process.env.ISC_DOMAIN?.trim() || "identitynow.com",
   };
 }
 
-export function getIscBaseUrl(config: IscConfig): string {
+export function getIscConfigForProvider(
+  provider: DeploymentProvider,
+): IscConfig | null {
+  const credentials = getIscCredentials();
+  const sourceId = getIscSourceId(provider);
+
+  if (!credentials || !sourceId) {
+    return null;
+  }
+
+  return {
+    ...credentials,
+    sourceId,
+  };
+}
+
+/** First provider with credentials + source — for auth-only calls (task polling). */
+export function getAnyIscConfig(): IscConfig | null {
+  const credentials = getIscCredentials();
+  if (!credentials) {
+    return null;
+  }
+
+  for (const provider of DEPLOYMENT_PROVIDER_VALUES) {
+    const sourceId = getIscSourceId(provider);
+    if (sourceId) {
+      return { ...credentials, sourceId };
+    }
+  }
+
+  return null;
+}
+
+/** @deprecated Use getIscConfigForProvider(provider) or getAnyIscConfig() */
+export function getIscConfig(): IscConfig | null {
+  return getIscConfigForProvider("aws_bedrock") ?? getAnyIscConfig();
+}
+
+export function getIscBaseUrl(config: IscCredentials): string {
   return `https://${config.tenant}.api.${config.domain}`;
 }
 
 export function getIscPublicStatus() {
-  const config = getIscConfig();
+  const credentials = getIscCredentials();
+  const sources = getConfiguredIscSourceIds();
+  const configuredSourceCount = Object.values(sources).filter(Boolean).length;
 
   return {
-    configured: config !== null,
-    tenant: config?.tenant ?? null,
-    sourceId: config?.sourceId ?? null,
-    apiVersion: config?.apiVersion ?? "v2026",
+    credentialsConfigured: credentials !== null,
+    configured: credentials !== null && configuredSourceCount > 0,
+    tenant: credentials?.tenant ?? null,
+    sources,
+    /** Legacy — Bedrock source id (or first configured source). */
+    sourceId:
+      sources.aws_bedrock ?? sources.gcp_vertex ?? sources.azure_ai_foundry,
+    apiVersion: credentials?.apiVersion ?? "v2026",
   };
 }

@@ -1,12 +1,13 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   DemoPreflightPanel,
   isPreflightBlocking,
 } from "@/components/DemoPreflightPanel";
+import { IscSourceSettingsPanel } from "@/components/IscSourceSettingsPanel";
 import type { PreflightResult } from "@/lib/demo/preflight";
 import {
   clearDemoProgress,
@@ -42,9 +43,11 @@ interface DemoStepResponse {
 }
 
 interface IscConfigStatus {
+  credentialsConfigured: boolean;
   configured: boolean;
   tenant: string | null;
   sourceId: string | null;
+  sources: Record<DeploymentProvider, string | null>;
   apiVersion: string;
 }
 
@@ -76,7 +79,11 @@ function buildStepPayload(
         count: options.count,
       };
     case "machine-identity-aggregation":
-      return { ...base, schemas: ["bedrock-agent"] };
+      return {
+        ...base,
+        deployment_provider: options.deploymentProvider,
+        dataset_ids: [DEPLOYMENT_PROVIDERS[options.deploymentProvider].misSchemaId],
+      };
     case "authorize-allow":
       return {
         ...base,
@@ -100,7 +107,7 @@ function buildStepPayload(
         entitlement: options.revokeEntitlement,
       };
     default:
-      return base;
+      return { ...base, deployment_provider: options.deploymentProvider };
   }
 }
 
@@ -227,19 +234,29 @@ export function DemoOrchestratorPanel() {
   const [preflightRefreshKey, setPreflightRefreshKey] = useState(0);
   const [resettingDemo, setResettingDemo] = useState(false);
 
-  useEffect(() => {
+  const refreshIscStatus = useCallback(() => {
     void fetch("/api/demo/config")
       .then((response) => response.json())
       .then((body: IscConfigStatus) => setIscStatus(body))
       .catch(() =>
         setIscStatus({
+          credentialsConfigured: false,
           configured: false,
           tenant: null,
           sourceId: null,
+          sources: {
+            aws_bedrock: null,
+            gcp_vertex: null,
+            azure_ai_foundry: null,
+          },
           apiVersion: "v2026",
         }),
       );
   }, []);
+
+  useEffect(() => {
+    refreshIscStatus();
+  }, [refreshIscStatus]);
 
   useEffect(() => {
     setExpandedSteps({});
@@ -416,7 +433,10 @@ export function DemoOrchestratorPanel() {
     }
   }
 
+  const iscCredentialsReady = iscStatus?.credentialsConfigured ?? false;
   const iscReady = iscStatus?.configured ?? false;
+  const platformSourceConfigured =
+    iscStatus?.sources?.[provider] != null && iscStatus.sources[provider] !== "";
 
   function getNextIncompleteStep(mode: DemoModeId): DemoStepId | null {
     return (
@@ -501,7 +521,9 @@ export function DemoOrchestratorPanel() {
     const blockedByPreflight =
       preflightBlocked && !(mode === "full-sync" && step === "bulk-create");
     const stepDisabled =
-      (requiresIsc && step !== "bulk-create" && !iscReady) ||
+      (requiresIsc &&
+        step !== "bulk-create" &&
+        (!iscCredentialsReady || !platformSourceConfigured)) ||
       runningStep !== null ||
       blockedByPreflight;
     const expanded = isStepExpanded(step, mode);
@@ -752,19 +774,42 @@ export function DemoOrchestratorPanel() {
   ).length;
 
   return (
-    <section className="space-y-4 rounded-lg border border-indigo-200 bg-indigo-50/40 p-5 dark:border-indigo-900 dark:bg-indigo-950/20">
+    <section className="space-y-4">
+      <IscSourceSettingsPanel
+        credentialsConfigured={iscCredentialsReady}
+        tenant={iscStatus?.tenant ?? null}
+        onSourcesChange={() => {
+          refreshIscStatus();
+          setPreflightRefreshKey((current) => current + 1);
+        }}
+      />
+
+      <section className="space-y-4 rounded-lg border border-indigo-200 bg-indigo-50/40 p-5 dark:border-indigo-900 dark:bg-indigo-950/20">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs dark:border-zinc-700 dark:bg-zinc-950">
           {iscStatus ? (
-            iscReady ? (
-              <p className="text-emerald-700 dark:text-emerald-300">
-                ISC connected ·{" "}
-                <span className="font-mono">{iscStatus.tenant}</span>
-              </p>
+            iscCredentialsReady ? (
+              <div className="space-y-1 text-emerald-700 dark:text-emerald-300">
+                <p>
+                  ISC connected ·{" "}
+                  <span className="font-mono">{iscStatus.tenant}</span>
+                </p>
+                <p className="text-[11px] text-zinc-600 dark:text-zinc-400">
+                  {DEPLOYMENT_PROVIDER_VALUES.map((key) => {
+                    const id = iscStatus.sources?.[key];
+                    return (
+                      <span key={key} className="mr-2">
+                        {DEPLOYMENT_PROVIDERS[key].label.split(" ").at(0)}:{" "}
+                        {id ? "✓" : "—"}
+                      </span>
+                    );
+                  })}
+                </p>
+              </div>
             ) : (
               <p className="text-amber-700 dark:text-amber-300">
-                ISC not configured — set ISC_TENANT, ISC_CLIENT_ID,
-                ISC_CLIENT_SECRET, ISC_SOURCE_ID
+                ISC credentials missing — set ISC_TENANT, ISC_CLIENT_ID, and
+                ISC_CLIENT_SECRET on the server
               </p>
             )
           ) : (
@@ -803,6 +848,7 @@ export function DemoOrchestratorPanel() {
         agentId={agentId}
         allowPermission={allowPermission}
         principal={principal}
+        deploymentProvider={activeMode === "full-sync" ? provider : undefined}
         refreshKey={preflightRefreshKey}
         onResultChange={setPreflightResult}
       />
@@ -859,6 +905,12 @@ export function DemoOrchestratorPanel() {
                     </option>
                   ))}
                 </select>
+                {!platformSourceConfigured ? (
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    Save the {DEPLOYMENT_PROVIDERS[provider].label} source ID
+                    under ISC sources above, then click Verify.
+                  </p>
+                ) : null}
               </label>
               <label className="space-y-1 text-sm">
                 <span className="text-xs uppercase tracking-wide text-zinc-500">
@@ -947,7 +999,14 @@ export function DemoOrchestratorPanel() {
 
       <ol className="space-y-2">
         {activeSteps.map((step, index) =>
-          renderStepRow(activeMode, step, index, iscReady, {
+          renderStepRow(
+            activeMode,
+            step,
+            index,
+            activeMode === "full-sync"
+              ? platformSourceConfigured && iscCredentialsReady
+              : iscReady,
+            {
             requiresIsc: true,
           }),
         )}
@@ -965,6 +1024,7 @@ export function DemoOrchestratorPanel() {
           Other steps call ISC APIs and poll until complete.
         </p>
       ) : null}
+      </section>
     </section>
   );
 }
