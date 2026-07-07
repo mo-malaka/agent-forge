@@ -9,6 +9,7 @@ import {
 } from "@/lib/providers/profiles";
 
 type SourceMap = Record<DeploymentProvider, string>;
+type MisSchemaMap = Record<DeploymentProvider, string>;
 
 type VerifyState = Partial<
   Record<DeploymentProvider, { ok: boolean; message: string }>
@@ -30,6 +31,11 @@ export function IscSourceSettingsPanel({
     gcp_vertex: "",
     azure_ai_foundry: "",
   });
+  const [misSchemas, setMisSchemas] = useState<MisSchemaMap>({
+    aws_bedrock: DEPLOYMENT_PROVIDERS.aws_bedrock.misSchemaId,
+    gcp_vertex: DEPLOYMENT_PROVIDERS.gcp_vertex.misSchemaId,
+    azure_ai_foundry: DEPLOYMENT_PROVIDERS.azure_ai_foundry.misSchemaId,
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [verifying, setVerifying] = useState<DeploymentProvider | null>(null);
@@ -45,6 +51,7 @@ export function IscSourceSettingsPanel({
       const response = await fetch("/api/isc/sources");
       const body = (await response.json()) as {
         sources?: SourceMap;
+        misSchemas?: MisSchemaMap;
         error?: string;
       };
 
@@ -56,6 +63,17 @@ export function IscSourceSettingsPanel({
         aws_bedrock: body.sources?.aws_bedrock ?? "",
         gcp_vertex: body.sources?.gcp_vertex ?? "",
         azure_ai_foundry: body.sources?.azure_ai_foundry ?? "",
+      });
+      setMisSchemas({
+        aws_bedrock:
+          body.misSchemas?.aws_bedrock ??
+          DEPLOYMENT_PROVIDERS.aws_bedrock.misSchemaId,
+        gcp_vertex:
+          body.misSchemas?.gcp_vertex ??
+          DEPLOYMENT_PROVIDERS.gcp_vertex.misSchemaId,
+        azure_ai_foundry:
+          body.misSchemas?.azure_ai_foundry ??
+          DEPLOYMENT_PROVIDERS.azure_ai_foundry.misSchemaId,
       });
     } catch (loadError) {
       setError(
@@ -81,7 +99,7 @@ export function IscSourceSettingsPanel({
       const response = await fetch("/api/isc/sources", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sources }),
+        body: JSON.stringify({ sources, mis_schemas: misSchemas }),
       });
       const body = (await response.json()) as { error?: string };
 
@@ -89,7 +107,7 @@ export function IscSourceSettingsPanel({
         throw new Error(body.error ?? "Failed to save ISC sources");
       }
 
-      setSavedMessage("Source IDs saved.");
+      setSavedMessage("ISC settings saved.");
       onSourcesChange?.();
     } catch (saveError) {
       setError(
@@ -185,34 +203,54 @@ export function IscSourceSettingsPanel({
                   <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
                     {DEPLOYMENT_PROVIDERS[provider].label}
                   </p>
-                  <p className="text-[11px] text-zinc-500">
-                    MIS schema:{" "}
-                    <span className="font-mono">
-                      {DEPLOYMENT_PROVIDERS[provider].misSchemaId}
-                    </span>
-                  </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <label className="block space-y-1">
+                  <span className="text-[11px] text-zinc-500">Source ID</span>
+                  <div className="flex flex-wrap gap-2">
+                    <input
+                      value={sources[provider]}
+                      onChange={(event) =>
+                        setSources((current) => ({
+                          ...current,
+                          [provider]: event.target.value,
+                        }))
+                      }
+                      placeholder="ISC source ID"
+                      className="min-w-[12rem] flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void verifySource(provider)}
+                      disabled={!sources[provider].trim() || verifying !== null}
+                      className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+                    >
+                      {verifying === provider ? "Verifying..." : "Verify"}
+                    </button>
+                  </div>
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-[11px] text-zinc-500">
+                    Machine identity schema (datasetId for step 4)
+                  </span>
                   <input
-                    value={sources[provider]}
+                    value={misSchemas[provider]}
                     onChange={(event) =>
-                      setSources((current) => ({
+                      setMisSchemas((current) => ({
                         ...current,
                         [provider]: event.target.value,
                       }))
                     }
-                    placeholder="ISC source ID"
-                    className="min-w-[12rem] flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
+                    placeholder={DEPLOYMENT_PROVIDERS[provider].misSchemaId}
+                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
                   />
-                  <button
-                    type="button"
-                    onClick={() => void verifySource(provider)}
-                    disabled={!sources[provider].trim() || verifying !== null}
-                    className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
-                  >
-                    {verifying === provider ? "Verifying..." : "Verify"}
-                  </button>
-                </div>
+                  <p className="text-[11px] text-zinc-500">
+                    Must match ISC schema name and{" "}
+                    <span className="font-mono">
+                      Machine Identity Aggregation - …
+                    </span>{" "}
+                    HTTP op suffix.
+                  </p>
+                </label>
                 {verify ? (
                   <p
                     className={`text-xs ${
@@ -237,7 +275,7 @@ export function IscSourceSettingsPanel({
           disabled={saving || loading}
           className="rounded-md bg-zinc-900 px-4 py-2 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
         >
-          {saving ? "Saving..." : "Save source IDs"}
+          {saving ? "Saving..." : "Save ISC settings"}
         </button>
         {savedMessage ? (
           <span className="text-xs text-emerald-700 dark:text-emerald-300">

@@ -11,6 +11,14 @@ export const iscSourcesUpdateSchema = z.object({
     })
     .partial()
     .optional(),
+  mis_schemas: z
+    .object({
+      aws_bedrock: z.string().trim().optional(),
+      gcp_vertex: z.string().trim().optional(),
+      azure_ai_foundry: z.string().trim().optional(),
+    })
+    .partial()
+    .optional(),
 });
 
 export const iscSourceVerifySchema = z.object({

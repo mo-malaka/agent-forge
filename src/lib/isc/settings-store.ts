@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 
 import {
+  DEPLOYMENT_PROVIDERS,
   DEPLOYMENT_PROVIDER_VALUES,
   type DeploymentProvider,
 } from "@/lib/providers/profiles";
@@ -10,9 +11,11 @@ const DATA_DIR = path.join(process.cwd(), "data");
 const SETTINGS_PATH = path.join(DATA_DIR, "isc-settings.json");
 
 export type IscPlatformSources = Record<DeploymentProvider, string>;
+export type IscPlatformMisSchemas = Record<DeploymentProvider, string>;
 
 export interface IscSettingsFile {
   sources: IscPlatformSources;
+  misSchemas: IscPlatformMisSchemas;
   updatedAt: string;
 }
 
@@ -24,16 +27,25 @@ function emptySources(): IscPlatformSources {
   };
 }
 
-function normalizeSources(
-  sources: Partial<Record<DeploymentProvider, string>> | undefined,
-): IscPlatformSources {
-  const base = emptySources();
-  if (!sources) {
+function defaultMisSchemas(): IscPlatformMisSchemas {
+  return {
+    aws_bedrock: DEPLOYMENT_PROVIDERS.aws_bedrock.misSchemaId,
+    gcp_vertex: DEPLOYMENT_PROVIDERS.gcp_vertex.misSchemaId,
+    azure_ai_foundry: DEPLOYMENT_PROVIDERS.azure_ai_foundry.misSchemaId,
+  };
+}
+
+function normalizePlatformStrings(
+  values: Partial<Record<DeploymentProvider, string>> | undefined,
+  defaults: Record<DeploymentProvider, string>,
+): Record<DeploymentProvider, string> {
+  const base = { ...defaults };
+  if (!values) {
     return base;
   }
 
   for (const provider of DEPLOYMENT_PROVIDER_VALUES) {
-    const value = sources[provider];
+    const value = values[provider];
     if (typeof value === "string") {
       base[provider] = value.trim();
     }
@@ -68,12 +80,37 @@ function migrateFromEnvIfNeeded(settings: IscSettingsFile): IscSettingsFile {
     }
   }
 
+  const misSchemas = { ...settings.misSchemas };
+  const misEnvByProvider: Record<DeploymentProvider, readonly string[]> = {
+    aws_bedrock: ["ISC_MIS_DATASET_IDS_BEDROCK", "ISC_MIS_DATASET_IDS"],
+    gcp_vertex: ["ISC_MIS_DATASET_IDS_GCP_VERTEX"],
+    azure_ai_foundry: ["ISC_MIS_DATASET_IDS_AZURE_FOUNDRY"],
+  };
+
+  for (const provider of DEPLOYMENT_PROVIDER_VALUES) {
+    const current = misSchemas[provider];
+    const isDefault = current === DEPLOYMENT_PROVIDERS[provider].misSchemaId;
+    if (current && !isDefault) {
+      continue;
+    }
+
+    for (const key of misEnvByProvider[provider]) {
+      const value = process.env[key]?.split(",")[0]?.trim();
+      if (value) {
+        misSchemas[provider] = value;
+        changed = true;
+        break;
+      }
+    }
+  }
+
   if (!changed) {
     return settings;
   }
 
   const migrated: IscSettingsFile = {
     sources,
+    misSchemas,
     updatedAt: new Date().toISOString(),
   };
   writeSettingsFile(migrated);
@@ -91,6 +128,7 @@ export function readIscSettings(): IscSettingsFile {
   if (!fs.existsSync(SETTINGS_PATH)) {
     const initial: IscSettingsFile = {
       sources: emptySources(),
+      misSchemas: defaultMisSchemas(),
       updatedAt: new Date().toISOString(),
     };
     writeSettingsFile(initial);
@@ -100,7 +138,11 @@ export function readIscSettings(): IscSettingsFile {
   const raw = fs.readFileSync(SETTINGS_PATH, "utf8");
   const parsed = JSON.parse(raw) as Partial<IscSettingsFile>;
   const settings: IscSettingsFile = {
-    sources: normalizeSources(parsed.sources),
+    sources: normalizePlatformStrings(parsed.sources, emptySources()) as IscPlatformSources,
+    misSchemas: normalizePlatformStrings(
+      parsed.misSchemas,
+      defaultMisSchemas(),
+    ) as IscPlatformMisSchemas,
     updatedAt: parsed.updatedAt ?? new Date().toISOString(),
   };
 
@@ -110,6 +152,15 @@ export function readIscSettings(): IscSettingsFile {
 export function getIscSourceId(provider: DeploymentProvider): string | null {
   const value = readIscSettings().sources[provider]?.trim();
   return value || null;
+}
+
+export function getMisSchemaId(provider: DeploymentProvider): string {
+  const value = readIscSettings().misSchemas[provider]?.trim();
+  if (value) {
+    return value;
+  }
+
+  return DEPLOYMENT_PROVIDERS[provider].misSchemaId;
 }
 
 export function getConfiguredIscSourceIds(): Record<
@@ -124,22 +175,44 @@ export function getConfiguredIscSourceIds(): Record<
   };
 }
 
-export function updateIscPlatformSources(
-  patch: Partial<Record<DeploymentProvider, string>>,
-): IscSettingsFile {
+export function updateIscSettings(patch: {
+  sources?: Partial<Record<DeploymentProvider, string>>;
+  misSchemas?: Partial<Record<DeploymentProvider, string>>;
+}): IscSettingsFile {
   const current = readIscSettings();
   const sources = { ...current.sources };
+  const misSchemas = { ...current.misSchemas };
 
-  for (const provider of DEPLOYMENT_PROVIDER_VALUES) {
-    if (provider in patch) {
-      sources[provider] = patch[provider]?.trim() ?? "";
+  if (patch.sources) {
+    for (const provider of DEPLOYMENT_PROVIDER_VALUES) {
+      if (provider in patch.sources) {
+        sources[provider] = patch.sources[provider]?.trim() ?? "";
+      }
+    }
+  }
+
+  if (patch.misSchemas) {
+    for (const provider of DEPLOYMENT_PROVIDER_VALUES) {
+      if (provider in patch.misSchemas) {
+        misSchemas[provider] =
+          patch.misSchemas[provider]?.trim() ||
+          DEPLOYMENT_PROVIDERS[provider].misSchemaId;
+      }
     }
   }
 
   const next: IscSettingsFile = {
     sources,
+    misSchemas,
     updatedAt: new Date().toISOString(),
   };
   writeSettingsFile(next);
   return next;
+}
+
+/** @deprecated Use updateIscSettings */
+export function updateIscPlatformSources(
+  patch: Partial<Record<DeploymentProvider, string>>,
+): IscSettingsFile {
+  return updateIscSettings({ sources: patch });
 }

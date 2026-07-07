@@ -82,7 +82,6 @@ function buildStepPayload(
       return {
         ...base,
         deployment_provider: options.deploymentProvider,
-        dataset_ids: [DEPLOYMENT_PROVIDERS[options.deploymentProvider].misSchemaId],
       };
     case "authorize-allow":
       return {

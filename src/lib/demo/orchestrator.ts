@@ -11,6 +11,7 @@ import {
   getIscConfigForProvider,
   type IscConfig,
 } from "@/lib/isc/config";
+import { getMisSchemaId } from "@/lib/isc/settings-store";
 import { resolveDeploymentProvider as resolveProviderFromRow } from "@/lib/providers/deployment";
 import {
   DEPLOYMENT_PROVIDERS,
@@ -80,25 +81,7 @@ function resolveMachineIdentityDatasetIds(
   if (payload.schemas?.length) {
     return payload.schemas;
   }
-  const envKey =
-    provider === "aws_bedrock"
-      ? "ISC_MIS_DATASET_IDS_BEDROCK"
-      : provider === "gcp_vertex"
-        ? "ISC_MIS_DATASET_IDS_GCP_VERTEX"
-        : "ISC_MIS_DATASET_IDS_AZURE_FOUNDRY";
-  const fromEnv = process.env[envKey]?.split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-  if (fromEnv?.length) {
-    return fromEnv;
-  }
-  const legacy = process.env.ISC_MIS_DATASET_IDS?.split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-  if (legacy?.length && provider === "aws_bedrock") {
-    return legacy;
-  }
-  return [DEPLOYMENT_PROVIDERS[provider].misSchemaId];
+  return [getMisSchemaId(provider)];
 }
 
 function defaultRevokeEntitlement(payload: DemoStepPayload): string {
@@ -175,18 +158,19 @@ export async function runDemoStep(
 
     case "machine-identity-aggregation": {
       const config = requireIscConfig(deploymentProvider);
-      const started = await startMachineIdentityAggregation(
-        config,
-        resolveMachineIdentityDatasetIds(payload, deploymentProvider),
+      const datasetIds = resolveMachineIdentityDatasetIds(
+        payload,
+        deploymentProvider,
       );
+      const started = await startMachineIdentityAggregation(config, datasetIds);
 
       return {
         step: payload.step,
         status: "started",
-        message: "Machine identity aggregation started",
+        message: `Machine identity aggregation started (schema: ${datasetIds.join(", ")})`,
         system,
         taskId: started.taskId,
-        result: started.raw,
+        result: { raw: started.raw, datasetIds },
       };
     }
 
