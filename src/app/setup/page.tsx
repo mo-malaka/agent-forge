@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { ConnectorChecklist } from "@/components/ConnectorChecklist";
 import { ConnectorEndpoints } from "@/components/ConnectorEndpoints";
+import { GoldenSpConfigPanel } from "@/components/GoldenSpConfigPanel";
 import { MarkdownContent } from "@/components/MarkdownContent";
 import { loadConnectorSetupGuide } from "@/lib/docs/load-guide";
 import { getRequestBaseUrl } from "@/lib/url";
@@ -33,11 +34,12 @@ export default async function SetupGuidePage() {
           Setup
         </h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Connect AgentForge to Identity Security Cloud — copy Web Services URLs,
-          work through the checklist, then read the full guide below.
+          Prep Identity Security Cloud with golden source packages, or follow the
+          manual checklist and full guide below.
         </p>
       </section>
 
+      <GoldenSpConfigPanel />
       <ConnectorChecklist />
       <ConnectorEndpoints baseUrl={baseUrl} />
 

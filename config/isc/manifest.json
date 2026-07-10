@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "description": "Golden SP-Config package for AgentForge Web Services sources",
+  "baseUrlToken": "{{AGENTFORGE_BASE_URL}}",
+  "defaultBaseUrl": "https://main.d12mzah9vzl24s.amplifyapp.com",
+  "platforms": [
+    {
+      "id": "aws_bedrock",
+      "goldenFile": "golden/aws-bedrock.sp-config.json",
+      "connectorSlug": "aws-bedrock",
+      "misSchemaDefault": "bedrock-agent",
+      "suggestedSourceName": "AI Agents Bedrock"
+    },
+    {
+      "id": "gcp_vertex",
+      "goldenFile": "golden/gcp-vertex.sp-config.json",
+      "connectorSlug": "gcp-vertex",
+      "misSchemaDefault": "vertex-agent",
+      "suggestedSourceName": "AI Agents GCP"
+    },
+    {
+      "id": "azure_ai_foundry",
+      "goldenFile": "golden/azure-ai-foundry.sp-config.json",
+      "connectorSlug": "azure-ai-foundry",
+      "misSchemaDefault": "foundry-agent",
+      "suggestedSourceName": "AI Agent Foundry "
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "description": "Export one Web Services source — replace SOURCE_NAME with your ISC source display name",
+  "includeTypes": ["SOURCE"],
+  "objectOptions": {
+    "SOURCE": {
+      "includedIds": [],
+      "includedNames": ["SOURCE_NAME"]
+    }
+  }
+}

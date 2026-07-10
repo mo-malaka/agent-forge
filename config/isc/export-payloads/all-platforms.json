@@ -1,0 +1,14 @@
+{
+  "description": "Export all three AgentForge Web Services sources — adjust names to match your tenant",
+  "includeTypes": ["SOURCE"],
+  "objectOptions": {
+    "SOURCE": {
+      "includedIds": [],
+      "includedNames": [
+        "AWS Bedrock - spciem",
+        "Google Cloud Vertex AI - spciem",
+        "Microsoft Azure AI Foundry - spciem"
+      ]
+    }
+  }
+}

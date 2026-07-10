@@ -1,0 +1,490 @@
+{
+  "version": 1,
+  "timestamp": "2026-07-08T20:55:47.589106315Z",
+  "tenant": "company23069-poc",
+  "description": "Export Job vscode 2026-07-08T20:55:47.007Z",
+  "options": {
+    "excludeTypes": null,
+    "includeTypes": [
+      "SOURCE"
+    ],
+    "objectOptions": {
+      "SOURCE": {
+        "includedNames": [],
+        "includedIds": [
+          "97aa9f1151a64ed0bd0319da98ef620b"
+        ]
+      }
+    }
+  },
+  "objects": [
+    {
+      "version": 1,
+      "self": {
+        "id": "97aa9f1151a64ed0bd0319da98ef620b",
+        "name": "AI Agents Bedrock",
+        "type": "SOURCE"
+      },
+      "object": {
+        "id": "97aa9f1151a64ed0bd0319da98ef620b",
+        "name": "AI Agents Bedrock",
+        "type": "7aa95c2a-6c38-4f39-9bb9-040f11641ee3",
+        "connectorClass": "",
+        "connectorScriptName": "web-services-saas",
+        "description": "AI Agents Bedrock",
+        "deleteThreshold": 10,
+        "provisionAsCsv": false,
+        "owner": {
+          "type": "IDENTITY",
+          "id": "234ef3dfdee9470a83aadfec80f97c25",
+          "name": "Aaron.Nichols"
+        },
+        "accountCorrelationRule": null,
+        "managerCorrelationRule": null,
+        "beforeProvisioningRule": null,
+        "features": [
+          "AI_AGENT_AGGREGATION",
+          "UNLOCK",
+          "MACHINE_IDENTITY_AGGREGATION",
+          "AUTHENTICATE"
+        ],
+        "schemas": [
+          {
+            "nativeObjectType": "User",
+            "identityAttribute": "accountId",
+            "displayAttribute": "name",
+            "hierarchyAttribute": null,
+            "includePermissions": false,
+            "features": [],
+            "configuration": {},
+            "attributes": [
+              {
+                "name": "accountId",
+                "nativeName": null,
+                "type": "STRING",
+                "schema": null,
+                "description": "accountId",
+                "isMulti": false,
+                "isEntitlement": false,
+                "isGroup": false,
+                "isManaged": false
+              },
+              {
+                "name": "name",
+                "nativeName": null,
+                "type": "STRING",
+                "schema": null,
+                "description": "name",
+                "isMulti": false,
+                "isEntitlement": false,
+                "isGroup": false,
+                "isManaged": false
+              },
+              {
+                "name": "nativeIdentity",
+                "nativeName": null,
+                "type": "STRING",
+                "schema": null,
+                "description": "nativeIdentity",
+                "isMulti": false,
+                "isEntitlement": false,
+                "isGroup": false,
+                "isManaged": false
+              },
+              {
+                "name": "outboundPermissions",
+                "nativeName": null,
+                "type": "STRING",
+                "schema": {
+                  "type": "CONNECTOR_SCHEMA",
+                  "id": "f80ca31d39ea4db888fc7d045f9beac4",
+                  "name": "outboundPermissions"
+                },
+                "description": "outboundPermissions",
+                "isMulti": true,
+                "isEntitlement": true,
+                "isGroup": true,
+                "isManaged": false
+              },
+              {
+                "name": "inboundCallers",
+                "nativeName": null,
+                "type": "STRING",
+                "schema": {
+                  "type": "CONNECTOR_SCHEMA",
+                  "id": "6b43117ba0fa4fa2bbc8d9903c5affbd",
+                  "name": "inboundCallers"
+                },
+                "description": "inboundCallers",
+                "isMulti": true,
+                "isEntitlement": true,
+                "isGroup": true,
+                "isManaged": false
+              }
+            ],
+            "id": "4301d81784d24f9685ff34792016b6a9",
+            "name": "account",
+            "created": "2026-06-25T19:15:23.085Z",
+            "modified": "2026-06-25T19:46:18.059Z"
+          },
+          {
+            "nativeObjectType": "outboundPermissions",
+            "identityAttribute": "name",
+            "displayAttribute": "name",
+            "hierarchyAttribute": null,
+            "includePermissions": false,
+            "features": [],
+            "configuration": {},
+            "attributes": [
+              {
+                "name": "entitlementId",
+                "nativeName": null,
+                "type": "STRING",
+                "schema": null,
+                "description": "entitlementId",
+                "isMulti": false,
+                "isEntitlement": false,
+                "isGroup": false,
+                "isManaged": false
+              },
+              {
+                "name": "name",
+                "nativeName": null,
+                "type": "STRING",
+                "schema": null,
+                "description": "name",
+                "isMulti": false,
+                "isEntitlement": false,
+                "isGroup": false,
+                "isManaged": false
+              },
+              {
+                "name": "riskScore",
+                "nativeName": null,
+                "type": "STRING",
+                "schema": null,
+                "description": "riskScore",
+                "isMulti": false,
+                "isEntitlement": false,
+                "isGroup": false,
+                "isManaged": false
+              }
+            ],
+            "id": "f80ca31d39ea4db888fc7d045f9beac4",
+            "name": "outboundPermissions",
+            "created": "2026-06-25T19:17:59.829Z",
+            "modified": "2026-06-25T19:19:15.224Z"
+          },
+          {
+            "nativeObjectType": "inboundCallers",
+            "identityAttribute": "name",
+            "displayAttribute": "name",
+            "hierarchyAttribute": null,
+            "includePermissions": false,
+            "features": [],
+            "configuration": {
+              "description": "inboundCallers"
+            },
+            "attributes": [
+              {
+                "name": "entitlementId",
+                "nativeName": null,
+                "type": "STRING",
+                "schema": null,
+                "description": "entitlementId",
+                "isMulti": false,
+                "isEntitlement": false,
+                "isGroup": false,
+                "isManaged": false
+              },
+              {
+                "name": "name",
+                "nativeName": null,
+                "type": "STRING",
+                "schema": null,
+                "description": "name",
+                "isMulti": false,
+                "isEntitlement": false,
+                "isGroup": false,
+                "isManaged": false
+              },
+              {
+                "name": "riskScore",
+                "nativeName": null,
+                "type": "STRING",
+                "schema": null,
+                "description": "riskScore",
+                "isMulti": false,
+                "isEntitlement": false,
+                "isGroup": false,
+                "isManaged": false
+              }
+            ],
+            "id": "6b43117ba0fa4fa2bbc8d9903c5affbd",
+            "name": "inboundCallers",
+            "created": "2026-06-25T19:19:35.230Z",
+            "modified": "2026-06-25T19:20:28.105Z"
+          },
+          {
+            "nativeObjectType": "bedrock-agent",
+            "identityAttribute": "nativeIdentity",
+            "displayAttribute": "identityName",
+            "hierarchyAttribute": null,
+            "includePermissions": false,
+            "features": [],
+            "configuration": {
+              "datasetType": "std:machine-identity",
+              "datasetId": "bedrock-agent"
+            },
+            "attributes": [
+              {
+                "name": "nativeIdentity",
+                "nativeName": null,
+                "type": "STRING",
+                "schema": null,
+                "description": "nativeIdentity",
+                "isMulti": false,
+                "isEntitlement": false,
+                "isGroup": false,
+                "isManaged": false
+              },
+              {
+                "name": "identityName",
+                "nativeName": null,
+                "type": "STRING",
+                "schema": null,
+                "description": "identityName",
+                "isMulti": false,
+                "isEntitlement": false,
+                "isGroup": false,
+                "isManaged": false
+              }
+            ],
+            "id": "78bedb8e0f4340549cbfcb3338e10d64",
+            "name": "bedrock-agent",
+            "created": "2026-06-25T19:46:54.519Z",
+            "modified": "2026-06-25T19:48:00.589Z"
+          }
+        ],
+        "connectorAttributes": {
+          "healthCheckTimeout": 90,
+          "spConnectorSupportsCustomSchemas": true,
+          "supportsDeltaAgg": true,
+          "idnProxyType": "sp-connect",
+          "sourceConnected": true,
+          "deltaAggregationEnabled": false,
+          "spConnectorSpecId": "7aa95c2a-6c38-4f39-9bb9-040f11641ee3",
+          "deleteThresholdPercentage": 10,
+          "connectionType": "direct",
+          "spConnectorInstanceId": "1f04db02-3435-4d18-a8d7-9743dd451a84",
+          "genericWebServiceBaseUrl": "{{AGENTFORGE_BASE_URL}}",
+          "cloudCacheUpdate": 1783369987674,
+          "templateApplication": "Web Services SaaS",
+          "connectionParameters": [
+            {
+              "contextUrl": "/api/health",
+              "httpMethodType": "GET",
+              "pagingInitialOffset": 0,
+              "pagingSize": 50,
+              "requestType": "API",
+              "sequenceNumberForEndpoint": "1",
+              "uniqueNameForEndPoint": "Test Connection",
+              "operationType": "Test Connection",
+              "body": {}
+            },
+            {
+              "resMappingObj": {
+                "owner": "owner",
+                "accountId": "accountId",
+                "archetype": "archetype",
+                "identityName": "identityName",
+                "displayName": "displayName",
+                "inboundCallers": "inboundCallers",
+                "name": "name",
+                "nativeIdentity": "nativeIdentity",
+                "outboundPermissions": "outboundPermissions",
+                "platform": "platform",
+                "status": "status"
+              },
+              "contextUrl": "/api/connectors/web-services/aws-bedrock/accounts",
+              "httpMethodType": "GET",
+              "pagingInitialOffset": 0,
+              "pagingSize": 50,
+              "requestType": "API",
+              "sequenceNumberForEndpoint": "2",
+              "uniqueNameForEndPoint": "Account Aggregation",
+              "operationType": "Account Aggregation",
+              "rootPath": "$.accounts[*]",
+              "body": {}
+            },
+            {
+              "resMappingObj": {
+                "entitlementId": "entitlementId",
+                "name": "name",
+                "riskScore": "riskScore",
+                "accessDirection": "accessDirection"
+              },
+              "contextUrl": "/api/connectors/web-services/aws-bedrock/entitlements?type=outbound",
+              "httpMethodType": "GET",
+              "pagingInitialOffset": 0,
+              "pagingSize": 50,
+              "requestType": "API",
+              "sequenceNumberForEndpoint": "3",
+              "uniqueNameForEndPoint": "Group Aggregation - outboundPermissions",
+              "operationType": "Group Aggregation-outboundPermissions",
+              "rootPath": "$.entitlements[*]",
+              "body": {}
+            },
+            {
+              "resMappingObj": {
+                "entitlementId": "entitlementId",
+                "name": "name",
+                "riskScore": "riskScore",
+                "accessDirection": "accessDirection"
+              },
+              "contextUrl": "/api/connectors/web-services/aws-bedrock/entitlements?type=inbound",
+              "httpMethodType": "GET",
+              "pagingInitialOffset": 0,
+              "pagingSize": 50,
+              "requestType": "API",
+              "sequenceNumberForEndpoint": "4",
+              "uniqueNameForEndPoint": "Group Aggregation - inboundCallers",
+              "operationType": "Group Aggregation-inboundCallers",
+              "rootPath": "$.entitlements[*]",
+              "body": {}
+            },
+            {
+              "resMappingObj": {
+                "owner": "owner",
+                "identityName": "identityName",
+                "nativeIdentity": "nativeIdentity",
+                "platform": "platform"
+              },
+              "contextUrl": "/api/connectors/web-services/aws-bedrock/accounts",
+              "httpMethodType": "GET",
+              "pagingInitialOffset": 0,
+              "pagingSize": 50,
+              "requestType": "API",
+              "sequenceNumberForEndpoint": "5",
+              "uniqueNameForEndPoint": "Machine Identity Aggregation (bedrock-agent)",
+              "operationType": "Machine Identity Aggregation-bedrock-agent",
+              "rootPath": "$.accounts[*]",
+              "body": {}
+            },
+            {
+              "contextUrl": "/api/connectors/web-services/aws-bedrock/provision/add-entitlement",
+              "httpMethodType": "POST",
+              "pagingInitialOffset": 0,
+              "pagingSize": 50,
+              "requestType": "API",
+              "sequenceNumberForEndpoint": "6",
+              "uniqueNameForEndPoint": "Add Entitlement - outboundPermissions",
+              "header": {
+                "Content-Type": "application/json"
+              },
+              "operationType": "Add Entitlement-outboundPermissions",
+              "body": {
+                "bodyFormData": {
+                  "accountId": "$plan.accountId$",
+                  "nativeIdentity": "$plan.nativeIdentity$",
+                  "outboundPermissions": "$plan.outboundPermissions$"
+                },
+                "bodyFormat": "formData"
+              }
+            },
+            {
+              "contextUrl": "/api/connectors/web-services/aws-bedrock/provision/add-entitlement",
+              "httpMethodType": "POST",
+              "pagingInitialOffset": 0,
+              "pagingSize": 50,
+              "requestType": "API",
+              "sequenceNumberForEndpoint": "7",
+              "uniqueNameForEndPoint": "Add Entitlement - inboundCallers",
+              "header": {
+                "Content-Type": "application/json"
+              },
+              "operationType": "Add Entitlement-inboundCallers",
+              "body": {
+                "bodyFormData": {
+                  "accountId": "$plan.accountId$",
+                  "nativeIdentity": "$plan.nativeIdentity$"
+                },
+                "bodyFormat": "formData"
+              }
+            },
+            {
+              "resMappingObj": {
+                "success": "success",
+                "nativeIdentity": "nativeIdentity"
+              },
+              "contextUrl": "/api/connectors/web-services/aws-bedrock/provision/remove-entitlement",
+              "httpMethodType": "POST",
+              "pagingInitialOffset": 0,
+              "pagingSize": 50,
+              "requestType": "API",
+              "sequenceNumberForEndpoint": "8",
+              "uniqueNameForEndPoint": "Remove Entitlement - outboundPermissions",
+              "header": {
+                "Content-Type": "application/json"
+              },
+              "operationType": "Remove Entitlement-outboundPermissions",
+              "body": {
+                "bodyFormData": {
+                  "accountId": "$plan.accountId$",
+                  "nativeIdentity": "$plan.nativeIdentity$",
+                  "outboundPermissions": "$plan.outboundPermissions$"
+                },
+                "bodyFormat": "formData"
+              }
+            },
+            {
+              "resMappingObj": {
+                "success": "success",
+                "nativeIdentity": "nativeIdentity"
+              },
+              "contextUrl": "/api/connectors/web-services/aws-bedrock/provision/remove-entitlement",
+              "httpMethodType": "POST",
+              "pagingInitialOffset": 0,
+              "pagingSize": 50,
+              "requestType": "API",
+              "sequenceNumberForEndpoint": "9",
+              "uniqueNameForEndPoint": "Remove Entitlement - inboundCallers",
+              "header": {
+                "Content-Type": "application/json"
+              },
+              "operationType": "Remove Entitlement-inboundCallers",
+              "body": {
+                "bodyFormData": {
+                  "accountId": "$plan.accountId$",
+                  "inboundCallers": "$plan. inboundCallers $",
+                  "nativeIdentity": "$plan.nativeIdentity$"
+                },
+                "bodyFormat": "formData"
+              }
+            }
+          ],
+          "authenticationMethod": "No Auth",
+          "hasFullAggregationCompleted": true,
+          "healthy": true,
+          "cloudDisplayName": "AI Agents Bedrock",
+          "connectorName": "Web Services SaaS",
+          "possibleHttpErrorMessages": {},
+          "connectionTimeout": "60",
+          "entitlementDeltaAggregationEnabled": false,
+          "since": "2026-06-27T22:10:39.249Z",
+          "status": "SOURCE_STATE_HEALTHY"
+        },
+        "crossTenantConnectorAttributes": {},
+        "correlationConfigDetails": {
+          "attributeAssignments": null,
+          "id": null,
+          "name": null
+        },
+        "managerCorrelationMapping": null,
+        "provisioningPolicies": [],
+        "managementWorkgroup": null,
+        "passwordPolicies": null
+      }
+    }
+  ]
+}

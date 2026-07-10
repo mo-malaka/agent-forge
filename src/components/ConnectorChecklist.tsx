@@ -7,8 +7,15 @@ const STORAGE_KEY = "agentforge-connector-checklist";
 
 const CHECKLIST_ITEMS = [
   {
+    id: "golden-import",
+    title: "Import golden SP-Config (recommended)",
+    description:
+      "Configuration Hub (Option 1) or API import with ORG_ADMIN PAT (Option 2).",
+    href: "/setup#golden-sp-config",
+  },
+  {
     id: "create-source",
-    title: "Create Web Services source",
+    title: "Or: create Web Services source manually",
     description: "Add a SaaS source in ISC pointing at AgentForge.",
     href: "/setup#create-the-web-services-source",
   },

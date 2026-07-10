@@ -40,6 +40,11 @@ yarn-error.log*
 # database
 /data/
 
+# ISC raw sp-config exports (may contain tenant secrets)
+/config/isc/exports/*.json
+/config/isc/exports/*.zip
+/exportedObjects/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
