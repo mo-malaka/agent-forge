@@ -14,7 +14,7 @@ Import **Web Services SaaS** sources into a new ISC tenant in minutes instead of
 ## Demo user flow
 
 1. Go to **AgentForge → Setup → Prep your ISC tenant**.
-2. **Option 1 — Configuration Hub:** download 3 packages → ISC **Configuration Hub → Import** (no PAT).
+2. **Option 1 — Configuration Hub:** Solution Center → Configuration Hub → **Uploads** → upload each JSON → prepare draft → deploy (no PAT).
 3. **Option 2 — API import:** follow the ORG_ADMIN PAT guide on Setup → preview → run import (PAT is not stored).
 4. **Connections → Sources** — test connection on each source.
 5. Set `ISC_TENANT`, `ISC_CLIENT_ID`, `ISC_CLIENT_SECRET` on AgentForge; open **Demo → ISC sources** and paste source IDs.

@@ -81,15 +81,31 @@ function ConfigHubImportSteps({
       </p>
       <ol className="list-decimal space-y-2 pl-5 text-xs leading-relaxed">
         <li>
-          In the <strong>target</strong> tenant:{" "}
-          <strong>Admin → Configuration → Configuration Hub → Import</strong>.
+          Open <strong>Solution Center</strong> (grid/waffle icon, upper-left of
+          the ISC page — not the Admin megamenu) →{" "}
+          <strong>Configuration Hub</strong>.
+          <span className="mt-1 block text-zinc-500">
+            Direct link:{" "}
+            <code className="text-[11px]">
+              https://YOUR-TENANT.identitynow.com/ui/ch/admin/config-hub/uploads
+            </code>
+          </span>
         </li>
         <li>
-          Upload each downloaded file one at a time —{" "}
-          <strong>Preview</strong>, then <strong>Import</strong>.
+          Go to <strong>Uploads</strong> → <strong>Upload</strong> → submit
+          each downloaded JSON file (Bedrock, Vertex, Foundry).
         </li>
-        <li>Repeat for Bedrock, Vertex, and Foundry.</li>
+        <li>
+          On each upload: <strong>Actions</strong> →{" "}
+          <strong>Prepare draft for deployment</strong> → review the draft →{" "}
+          <strong>Deploy draft</strong>.
+        </li>
       </ol>
+      <p className="text-xs text-zinc-500">
+        Configuration Hub is separate from the Admin menu (Connections, Global,
+        etc.). You need Admin access and Configuration Hub permissions on the
+        target tenant.
+      </p>
       <a
         href={importGuideUrl}
         target="_blank"
