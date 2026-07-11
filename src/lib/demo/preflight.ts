@@ -207,14 +207,23 @@ export async function runDemoPreflight(
         (entitlement) => !actualOutbound.includes(entitlement),
       );
       const entitlementsOk = missingRequired.length === 0;
+      const onlyRevokeEntitlementMissing =
+        missingRequired.length === 1 &&
+        missingRequired[0] === DEMO_GOVERN_REVOKE_ENTITLEMENT;
 
       checks.push({
         id: "demo_entitlements",
         label: "Govern demo entitlements",
-        status: entitlementsOk ? "pass" : "fail",
+        status: entitlementsOk
+          ? "pass"
+          : onlyRevokeEntitlementMissing
+            ? "warn"
+            : "fail",
         message: entitlementsOk
           ? `Required entitlements present (${required.join(", ")})`
-          : `Missing ${missingRequired.join(", ")} — run demo reset to restore after revoke`,
+          : onlyRevokeEntitlementMissing
+            ? `${DEMO_GOVERN_REVOKE_ENTITLEMENT} already removed — continue to re-aggregate or reset demo agent to run again`
+            : `Missing ${missingRequired.join(", ")} — restore demo agent before govern + enforce`,
         detail: {
           required,
           expected: expectedOutbound,
@@ -238,7 +247,7 @@ export async function runDemoPreflight(
         detail: { expected: expectedInbound, actual: actualInbound },
       });
 
-      if (demoAgent.status === "active" && entitlementsOk) {
+      if (demoAgent.status === "active" && (entitlementsOk || onlyRevokeEntitlementMissing)) {
         const authorization = evaluateAuthorization(demoAgent, {
           principal,
           direction: "outbound",

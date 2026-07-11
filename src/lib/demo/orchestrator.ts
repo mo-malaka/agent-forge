@@ -111,7 +111,7 @@ export async function runDemoStep(
       return {
         step: payload.step,
         status: "completed",
-        message: `Created ${created.length} agents in AgentForge`,
+        message: `Created ${created.length} agents in AgentForge (view on Agents page). ISC sync happens in steps 4–5.`,
         system,
         taskId: null,
         result: {

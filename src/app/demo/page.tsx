@@ -18,9 +18,9 @@ export default function DemoPage() {
           ISC demo
         </h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Run full sync and govern + enforce against your configured ISC tenant.
-          Reset demo agent after govern + enforce to restore Jira:Admin on
-          DevOps-Bot-Prod for the next run.
+          Connect AgentForge to your ISC tenant, sync agents, then run govern +
+          enforce. Bulk-created agents live in AgentForge until ISC aggregation
+          steps run.
         </p>
       </section>
       <Suspense fallback={<DemoOrchestratorFallback />}>

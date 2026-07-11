@@ -46,7 +46,8 @@ export const DEMO_STEPS: Record<DemoStepId, DemoStepDefinition> = {
   "bulk-create": {
     id: "bulk-create",
     label: "Bulk create agents",
-    description: "Seed synthetic agents in AgentForge",
+    description:
+      "Adds synthetic agents to AgentForge only — ISC sees them after steps 4–5",
     system: "agentforge",
   },
   "entitlement-aggregation": {

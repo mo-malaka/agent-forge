@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { reconcilePreflightResult } from "@/lib/demo/preflight-display";
 import type { PreflightCheck, PreflightResult } from "@/lib/demo/preflight";
-import type { DemoModeId } from "@/lib/demo/steps";
+import type { DemoModeId, DemoStepId } from "@/lib/demo/steps";
 import type { DeploymentProvider } from "@/lib/providers/profiles";
 
 function statusStyles(status: PreflightCheck["status"]) {
@@ -28,6 +29,10 @@ function statusIcon(status: PreflightCheck["status"]) {
   }
 }
 
+type StepStatusMap = Partial<
+  Record<DemoStepId, { status: string; message: string }>
+>;
+
 interface DemoPreflightPanelProps {
   mode: DemoModeId;
   agentId: string;
@@ -35,6 +40,10 @@ interface DemoPreflightPanelProps {
   principal: string;
   deploymentProvider?: DeploymentProvider;
   refreshKey?: number;
+  iscCredentialsReady?: boolean;
+  tenant?: string | null;
+  credentialSource?: "ui" | "env" | null;
+  stepStatus?: StepStatusMap;
   onResultChange?: (result: PreflightResult | null) => void;
 }
 
@@ -45,11 +54,39 @@ export function DemoPreflightPanel({
   principal,
   deploymentProvider,
   refreshKey = 0,
+  iscCredentialsReady = false,
+  tenant = null,
+  credentialSource = null,
+  stepStatus,
   onResultChange,
 }: DemoPreflightPanelProps) {
-  const [result, setResult] = useState<PreflightResult | null>(null);
+  const [rawResult, setRawResult] = useState<PreflightResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+
+  const result = useMemo(
+    () =>
+      reconcilePreflightResult(rawResult, {
+        iscCredentialsReady,
+        tenant,
+        credentialSource,
+        stepStatus,
+      }),
+    [rawResult, iscCredentialsReady, tenant, credentialSource, stepStatus],
+  );
+
+  useEffect(() => {
+    onResultChange?.(result);
+  }, [result, onResultChange]);
+
+  useEffect(() => {
+    if (result?.ready) {
+      setExpanded(false);
+    } else if (result && !result.ready) {
+      setExpanded(true);
+    }
+  }, [result?.ready, result?.checked_at]);
 
   const loadPreflight = useCallback(async () => {
     setLoading(true);
@@ -72,27 +109,34 @@ export function DemoPreflightPanel({
         throw new Error(body.error ?? "Preflight check failed");
       }
 
-      setResult(body);
-      onResultChange?.(body);
+      setRawResult(body);
     } catch (loadError) {
       setError(
         loadError instanceof Error ? loadError.message : "Preflight check failed",
       );
-      setResult(null);
-      onResultChange?.(null);
+      setRawResult(null);
     } finally {
       setLoading(false);
     }
-  }, [mode, agentId, allowPermission, principal, deploymentProvider, onResultChange]);
+  }, [mode, agentId, allowPermission, principal, deploymentProvider]);
 
   useEffect(() => {
     void loadPreflight();
   }, [loadPreflight, refreshKey]);
 
+  const failureCount =
+    result?.checks.filter((check) => check.status === "fail").length ?? 0;
+  const warnCount =
+    result?.checks.filter((check) => check.status === "warn").length ?? 0;
+
   return (
     <section className="rounded-md border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950">
-      <div className="flex items-center justify-between gap-3 border-b border-zinc-200 px-3 py-2 dark:border-zinc-700">
-        <div>
+      <div className="flex items-center justify-between gap-3 px-3 py-2">
+        <button
+          type="button"
+          onClick={() => setExpanded((current) => !current)}
+          className="min-w-0 flex-1 text-left"
+        >
           <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
             Pre-flight checks
           </h3>
@@ -100,26 +144,32 @@ export function DemoPreflightPanel({
             {loading
               ? "Checking prerequisites..."
               : result?.ready
-                ? "Ready to run this phase"
-                : "Fix failed checks before running steps"}
+                ? "All required checks passed"
+                : failureCount > 0
+                  ? `${failureCount} issue(s) may block steps`
+                  : warnCount > 0
+                    ? `${warnCount} warning(s) — steps can still run`
+                    : "Review prerequisites"}
           </p>
-        </div>
+        </button>
         <button
           type="button"
           onClick={() => void loadPreflight()}
           disabled={loading}
-          className="text-xs text-zinc-500 hover:text-zinc-800 disabled:opacity-50 dark:hover:text-zinc-300"
+          className="shrink-0 text-xs text-zinc-500 hover:text-zinc-800 disabled:opacity-50 dark:hover:text-zinc-300"
         >
           Re-check
         </button>
       </div>
 
       {error ? (
-        <p className="px-3 py-2 text-xs text-red-700 dark:text-red-300">{error}</p>
+        <p className="border-t border-zinc-100 px-3 py-2 text-xs text-red-700 dark:border-zinc-800 dark:text-red-300">
+          {error}
+        </p>
       ) : null}
 
-      {result ? (
-        <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+      {expanded && result ? (
+        <ul className="divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800">
           {result.checks.map((check) => (
             <li
               key={check.id}

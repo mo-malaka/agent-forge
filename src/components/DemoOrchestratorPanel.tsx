@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { DemoPreflightPanel } from "@/components/DemoPreflightPanel";
 import { IscSourceSettingsPanel } from "@/components/IscSourceSettingsPanel";
-import { isPreflightBlockingForStep } from "@/lib/demo/preflight-blocking";
+import { isPreflightBlockingForStep, getStepDisableReason } from "@/lib/demo/preflight-blocking";
 import type { PreflightResult } from "@/lib/demo/preflight";
 import {
   clearDemoProgress,
@@ -54,6 +54,16 @@ interface IscConfigStatus {
 
 const BULK_COUNTS = [5, 10, 20] as const;
 type BulkCount = (typeof BULK_COUNTS)[number];
+
+function providerForDemoAgent(agentId: string): DeploymentProvider {
+  if (agentId.includes("gcp")) {
+    return "gcp_vertex";
+  }
+  if (agentId.includes("azure")) {
+    return "azure_ai_foundry";
+  }
+  return "aws_bedrock";
+}
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -233,6 +243,8 @@ export function DemoOrchestratorPanel() {
   );
   const [preflightRefreshKey, setPreflightRefreshKey] = useState(0);
   const [resettingDemo, setResettingDemo] = useState(false);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [iscSetupOpen, setIscSetupOpen] = useState(true);
 
   const refreshIscStatus = useCallback(() => {
     void fetch("/api/demo/config")
@@ -257,6 +269,12 @@ export function DemoOrchestratorPanel() {
   useEffect(() => {
     refreshIscStatus();
   }, [refreshIscStatus]);
+
+  useEffect(() => {
+    if (iscStatus?.credentialsConfigured) {
+      setIscSetupOpen(false);
+    }
+  }, [iscStatus?.credentialsConfigured]);
 
   useEffect(() => {
     setExpandedSteps({});
@@ -329,6 +347,11 @@ export function DemoOrchestratorPanel() {
       router.refresh();
 
       if (body.agent?.name) {
+        setResetMessage(
+          scope === "full-store"
+            ? `Restored seed agents and removed bulk agents. ${body.agent.name} is ready.`
+            : `Restored ${body.agent.name} in AgentForge (entitlements reset). ISC is unchanged — re-aggregate if needed.`,
+        );
         setError(null);
       }
     } catch (resetError) {
@@ -358,8 +381,13 @@ export function DemoOrchestratorPanel() {
   ): Promise<void> {
     onProgress("running", "Running...");
 
+    const deploymentProvider =
+      mode === "govern-enforce"
+        ? providerForDemoAgent(agentId)
+        : provider;
+
     const payload = buildStepPayload(step, {
-      deploymentProvider: provider,
+      deploymentProvider,
       count,
       agentId,
       principal,
@@ -432,9 +460,17 @@ export function DemoOrchestratorPanel() {
   }
 
   const iscCredentialsReady = iscStatus?.credentialsConfigured ?? false;
-  const iscReady = iscStatus?.configured ?? false;
+  const syncProvider =
+    activeMode === "govern-enforce"
+      ? providerForDemoAgent(agentId)
+      : provider;
   const platformSourceConfigured =
-    iscStatus?.sources?.[provider] != null && iscStatus.sources[provider] !== "";
+    iscStatus?.sources?.[syncProvider] != null &&
+    iscStatus.sources[syncProvider] !== "";
+
+  function bumpPreflightRefresh() {
+    setPreflightRefreshKey((current) => current + 1);
+  }
 
   function getNextIncompleteStep(mode: DemoModeId): DemoStepId | null {
     return (
@@ -506,7 +542,6 @@ export function DemoOrchestratorPanel() {
     mode: DemoModeId,
     step: DemoStepId,
     index: number,
-    iscReady: boolean,
     options?: { requiresIsc?: boolean },
   ) {
     const result = stepStatus[step];
@@ -520,6 +555,7 @@ export function DemoOrchestratorPanel() {
       step,
       mode,
       iscCredentialsReady,
+      stepStatus,
     });
     const missingIscPrereqs =
       requiresIsc &&
@@ -527,6 +563,18 @@ export function DemoOrchestratorPanel() {
       (!iscCredentialsReady || !platformSourceConfigured);
     const stepDisabled =
       missingIscPrereqs || runningStep !== null || blockedByPreflight;
+    const disableReason = stepDisabled
+      ? getStepDisableReason({
+          step,
+          mode,
+          iscCredentialsReady,
+          platformSourceConfigured,
+          requiresIsc,
+          runningStep,
+          preflightResult,
+          stepStatus,
+        })
+      : null;
     const expanded = isStepExpanded(step, mode);
     const isNext = getNextIncompleteStep(mode) === step;
 
@@ -720,7 +768,11 @@ export function DemoOrchestratorPanel() {
                 <p className="text-xs text-amber-700 dark:text-amber-300">
                   {!iscCredentialsReady
                     ? "Save and verify the ISC tenant connection above first."
-                    : `Save and verify the ${DEPLOYMENT_PROVIDERS[provider].label} source ID above first.`}
+                    : `Save and verify the ${DEPLOYMENT_PROVIDERS[syncProvider].label} source ID above first.`}
+                </p>
+              ) : disableReason && !missingIscPrereqs ? (
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  {disableReason}
                 </p>
               ) : null}
             </div>
@@ -738,6 +790,11 @@ export function DemoOrchestratorPanel() {
               }`}
             >
               {label}
+            </span>
+          ) : null}
+          {disableReason && stepDisabled && !isManualIsc ? (
+            <span className="max-w-[11rem] text-right text-[10px] leading-tight text-amber-700 dark:text-amber-300">
+              {disableReason}
             </span>
           ) : null}
           {isManualIsc ? (
@@ -789,84 +846,98 @@ export function DemoOrchestratorPanel() {
 
   return (
     <section className="space-y-4">
-      <IscSourceSettingsPanel
-        credentialsConfigured={iscCredentialsReady}
-        tenant={iscStatus?.tenant ?? null}
-        apiBaseUrl={iscStatus?.apiBaseUrl ?? null}
-        credentialSource={iscStatus?.credentialSource ?? null}
-        onCredentialsChange={refreshIscStatus}
-        onSourcesChange={() => {
-          refreshIscStatus();
-          setPreflightRefreshKey((current) => current + 1);
-        }}
-      />
+      <details
+        open={iscSetupOpen}
+        onToggle={(event) =>
+          setIscSetupOpen((event.target as HTMLDetailsElement).open)
+        }
+        className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950"
+      >
+        <summary className="cursor-pointer px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                ISC connection &amp; sources
+              </p>
+              <p className="text-xs text-zinc-500">
+                {iscCredentialsReady ? (
+                  <>
+                    Connected to{" "}
+                    <span className="font-mono">{iscStatus?.tenant}</span>
+                    {iscStatus?.credentialSource === "ui" ? " (UI)" : null}
+                    {platformSourceConfigured
+                      ? ` · ${DEPLOYMENT_PROVIDERS[syncProvider].label} source ready`
+                      : " · add a source ID below"}
+                  </>
+                ) : (
+                  "Configure tenant credentials and Web Services source IDs"
+                )}
+              </p>
+            </div>
+            <span className="text-xs text-zinc-400">
+              {iscSetupOpen ? "Collapse" : "Expand"}
+            </span>
+          </div>
+        </summary>
+        <div className="border-t border-zinc-200 px-4 pb-4 pt-3 dark:border-zinc-700">
+          <IscSourceSettingsPanel
+            credentialsConfigured={iscCredentialsReady}
+            tenant={iscStatus?.tenant ?? null}
+            apiBaseUrl={iscStatus?.apiBaseUrl ?? null}
+            credentialSource={iscStatus?.credentialSource ?? null}
+            onCredentialsChange={() => {
+              refreshIscStatus();
+              bumpPreflightRefresh();
+            }}
+            onSourcesChange={() => {
+              refreshIscStatus();
+              bumpPreflightRefresh();
+            }}
+          />
+        </div>
+      </details>
 
       <section className="space-y-4 rounded-lg border border-indigo-200 bg-indigo-50/40 p-5 dark:border-indigo-900 dark:bg-indigo-950/20">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs dark:border-zinc-700 dark:bg-zinc-950">
-          {iscStatus ? (
-            iscCredentialsReady ? (
-              <div className="space-y-1 text-emerald-700 dark:text-emerald-300">
-                <p>
-                  ISC connected ·{" "}
-                  <span className="font-mono">{iscStatus.tenant}</span>
-                  {iscStatus.credentialSource ? (
-                    <span className="text-zinc-500">
-                      {" "}
-                      ({iscStatus.credentialSource === "ui" ? "UI" : "env"})
-                    </span>
-                  ) : null}
-                </p>
-                {iscStatus.apiBaseUrl ? (
-                  <p className="font-mono text-[10px] text-zinc-500">
-                    {iscStatus.apiBaseUrl}
-                  </p>
-                ) : null}
-                <p className="text-[11px] text-zinc-600 dark:text-zinc-400">
-                  {DEPLOYMENT_PROVIDER_VALUES.map((key) => {
-                    const id = iscStatus.sources?.[key];
-                    return (
-                      <span key={key} className="mr-2">
-                        {DEPLOYMENT_PROVIDERS[key].label.split(" ").at(0)}:{" "}
-                        {id ? "✓" : "—"}
-                      </span>
-                    );
-                  })}
-                </p>
-              </div>
-            ) : (
-              <p className="text-amber-700 dark:text-amber-300">
-                ISC not connected — save tenant connection in the panel above
-              </p>
-            )
-          ) : (
-            <p className="text-zinc-500">Checking ISC configuration...</p>
-          )}
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <p className="text-xs text-zinc-500">
+        <div>
+          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+            {DEMO_MODES[activeMode].label}
+          </h2>
+          <p className="text-xs text-zinc-600 dark:text-zinc-400">
+            {DEMO_MODES[activeMode].description}
+          </p>
+          <p className="mt-1 text-xs text-zinc-500">
             {completedCount}/{activeSteps.length} steps complete
           </p>
+        </div>
+        <div className="flex flex-col items-end gap-2">
           <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
               onClick={() => void resetDemoData("demo-agent")}
               disabled={runningStep !== null || resettingDemo}
-              className="text-xs font-medium text-indigo-700 hover:text-indigo-900 disabled:opacity-50 dark:text-indigo-300 dark:hover:text-indigo-200"
+              title="Restores the hero demo agent entitlements in AgentForge only. Does not change ISC or bulk agents."
+              className="rounded-md border border-indigo-300 bg-white px-2.5 py-1 text-xs font-medium text-indigo-800 hover:bg-indigo-50 disabled:opacity-50 dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-200 dark:hover:bg-indigo-900"
             >
-              {resettingDemo ? "Resetting..." : "Reset demo agent"}
+              {resettingDemo ? "Restoring..." : "Restore demo agent"}
             </button>
             {Object.keys(stepStatus).length > 0 ? (
               <button
                 type="button"
                 onClick={clearProgress}
                 disabled={runningStep !== null}
-                className="text-xs text-zinc-500 hover:text-zinc-800 disabled:opacity-50 dark:hover:text-zinc-300"
+                title="Clears the step checklist in this browser only. Agent data is unchanged."
+                className="rounded-md border border-zinc-300 bg-white px-2.5 py-1 text-xs text-zinc-600 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
               >
-                Clear step progress
+                Reset checklist
               </button>
             ) : null}
           </div>
+          {resetMessage ? (
+            <p className="max-w-sm text-right text-xs text-emerald-700 dark:text-emerald-300">
+              {resetMessage}
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -875,8 +946,12 @@ export function DemoOrchestratorPanel() {
         agentId={agentId}
         allowPermission={allowPermission}
         principal={principal}
-        deploymentProvider={activeMode === "full-sync" ? provider : undefined}
+        deploymentProvider={activeMode === "full-sync" ? provider : syncProvider}
         refreshKey={preflightRefreshKey}
+        iscCredentialsReady={iscCredentialsReady}
+        tenant={iscStatus?.tenant ?? null}
+        credentialSource={iscStatus?.credentialSource ?? null}
+        stepStatus={stepStatus}
         onResultChange={setPreflightResult}
       />
 
@@ -961,7 +1036,7 @@ export function DemoOrchestratorPanel() {
             </>
           ) : (
             <>
-              <label className="space-y-1 text-sm">
+              <label className="space-y-1 text-sm sm:col-span-2">
                 <span className="text-xs uppercase tracking-wide text-zinc-500">
                   Demo agent ID
                 </span>
@@ -971,6 +1046,10 @@ export function DemoOrchestratorPanel() {
                   disabled={runningStep !== null}
                   className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
                 />
+                <p className="text-xs text-zinc-500">
+                  ISC source: {DEPLOYMENT_PROVIDERS[syncProvider].label}
+                  {platformSourceConfigured ? " (configured)" : " — save source ID above"}
+                </p>
               </label>
               <label className="space-y-1 text-sm">
                 <span className="text-xs uppercase tracking-wide text-zinc-500">
@@ -1010,8 +1089,8 @@ export function DemoOrchestratorPanel() {
         </div>
         {activeMode === "full-sync" ? (
           <p className="border-t border-zinc-200 px-3 py-2 text-xs text-zinc-500 dark:border-zinc-700">
-            Full store reset restores all three seed agents and removes bulk-created
-            agents.{" "}
+            Full store reset restores all three hero agents and removes bulk-created
+            agents from AgentForge (not ISC).{" "}
             <button
               type="button"
               onClick={() => void resetDemoData("full-store")}
@@ -1026,14 +1105,7 @@ export function DemoOrchestratorPanel() {
 
       <ol className="space-y-2">
         {activeSteps.map((step, index) =>
-          renderStepRow(
-            activeMode,
-            step,
-            index,
-            activeMode === "full-sync"
-              ? platformSourceConfigured && iscCredentialsReady
-              : iscReady,
-            {
+          renderStepRow(activeMode, step, index, {
             requiresIsc: true,
           }),
         )}
@@ -1047,10 +1119,17 @@ export function DemoOrchestratorPanel() {
 
       {activeMode === "full-sync" ? (
         <p className="text-xs text-zinc-500">
-          Steps 2–3 run in the ISC UI — confirm when each aggregation succeeds.
-          Other steps call ISC APIs and poll until complete.
+          Step 1 creates agents in AgentForge only — open the Agents page to
+          view them. ISC discovers them in steps 4–5. Steps 2–3 run in the ISC
+          UI; other steps call ISC APIs and poll until complete.
         </p>
-      ) : null}
+      ) : (
+        <p className="text-xs text-zinc-500">
+          Revoke removes an entitlement in AgentForge. Re-aggregate pushes the
+          change to ISC. Use Restore demo agent to put Jira:Admin back for another
+          run.
+        </p>
+      )}
       </section>
     </section>
   );
