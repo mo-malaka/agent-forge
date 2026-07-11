@@ -76,8 +76,10 @@ export async function runDemoPreflight(
     label: "ISC configuration",
     status: credentials ? "pass" : "fail",
     message: credentials
-      ? `Connected to tenant ${iscStatus.tenant}`
-      : "Set ISC_TENANT, ISC_CLIENT_ID, and ISC_CLIENT_SECRET",
+      ? `Connected to tenant ${iscStatus.tenant}${
+          iscStatus.credentialSource === "ui" ? " (UI)" : ""
+        }`
+      : "Save tenant connection under Demo → ISC sources (or set ISC_TENANT, ISC_CLIENT_ID, and ISC_CLIENT_SECRET)",
     detail: iscStatus,
   });
 

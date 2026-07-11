@@ -3,11 +3,9 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import {
-  DemoPreflightPanel,
-  isPreflightBlocking,
-} from "@/components/DemoPreflightPanel";
+import { DemoPreflightPanel } from "@/components/DemoPreflightPanel";
 import { IscSourceSettingsPanel } from "@/components/IscSourceSettingsPanel";
+import { isPreflightBlockingForStep } from "@/lib/demo/preflight-blocking";
 import type { PreflightResult } from "@/lib/demo/preflight";
 import {
   clearDemoProgress,
@@ -342,8 +340,6 @@ export function DemoOrchestratorPanel() {
     }
   }
 
-  const preflightBlocked = isPreflightBlocking(preflightResult);
-
   function updateStepStatus(
     step: DemoStepId,
     status: LogStatus,
@@ -520,14 +516,17 @@ export function DemoOrchestratorPanel() {
     const label = stepStatusLabel(status, step);
     const requiresIsc = options?.requiresIsc ?? true;
     const iscInstruction = MANUAL_ISC_UI_INSTRUCTIONS[step];
-    const blockedByPreflight =
-      preflightBlocked && !(mode === "full-sync" && step === "bulk-create");
+    const blockedByPreflight = isPreflightBlockingForStep(preflightResult, {
+      step,
+      mode,
+      iscCredentialsReady,
+    });
+    const missingIscPrereqs =
+      requiresIsc &&
+      step !== "bulk-create" &&
+      (!iscCredentialsReady || !platformSourceConfigured);
     const stepDisabled =
-      (requiresIsc &&
-        step !== "bulk-create" &&
-        (!iscCredentialsReady || !platformSourceConfigured)) ||
-      runningStep !== null ||
-      blockedByPreflight;
+      missingIscPrereqs || runningStep !== null || blockedByPreflight;
     const expanded = isStepExpanded(step, mode);
     const isNext = getNextIncompleteStep(mode) === step;
 
@@ -695,23 +694,36 @@ export function DemoOrchestratorPanel() {
             </p>
           ) : null}
           {isManualIsc && !isConfirmed ? (
-            <label className="mt-2 flex cursor-pointer items-start gap-2 text-xs text-zinc-700 dark:text-zinc-300">
-              <input
-                type="checkbox"
-                checked={manualAckChecked[step] ?? false}
-                disabled={stepDisabled}
-                onChange={(event) =>
-                  setManualAckChecked((current) => ({
-                    ...current,
-                    [step]: event.target.checked,
-                  }))
-                }
-                className="mt-0.5 h-3.5 w-3.5 rounded border-zinc-300"
-              />
-              <span>
-                I ran this aggregation in ISC and it completed successfully
-              </span>
-            </label>
+            <div className="mt-2 space-y-1">
+              <label
+                className={`flex items-start gap-2 text-xs text-zinc-700 dark:text-zinc-300 ${
+                  stepDisabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={manualAckChecked[step] ?? false}
+                  disabled={stepDisabled}
+                  onChange={(event) =>
+                    setManualAckChecked((current) => ({
+                      ...current,
+                      [step]: event.target.checked,
+                    }))
+                  }
+                  className="mt-0.5 h-3.5 w-3.5 rounded border-zinc-300"
+                />
+                <span>
+                  I ran this aggregation in ISC and it completed successfully
+                </span>
+              </label>
+              {missingIscPrereqs ? (
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  {!iscCredentialsReady
+                    ? "Save and verify the ISC tenant connection above first."
+                    : `Save and verify the ${DEPLOYMENT_PROVIDERS[provider].label} source ID above first.`}
+                </p>
+              ) : null}
+            </div>
           ) : null}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
