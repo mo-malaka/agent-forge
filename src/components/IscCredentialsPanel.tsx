@@ -159,9 +159,76 @@ export function IscCredentialsPanel({
           <li>Copy client ID and secret into the form below.</li>
         </ol>
 
-        <p className="mt-3 text-zinc-500">
-          There is no <strong>Connections → API Management</strong> path in modern
-          ISC navigation. Use Preferences (PAT) or Global → Security Settings.
+        <p className="mt-2 font-medium text-zinc-900 dark:text-zinc-100">
+          Which scopes to select
+        </p>
+        <p className="mt-1 text-zinc-600 dark:text-zinc-400">
+          <strong>Demo shortcut:</strong> if your user is an ISC admin, toggle{" "}
+          <code className="text-[11px]">sp:scopes:all</code> — it grants every
+          scope allowed by your user levels. Fine for POC demos.
+        </p>
+        <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+          <strong>Least privilege</strong> (AgentForge orchestrator only):
+        </p>
+        <ul className="mt-1 list-disc space-y-1 pl-5">
+          <li>
+            <code className="text-[11px]">idn:sources:read</code> — verify
+            sources, read config
+          </li>
+          <li>
+            <code className="text-[11px]">idn:sources:manage</code> — account
+            aggregation, machine-account mappings
+          </li>
+          <li>
+            <code className="text-[11px]">idn:accounts:read</code> — list
+            accounts for verify / classify steps
+          </li>
+          <li>
+            <code className="text-[11px]">idn:entitlement:manage</code> —
+            entitlement aggregation
+          </li>
+          <li>
+            <code className="text-[11px]">idn:mis-identity:manage</code> +{" "}
+            <code className="text-[11px]">idn:mis-identity:read</code> —
+            machine identity aggregation (there is no{" "}
+            <code className="text-[11px]">idn:mis-agents:aggregate</code> scope
+            in the PAT picker)
+          </li>
+          <li>
+            <code className="text-[11px]">idn:mis-account:read</code> — list
+            machine accounts
+          </li>
+          <li>
+            <code className="text-[11px]">idn:task-management:read</code> —
+            poll aggregation jobs (there is no{" "}
+            <code className="text-[11px]">idn:task:read</code> scope)
+          </li>
+        </ul>
+        <p className="mt-2 text-zinc-500">
+          Govern + enforce also calls access request APIs — if revoke fails with
+          403, use <code className="text-[11px]">sp:scopes:all</code> or add
+          access-request scopes your tenant exposes.
+        </p>
+
+        <p className="mt-3 font-medium text-zinc-900 dark:text-zinc-100">
+          Option A vs B — which to use?
+        </p>
+        <ul className="mt-1 list-disc space-y-1.5 pl-5 leading-relaxed">
+          <li>
+            <strong>Option A (PAT)</strong> — best for SE demos: you already have
+            the screen open, setup is fast, token inherits your admin user
+            levels. Downside: tied to your user, expires (default ~6 months).
+          </li>
+          <li>
+            <strong>Option B (API Management)</strong> — best for long-lived
+            automation: service-style client, no user menu. Downside: some ISC
+            APIs expect user context and may behave differently; often needs a
+            dedicated service identity with the right user levels.
+          </li>
+        </ul>
+        <p className="mt-2 text-zinc-500">
+          For AgentForge after Config Hub import, start with{" "}
+          <strong>Option A</strong>.
         </p>
       </details>
 
@@ -242,8 +309,7 @@ export function IscCredentialsPanel({
         </button>
         {view?.configured ? (
           <span className="text-xs text-emerald-700 dark:text-emerald-300">
-            Connected
-            {view.source === "env" ? " (from server env)" : ""}
+            Connected ({view.source === "env" ? "server env" : "UI saved"})
           </span>
         ) : null}
         {savedMessage ? (

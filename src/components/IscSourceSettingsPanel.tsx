@@ -19,6 +19,8 @@ type VerifyState = Partial<
 interface IscSourceSettingsPanelProps {
   credentialsConfigured: boolean;
   tenant: string | null;
+  apiBaseUrl?: string | null;
+  credentialSource?: "ui" | "env" | null;
   onSourcesChange?: () => void;
   onCredentialsChange?: () => void;
 }
@@ -26,6 +28,8 @@ interface IscSourceSettingsPanelProps {
 export function IscSourceSettingsPanel({
   credentialsConfigured,
   tenant,
+  apiBaseUrl,
+  credentialSource,
   onSourcesChange,
   onCredentialsChange,
 }: IscSourceSettingsPanelProps) {
@@ -183,18 +187,21 @@ export function IscSourceSettingsPanel({
             ISC sources
           </h2>
           <p className="mt-1 text-xs text-zinc-500">
-            Paste one Web Services source ID per platform
-            {tenant ? (
-              <>
-                {" "}
-                on tenant <span className="font-mono">{tenant}</span>
-              </>
-            ) : (
-              " after saving tenant connection above"
-            )}
-            . Copy IDs from{" "}
-            <strong>Admin → Connections → Sources</strong> in ISC.
+            Paste one Web Services source ID per platform for the connected ISC
+            tenant{tenant ? <> <span className="font-mono">{tenant}</span></> : null}
+            . Copy IDs from <strong>Admin → Connections → Sources</strong>.
           </p>
+          {apiBaseUrl ? (
+            <p className="mt-1 font-mono text-[10px] text-zinc-500">
+              Verify calls: {apiBaseUrl}
+              {credentialSource === "env" ? (
+                <span className="text-amber-700 dark:text-amber-300">
+                  {" "}
+                  — using server env vars (re-save connection above to use UI)
+                </span>
+              ) : null}
+            </p>
+          ) : null}
         </div>
 
         {loading ? (

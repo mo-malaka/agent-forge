@@ -63,27 +63,9 @@ function normalizePlatformStrings(
   return base;
 }
 
-/** One-time migration for deployments that still have credentials or source IDs in env. */
+/** One-time migration for deployments that still have source IDs in env. */
 function migrateFromEnvIfNeeded(settings: IscSettingsFile): IscSettingsFile {
   let changed = false;
-  let credentials = settings.credentials;
-
-  if (!credentials?.tenant || !credentials.clientId || !credentials.clientSecret) {
-    const tenant = process.env.ISC_TENANT?.trim();
-    const clientId = process.env.ISC_CLIENT_ID?.trim();
-    const clientSecret = process.env.ISC_CLIENT_SECRET?.trim();
-
-    if (tenant && clientId && clientSecret) {
-      credentials = {
-        tenant,
-        clientId,
-        clientSecret,
-        apiVersion: process.env.ISC_API_VERSION?.trim() || "v2026",
-        domain: process.env.ISC_DOMAIN?.trim() || "identitynow.com",
-      };
-      changed = true;
-    }
-  }
 
   const envByProvider: Record<DeploymentProvider, readonly string[]> = {
     aws_bedrock: ["ISC_SOURCE_ID_AWS_BEDROCK", "ISC_SOURCE_ID"],
@@ -138,7 +120,6 @@ function migrateFromEnvIfNeeded(settings: IscSettingsFile): IscSettingsFile {
 
   const migrated: IscSettingsFile = {
     ...settings,
-    credentials,
     sources,
     misSchemas,
     updatedAt: new Date().toISOString(),

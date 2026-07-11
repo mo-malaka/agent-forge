@@ -86,15 +86,29 @@ export function getIscBaseUrl(config: IscCredentials): string {
   return `https://${config.tenant}.api.${config.domain}`;
 }
 
+export function getIscCredentialSource(): "ui" | "env" | null {
+  if (getStoredIscCredentials()) {
+    return "ui";
+  }
+  if (getEnvIscCredentials()) {
+    return "env";
+  }
+  return null;
+}
+
 export function getIscPublicStatus() {
   const credentials = getIscCredentials();
   const sources = getConfiguredIscSourceIds();
   const configuredSourceCount = Object.values(sources).filter(Boolean).length;
+  const credentialSource = getIscCredentialSource();
 
   return {
     credentialsConfigured: credentials !== null,
     configured: credentials !== null && configuredSourceCount > 0,
     tenant: credentials?.tenant ?? null,
+    domain: credentials?.domain ?? null,
+    apiBaseUrl: credentials ? getIscBaseUrl(credentials) : null,
+    credentialSource,
     sources,
     /** Legacy — Bedrock source id (or first configured source). */
     sourceId:

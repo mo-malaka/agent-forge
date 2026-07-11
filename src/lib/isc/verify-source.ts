@@ -1,4 +1,4 @@
-import { getIscCredentials } from "@/lib/isc/config";
+import { getIscBaseUrl, getIscCredentials } from "@/lib/isc/config";
 import { iscRequest } from "@/lib/isc/client";
 import { getIscSourceId } from "@/lib/isc/settings-store";
 import { DEPLOYMENT_PROVIDERS, type DeploymentProvider } from "@/lib/providers/profiles";
@@ -23,7 +23,7 @@ export async function verifyIscPlatformSource(
       ok: false,
       sourceName: null,
       message:
-        "ISC credentials are not configured. Set ISC_TENANT, ISC_CLIENT_ID, and ISC_CLIENT_SECRET on the server.",
+        "ISC credentials are not configured. Save tenant connection above first.",
     };
   }
 
@@ -55,15 +55,22 @@ export async function verifyIscPlatformSource(
         : `Verified source ${sourceId}`,
     };
   } catch (error) {
+    const raw =
+      error instanceof Error
+        ? error.message
+        : "Could not verify source with ISC API";
+    const apiBase = getIscBaseUrl(credentials);
+    const tenantHint =
+      raw.includes("404") || raw.includes("Not found")
+        ? ` API base: ${apiBase}. If this tenant is wrong, re-save ISC tenant connection above (UI overrides baked Amplify env vars when saved).`
+        : "";
+
     return {
       provider,
       sourceId,
       ok: false,
       sourceName: null,
-      message:
-        error instanceof Error
-          ? error.message
-          : "Could not verify source with ISC API",
+      message: `${raw}${tenantHint}`,
     };
   }
 }

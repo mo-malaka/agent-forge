@@ -46,6 +46,9 @@ interface IscConfigStatus {
   credentialsConfigured: boolean;
   configured: boolean;
   tenant: string | null;
+  domain?: string | null;
+  apiBaseUrl?: string | null;
+  credentialSource?: "ui" | "env" | null;
   sourceId: string | null;
   sources: Record<DeploymentProvider, string | null>;
   apiVersion: string;
@@ -777,6 +780,8 @@ export function DemoOrchestratorPanel() {
       <IscSourceSettingsPanel
         credentialsConfigured={iscCredentialsReady}
         tenant={iscStatus?.tenant ?? null}
+        apiBaseUrl={iscStatus?.apiBaseUrl ?? null}
+        credentialSource={iscStatus?.credentialSource ?? null}
         onCredentialsChange={refreshIscStatus}
         onSourcesChange={() => {
           refreshIscStatus();
@@ -793,7 +798,18 @@ export function DemoOrchestratorPanel() {
                 <p>
                   ISC connected ·{" "}
                   <span className="font-mono">{iscStatus.tenant}</span>
+                  {iscStatus.credentialSource ? (
+                    <span className="text-zinc-500">
+                      {" "}
+                      ({iscStatus.credentialSource === "ui" ? "UI" : "env"})
+                    </span>
+                  ) : null}
                 </p>
+                {iscStatus.apiBaseUrl ? (
+                  <p className="font-mono text-[10px] text-zinc-500">
+                    {iscStatus.apiBaseUrl}
+                  </p>
+                ) : null}
                 <p className="text-[11px] text-zinc-600 dark:text-zinc-400">
                   {DEPLOYMENT_PROVIDER_VALUES.map((key) => {
                     const id = iscStatus.sources?.[key];
