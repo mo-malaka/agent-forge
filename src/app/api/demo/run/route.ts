@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 
+import { withRequestIscRuntime } from "@/lib/isc/apply-runtime";
 import { runDemoStep } from "@/lib/demo/orchestrator";
 import { DEMO_MODES, getDemoCatalog, getNextStep, type DemoModeId } from "@/lib/demo/steps";
 import { jsonError, jsonValidationError } from "@/lib/api/response";
@@ -11,9 +12,13 @@ export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = demoStepSchema.parse(await request.json());
+    const raw = await request.json();
+    const body = demoStepSchema.parse(raw);
     const baseUrl = resolveBaseUrl(request.headers);
-    const result = await runDemoStep(body, baseUrl);
+
+    const result = await withRequestIscRuntime(request, raw, async () =>
+      runDemoStep(body, baseUrl),
+    );
     const mode = (request.nextUrl.searchParams.get("mode") ??
       null) as DemoModeId | null;
     const nextStep =

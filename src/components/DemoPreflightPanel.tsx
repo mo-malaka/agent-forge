@@ -6,6 +6,10 @@ import { reconcilePreflightResult } from "@/lib/demo/preflight-display";
 import type { PreflightCheck, PreflightResult } from "@/lib/demo/preflight";
 import type { DemoModeId, DemoStepId } from "@/lib/demo/steps";
 import type { DeploymentProvider } from "@/lib/providers/profiles";
+import {
+  withIscRuntimeBody,
+  withIscRuntimeHeaders,
+} from "@/lib/isc/session-cache";
 
 function statusStyles(status: PreflightCheck["status"]) {
   switch (status) {
@@ -42,7 +46,7 @@ interface DemoPreflightPanelProps {
   refreshKey?: number;
   iscCredentialsReady?: boolean;
   tenant?: string | null;
-  credentialSource?: "ui" | "env" | null;
+  credentialSource?: "ui" | "env" | "session" | null;
   stepStatus?: StepStatusMap;
   onResultChange?: (result: PreflightResult | null) => void;
 }
@@ -93,16 +97,22 @@ export function DemoPreflightPanel({
     setError(null);
 
     try {
-      const params = new URLSearchParams({
+      const payload = {
         mode,
         agent_id: agentId,
         allow_permission: allowPermission,
         principal,
+        ...(deploymentProvider ? { deployment_provider: deploymentProvider } : {}),
+      };
+
+      const response = await fetch("/api/demo/preflight", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...withIscRuntimeHeaders(),
+        },
+        body: JSON.stringify(withIscRuntimeBody(payload)),
       });
-      if (deploymentProvider) {
-        params.set("deployment_provider", deploymentProvider);
-      }
-      const response = await fetch(`/api/demo/preflight?${params.toString()}`);
       const body = (await response.json()) as PreflightResult & { error?: string };
 
       if (!response.ok) {

@@ -5,9 +5,10 @@ import {
 
 import {
   getConfiguredIscSourceIds,
-  getIscSourceId,
+  getIscSourceId as getStoredIscSourceId,
   getStoredIscCredentials,
 } from "@/lib/isc/settings-store";
+import { getActiveIscRuntime, runtimeToCredentials } from "@/lib/isc/runtime-config";
 
 export interface IscConfig {
   tenant: string;
@@ -20,7 +21,17 @@ export interface IscConfig {
 
 export type IscCredentials = Omit<IscConfig, "sourceId">;
 
-export { getConfiguredIscSourceIds, getIscSourceId };
+export { getConfiguredIscSourceIds };
+
+export function getIscSourceId(provider: DeploymentProvider): string | null {
+  const runtime = getActiveIscRuntime();
+  const fromRuntime = runtime?.sources?.[provider]?.trim();
+  if (fromRuntime) {
+    return fromRuntime;
+  }
+
+  return getStoredIscSourceId(provider);
+}
 
 function getEnvIscCredentials(): IscCredentials | null {
   const tenant = process.env.ISC_TENANT?.trim();
@@ -41,6 +52,11 @@ function getEnvIscCredentials(): IscCredentials | null {
 }
 
 export function getIscCredentials(): IscCredentials | null {
+  const runtime = getActiveIscRuntime();
+  if (runtime) {
+    return runtimeToCredentials(runtime);
+  }
+
   return getStoredIscCredentials() ?? getEnvIscCredentials();
 }
 
@@ -86,7 +102,10 @@ export function getIscBaseUrl(config: IscCredentials): string {
   return `https://${config.tenant}.api.${config.domain}`;
 }
 
-export function getIscCredentialSource(): "ui" | "env" | null {
+export function getIscCredentialSource(): "ui" | "env" | "session" | null {
+  if (getActiveIscRuntime()) {
+    return "session";
+  }
   if (getStoredIscCredentials()) {
     return "ui";
   }
@@ -98,7 +117,19 @@ export function getIscCredentialSource(): "ui" | "env" | null {
 
 export function getIscPublicStatus() {
   const credentials = getIscCredentials();
-  const sources = getConfiguredIscSourceIds();
+  const fileSources = getConfiguredIscSourceIds();
+  const runtime = getActiveIscRuntime();
+  const sources = { ...fileSources };
+
+  if (runtime?.sources) {
+    for (const provider of Object.keys(sources) as DeploymentProvider[]) {
+      const value = runtime.sources[provider]?.trim();
+      if (value) {
+        sources[provider] = value;
+      }
+    }
+  }
+
   const configuredSourceCount = Object.values(sources).filter(Boolean).length;
   const credentialSource = getIscCredentialSource();
 

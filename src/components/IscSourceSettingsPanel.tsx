@@ -4,6 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 
 import { IscCredentialsPanel } from "@/components/IscCredentialsPanel";
 import {
+  hasIscSessionCache,
+  loadIscSessionCache,
+  saveIscSessionCache,
+  withIscRuntimeBody,
+} from "@/lib/isc/session-cache";
+import {
   DEPLOYMENT_PROVIDERS,
   DEPLOYMENT_PROVIDER_VALUES,
   type DeploymentProvider,
@@ -20,7 +26,7 @@ interface IscSourceSettingsPanelProps {
   credentialsConfigured: boolean;
   tenant: string | null;
   apiBaseUrl?: string | null;
-  credentialSource?: "ui" | "env" | null;
+  credentialSource?: "ui" | "env" | "session" | null;
   onSourcesChange?: () => void;
   onCredentialsChange?: () => void;
 }
@@ -50,6 +56,8 @@ export function IscSourceSettingsPanel({
   const [error, setError] = useState<string | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
+  const connectionReady = credentialsConfigured || hasIscSessionCache();
+
   const loadSources = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -66,20 +74,29 @@ export function IscSourceSettingsPanel({
         throw new Error(body.error ?? "Failed to load ISC sources");
       }
 
+      const cached = loadIscSessionCache();
+
       setSources({
-        aws_bedrock: body.sources?.aws_bedrock ?? "",
-        gcp_vertex: body.sources?.gcp_vertex ?? "",
-        azure_ai_foundry: body.sources?.azure_ai_foundry ?? "",
+        aws_bedrock:
+          body.sources?.aws_bedrock || cached?.sources.aws_bedrock || "",
+        gcp_vertex: body.sources?.gcp_vertex || cached?.sources.gcp_vertex || "",
+        azure_ai_foundry:
+          body.sources?.azure_ai_foundry ||
+          cached?.sources.azure_ai_foundry ||
+          "",
       });
       setMisSchemas({
         aws_bedrock:
           body.misSchemas?.aws_bedrock ??
+          cached?.mis_schemas.aws_bedrock ??
           DEPLOYMENT_PROVIDERS.aws_bedrock.misSchemaId,
         gcp_vertex:
           body.misSchemas?.gcp_vertex ??
+          cached?.mis_schemas.gcp_vertex ??
           DEPLOYMENT_PROVIDERS.gcp_vertex.misSchemaId,
         azure_ai_foundry:
           body.misSchemas?.azure_ai_foundry ??
+          cached?.mis_schemas.azure_ai_foundry ??
           DEPLOYMENT_PROVIDERS.azure_ai_foundry.misSchemaId,
       });
     } catch (loadError) {
@@ -97,10 +114,12 @@ export function IscSourceSettingsPanel({
     void loadSources();
   }, [loadSources]);
 
-  async function saveSources() {
+  async function saveSources(options?: { quiet?: boolean }) {
     setSaving(true);
-    setError(null);
-    setSavedMessage(null);
+    if (!options?.quiet) {
+      setError(null);
+      setSavedMessage(null);
+    }
 
     try {
       const response = await fetch("/api/isc/sources", {
@@ -114,20 +133,39 @@ export function IscSourceSettingsPanel({
         throw new Error(body.error ?? "Failed to save ISC sources");
       }
 
-      setSavedMessage("Source settings saved.");
+      const cached = loadIscSessionCache();
+      if (cached) {
+        saveIscSessionCache({
+          sources,
+          mis_schemas: misSchemas,
+        });
+      }
+
+      if (!options?.quiet) {
+        setSavedMessage("Source settings saved.");
+      }
       onSourcesChange?.();
     } catch (saveError) {
-      setError(
-        saveError instanceof Error ? saveError.message : "Failed to save",
-      );
+      if (!options?.quiet) {
+        setError(
+          saveError instanceof Error ? saveError.message : "Failed to save",
+        );
+      } else {
+        throw saveError;
+      }
     } finally {
       setSaving(false);
     }
   }
 
   async function verifySource(provider: DeploymentProvider) {
-    if (!credentialsConfigured) {
+    if (!connectionReady) {
       setError("Save ISC tenant connection credentials before verifying sources.");
+      return;
+    }
+
+    if (!sources[provider].trim()) {
+      setError(`Enter a source ID for ${DEPLOYMENT_PROVIDERS[provider].label}.`);
       return;
     }
 
@@ -135,13 +173,17 @@ export function IscSourceSettingsPanel({
     setError(null);
 
     try {
+      await saveSources({ quiet: true });
+
       const response = await fetch("/api/isc/sources/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          provider,
-          source_id: sources[provider],
-        }),
+        body: JSON.stringify(
+          withIscRuntimeBody({
+            provider,
+            source_id: sources[provider],
+          }),
+        ),
       });
       const body = (await response.json()) as {
         ok?: boolean;
@@ -190,6 +232,7 @@ export function IscSourceSettingsPanel({
             Paste one Web Services source ID per platform for the connected ISC
             tenant{tenant ? <> <span className="font-mono">{tenant}</span></> : null}
             . Copy IDs from <strong>Admin → Connections → Sources</strong>.
+            Verify auto-saves source IDs before checking ISC.
           </p>
           {apiBaseUrl ? (
             <p className="mt-1 font-mono text-[10px] text-zinc-500">
@@ -238,7 +281,7 @@ export function IscSourceSettingsPanel({
                         disabled={
                           !sources[provider].trim() ||
                           verifying !== null ||
-                          !credentialsConfigured
+                          !connectionReady
                         }
                         className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
                       >

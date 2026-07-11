@@ -2,6 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import {
+  loadIscSessionCache,
+  saveIscSessionCache,
+} from "@/lib/isc/session-cache";
+
 interface CredentialsView {
   configured: boolean;
   tenant: string | null;
@@ -93,6 +98,17 @@ export function IscCredentialsPanel({
       }
 
       setSavedMessage(body.message ?? "ISC credentials saved.");
+      const cached = loadIscSessionCache();
+      const secretForCache = clientSecret.trim() || cached?.client_secret || "";
+      if (secretForCache) {
+        saveIscSessionCache({
+          tenant,
+          client_id: clientId,
+          client_secret: secretForCache,
+          api_version: apiVersion,
+          domain,
+        });
+      }
       setClientSecret("");
       await loadCredentials();
       onCredentialsChange?.();

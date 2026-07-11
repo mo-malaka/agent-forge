@@ -11,7 +11,7 @@ export function reconcilePreflightResult(
   options: {
     iscCredentialsReady: boolean;
     tenant: string | null;
-    credentialSource?: "ui" | "env" | null;
+    credentialSource?: "ui" | "env" | "session" | null;
     stepStatus?: StepStatusMap;
   },
 ): PreflightResult | null {
@@ -32,7 +32,11 @@ export function reconcilePreflightResult(
         ...check,
         status: "pass" as const,
         message: `Connected to tenant ${options.tenant ?? "configured"}${
-          options.credentialSource === "ui" ? " (UI)" : ""
+          options.credentialSource === "ui"
+            ? " (UI)"
+            : options.credentialSource === "session"
+              ? " (browser session)"
+              : ""
         }`,
       };
     }

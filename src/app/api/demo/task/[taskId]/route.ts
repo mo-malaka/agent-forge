@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { withRequestIscRuntime } from "@/lib/isc/apply-runtime";
 import { getAnyIscConfig } from "@/lib/isc/config";
 import {
   getTaskStatus,
@@ -16,26 +17,28 @@ type RouteContext = {
   params: Promise<{ taskId: string }>;
 };
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
   try {
-    const config = getAnyIscConfig();
-    if (!config) {
-      return jsonError(
-        "ISC is not configured. Set ISC_TENANT, ISC_CLIENT_ID, and ISC_CLIENT_SECRET, and save at least one platform source ID on the Demo page.",
-        503,
-      );
-    }
+    return await withRequestIscRuntime(request, undefined, async () => {
+      const config = getAnyIscConfig();
+      if (!config) {
+        return jsonError(
+          "ISC is not configured. Save tenant connection and source IDs on the Demo page, then try again.",
+          503,
+        );
+      }
 
-    const { taskId } = await context.params;
-    const status = await getTaskStatus(config, taskId);
+      const { taskId } = await context.params;
+      const status = await getTaskStatus(config, taskId);
 
-    return NextResponse.json({
-      taskId,
-      complete: isTaskComplete(status),
-      successful: isTaskSuccessful(status),
-      label: formatTaskStatus(status),
-      errorDetail: formatTaskErrors(status),
-      status,
+      return NextResponse.json({
+        taskId,
+        complete: isTaskComplete(status),
+        successful: isTaskSuccessful(status),
+        label: formatTaskStatus(status),
+        errorDetail: formatTaskErrors(status),
+        status,
+      });
     });
   } catch (error) {
     console.error("GET /api/demo/task/[taskId] failed:", error);

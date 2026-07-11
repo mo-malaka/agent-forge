@@ -8,6 +8,12 @@ import { IscSourceSettingsPanel } from "@/components/IscSourceSettingsPanel";
 import { isPreflightBlockingForStep, getStepDisableReason } from "@/lib/demo/preflight-blocking";
 import type { PreflightResult } from "@/lib/demo/preflight";
 import {
+  getSessionConfiguredSources,
+  hasIscSessionCache,
+  withIscRuntimeBody,
+  withIscRuntimeHeaders,
+} from "@/lib/isc/session-cache";
+import {
   clearDemoProgress,
   loadDemoProgress,
   saveDemoProgress,
@@ -46,7 +52,7 @@ interface IscConfigStatus {
   tenant: string | null;
   domain?: string | null;
   apiBaseUrl?: string | null;
-  credentialSource?: "ui" | "env" | null;
+  credentialSource?: "ui" | "env" | "session" | null;
   sourceId: string | null;
   sources: Record<DeploymentProvider, string | null>;
   apiVersion: string;
@@ -163,7 +169,9 @@ function stepStatusLabel(status: LogStatus | undefined, step: DemoStepId) {
 
 async function pollTask(taskId: string, onTick: (message: string) => void) {
   for (let attempt = 0; attempt < TASK_POLL_MAX_ATTEMPTS; attempt += 1) {
-    const response = await fetch(`/api/demo/task/${taskId}`);
+    const response = await fetch(`/api/demo/task/${taskId}`, {
+      headers: withIscRuntimeHeaders(),
+    });
     const body = (await response.json()) as {
       complete?: boolean;
       successful?: boolean;
@@ -247,7 +255,7 @@ export function DemoOrchestratorPanel() {
   const [iscSetupOpen, setIscSetupOpen] = useState(true);
 
   const refreshIscStatus = useCallback(() => {
-    void fetch("/api/demo/config")
+    void fetch("/api/demo/config", { headers: withIscRuntimeHeaders() })
       .then((response) => response.json())
       .then((body: IscConfigStatus) => setIscStatus(body))
       .catch(() =>
@@ -268,6 +276,13 @@ export function DemoOrchestratorPanel() {
 
   useEffect(() => {
     refreshIscStatus();
+  }, [refreshIscStatus]);
+
+  useEffect(() => {
+    if (hasIscSessionCache()) {
+      refreshIscStatus();
+      setPreflightRefreshKey((current) => current + 1);
+    }
   }, [refreshIscStatus]);
 
   useEffect(() => {
@@ -398,7 +413,11 @@ export function DemoOrchestratorPanel() {
     const response = await fetch(`/api/demo/run?mode=${mode}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(
+        withIscRuntimeBody(
+          payload as Record<string, unknown>,
+        ),
+      ),
     });
 
     const body = (await response.json()) as DemoStepResponse & { error?: string };
@@ -459,14 +478,16 @@ export function DemoOrchestratorPanel() {
     }
   }
 
-  const iscCredentialsReady = iscStatus?.credentialsConfigured ?? false;
+  const iscCredentialsReady =
+    (iscStatus?.credentialsConfigured ?? false) || hasIscSessionCache();
   const syncProvider =
     activeMode === "govern-enforce"
       ? providerForDemoAgent(agentId)
       : provider;
-  const platformSourceConfigured =
-    iscStatus?.sources?.[syncProvider] != null &&
-    iscStatus.sources[syncProvider] !== "";
+  const sessionSources = getSessionConfiguredSources();
+  const platformSourceConfigured = Boolean(
+    iscStatus?.sources?.[syncProvider] || sessionSources[syncProvider],
+  );
 
   function bumpPreflightRefresh() {
     setPreflightRefreshKey((current) => current + 1);
@@ -864,7 +885,11 @@ export function DemoOrchestratorPanel() {
                   <>
                     Connected to{" "}
                     <span className="font-mono">{iscStatus?.tenant}</span>
-                    {iscStatus?.credentialSource === "ui" ? " (UI)" : null}
+                    {iscStatus?.credentialSource === "ui"
+                      ? " (UI)"
+                      : iscStatus?.credentialSource === "session"
+                        ? " (browser session)"
+                        : null}
                     {platformSourceConfigured
                       ? ` · ${DEPLOYMENT_PROVIDERS[syncProvider].label} source ready`
                       : " · add a source ID below"}

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { DEMO_STEP_IDS } from "@/lib/demo/steps";
 import { deploymentProviderSchema } from "@/lib/validation/agent.schema";
+import { iscRuntimeSchema } from "@/lib/validation/isc.schema";
 
 export const demoStepSchema = z.object({
   step: z.enum(DEMO_STEP_IDS),
@@ -18,6 +19,7 @@ export const demoStepSchema = z.object({
   assignment_id: z.string().trim().min(1).optional(),
   schemas: z.array(z.string().trim().min(1)).max(10).optional(),
   dataset_ids: z.array(z.string().trim().min(1)).max(10).optional(),
+  isc_runtime: iscRuntimeSchema,
 });
 
 export type DemoStepPayload = z.infer<typeof demoStepSchema>;
@@ -36,4 +38,5 @@ export const demoPreflightQuerySchema = z.object({
   allow_permission: z.string().trim().min(1).optional(),
   principal: z.string().trim().min(1).optional(),
   deployment_provider: deploymentProviderSchema.optional(),
+  isc_runtime: iscRuntimeSchema,
 });
