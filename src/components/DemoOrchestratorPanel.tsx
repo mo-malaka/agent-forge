@@ -777,6 +777,7 @@ export function DemoOrchestratorPanel() {
       <IscSourceSettingsPanel
         credentialsConfigured={iscCredentialsReady}
         tenant={iscStatus?.tenant ?? null}
+        onCredentialsChange={refreshIscStatus}
         onSourcesChange={() => {
           refreshIscStatus();
           setPreflightRefreshKey((current) => current + 1);
@@ -807,8 +808,7 @@ export function DemoOrchestratorPanel() {
               </div>
             ) : (
               <p className="text-amber-700 dark:text-amber-300">
-                ISC credentials missing — set ISC_TENANT, ISC_CLIENT_ID, and
-                ISC_CLIENT_SECRET on the server
+                ISC not connected — save tenant connection in the panel above
               </p>
             )
           ) : (

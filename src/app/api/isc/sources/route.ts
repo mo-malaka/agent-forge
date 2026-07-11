@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
 import { jsonError, jsonValidationError } from "@/lib/api/response";
-import { getIscCredentials, getIscPublicStatus } from "@/lib/isc/config";
+import { getIscPublicStatus } from "@/lib/isc/config";
 import {
   readIscSettings,
   updateIscSettings,
@@ -34,13 +34,6 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
-    if (!getIscCredentials()) {
-      return jsonError(
-        "ISC credentials are not configured. Set ISC_TENANT, ISC_CLIENT_ID, and ISC_CLIENT_SECRET.",
-        503,
-      );
-    }
-
     const body = iscSourcesUpdateSchema.parse(await request.json());
     if (!body.sources && !body.mis_schemas) {
       return jsonError("sources or mis_schemas object is required", 400);

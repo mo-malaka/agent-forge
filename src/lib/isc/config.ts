@@ -6,6 +6,7 @@ import {
 import {
   getConfiguredIscSourceIds,
   getIscSourceId,
+  getStoredIscCredentials,
 } from "@/lib/isc/settings-store";
 
 export interface IscConfig {
@@ -21,7 +22,7 @@ export type IscCredentials = Omit<IscConfig, "sourceId">;
 
 export { getConfiguredIscSourceIds, getIscSourceId };
 
-export function getIscCredentials(): IscCredentials | null {
+function getEnvIscCredentials(): IscCredentials | null {
   const tenant = process.env.ISC_TENANT?.trim();
   const clientId = process.env.ISC_CLIENT_ID?.trim();
   const clientSecret = process.env.ISC_CLIENT_SECRET?.trim();
@@ -37,6 +38,10 @@ export function getIscCredentials(): IscCredentials | null {
     apiVersion: process.env.ISC_API_VERSION?.trim() || "v2026",
     domain: process.env.ISC_DOMAIN?.trim() || "identitynow.com",
   };
+}
+
+export function getIscCredentials(): IscCredentials | null {
+  return getStoredIscCredentials() ?? getEnvIscCredentials();
 }
 
 export function getIscConfigForProvider(

@@ -325,16 +325,15 @@ function PostImportSteps({
             Link sources in AgentForge
           </p>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Set <code className="text-xs">ISC_TENANT</code>,{" "}
-            <code className="text-xs">ISC_CLIENT_ID</code>, and{" "}
-            <code className="text-xs">ISC_CLIENT_SECRET</code>, then{" "}
+            Open{" "}
             <Link
               href="/demo"
               className="font-medium text-indigo-700 underline underline-offset-2 dark:text-indigo-300"
             >
-              Demo → ISC sources
+              Demo
             </Link>{" "}
-            — paste source IDs and verify MIS schemas (
+            → <strong>ISC tenant connection</strong> (tenant + OAuth client) →{" "}
+            <strong>ISC sources</strong> (paste IDs, verify MIS schemas:{" "}
             {platforms.map((p) => p.misSchemaDefault).join(", ")}).
           </p>
         </div>

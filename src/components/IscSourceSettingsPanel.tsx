@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { IscCredentialsPanel } from "@/components/IscCredentialsPanel";
 import {
   DEPLOYMENT_PROVIDERS,
   DEPLOYMENT_PROVIDER_VALUES,
@@ -19,12 +20,14 @@ interface IscSourceSettingsPanelProps {
   credentialsConfigured: boolean;
   tenant: string | null;
   onSourcesChange?: () => void;
+  onCredentialsChange?: () => void;
 }
 
 export function IscSourceSettingsPanel({
   credentialsConfigured,
   tenant,
   onSourcesChange,
+  onCredentialsChange,
 }: IscSourceSettingsPanelProps) {
   const [sources, setSources] = useState<SourceMap>({
     aws_bedrock: "",
@@ -107,7 +110,7 @@ export function IscSourceSettingsPanel({
         throw new Error(body.error ?? "Failed to save ISC sources");
       }
 
-      setSavedMessage("ISC settings saved.");
+      setSavedMessage("Source settings saved.");
       onSourcesChange?.();
     } catch (saveError) {
       setError(
@@ -119,6 +122,11 @@ export function IscSourceSettingsPanel({
   }
 
   async function verifySource(provider: DeploymentProvider) {
+    if (!credentialsConfigured) {
+      setError("Save ISC tenant connection credentials before verifying sources.");
+      return;
+    }
+
     setVerifying(provider);
     setError(null);
 
@@ -160,133 +168,130 @@ export function IscSourceSettingsPanel({
     }
   }
 
-  if (!credentialsConfigured) {
-    return (
-      <section className="rounded-md border border-amber-200 bg-amber-50/60 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-        <p className="font-medium">ISC credentials required</p>
-        <p className="mt-1 text-xs text-amber-800 dark:text-amber-300">
-          Set <span className="font-mono">ISC_TENANT</span>,{" "}
-          <span className="font-mono">ISC_CLIENT_ID</span>, and{" "}
-          <span className="font-mono">ISC_CLIENT_SECRET</span> on the server
-          (Amplify env). Source IDs are configured here — no redeploy when
-          switching platforms.
-        </p>
-      </section>
-    );
-  }
-
   return (
-    <section className="space-y-3 rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-950">
-      <div>
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-          ISC sources
-        </h2>
-        <p className="mt-1 text-xs text-zinc-500">
-          One Web Services source ID per platform on tenant{" "}
-          <span className="font-mono">{tenant}</span>. Saved in AgentForge —
-          switch platforms in the demo without redeploying.
-        </p>
-      </div>
+    <div className="space-y-4">
+      <IscCredentialsPanel
+        onCredentialsChange={() => {
+          onCredentialsChange?.();
+          onSourcesChange?.();
+        }}
+      />
 
-      {loading ? (
-        <p className="text-xs text-zinc-500">Loading source settings...</p>
-      ) : (
-        <div className="space-y-3">
-          {DEPLOYMENT_PROVIDER_VALUES.map((provider) => {
-            const verify = verifyState[provider];
-            return (
-              <div
-                key={provider}
-                className="space-y-1.5 rounded-md border border-zinc-200 p-3 dark:border-zinc-700"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
+      <section className="space-y-3 rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-950">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            ISC sources
+          </h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            Paste one Web Services source ID per platform
+            {tenant ? (
+              <>
+                {" "}
+                on tenant <span className="font-mono">{tenant}</span>
+              </>
+            ) : (
+              " after saving tenant connection above"
+            )}
+            . Copy IDs from{" "}
+            <strong>Admin → Connections → Sources</strong> in ISC.
+          </p>
+        </div>
+
+        {loading ? (
+          <p className="text-xs text-zinc-500">Loading source settings...</p>
+        ) : (
+          <div className="space-y-3">
+            {DEPLOYMENT_PROVIDER_VALUES.map((provider) => {
+              const verify = verifyState[provider];
+              return (
+                <div
+                  key={provider}
+                  className="space-y-1.5 rounded-md border border-zinc-200 p-3 dark:border-zinc-700"
+                >
                   <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
                     {DEPLOYMENT_PROVIDERS[provider].label}
                   </p>
-                </div>
-                <label className="block space-y-1">
-                  <span className="text-[11px] text-zinc-500">Source ID</span>
-                  <div className="flex flex-wrap gap-2">
+                  <label className="block space-y-1">
+                    <span className="text-[11px] text-zinc-500">Source ID</span>
+                    <div className="flex flex-wrap gap-2">
+                      <input
+                        value={sources[provider]}
+                        onChange={(event) =>
+                          setSources((current) => ({
+                            ...current,
+                            [provider]: event.target.value,
+                          }))
+                        }
+                        placeholder="ISC source ID"
+                        className="min-w-[12rem] flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void verifySource(provider)}
+                        disabled={
+                          !sources[provider].trim() ||
+                          verifying !== null ||
+                          !credentialsConfigured
+                        }
+                        className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+                      >
+                        {verifying === provider ? "Verifying..." : "Verify"}
+                      </button>
+                    </div>
+                  </label>
+                  <label className="block space-y-1">
+                    <span className="text-[11px] text-zinc-500">
+                      Machine identity schema
+                    </span>
                     <input
-                      value={sources[provider]}
+                      value={misSchemas[provider]}
                       onChange={(event) =>
-                        setSources((current) => ({
+                        setMisSchemas((current) => ({
                           ...current,
                           [provider]: event.target.value,
                         }))
                       }
-                      placeholder="ISC source ID"
-                      className="min-w-[12rem] flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
+                      placeholder={DEPLOYMENT_PROVIDERS[provider].misSchemaId}
+                      className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
                     />
-                    <button
-                      type="button"
-                      onClick={() => void verifySource(provider)}
-                      disabled={!sources[provider].trim() || verifying !== null}
-                      className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+                  </label>
+                  {verify ? (
+                    <p
+                      className={`text-xs ${
+                        verify.ok
+                          ? "text-emerald-700 dark:text-emerald-300"
+                          : "text-red-700 dark:text-red-300"
+                      }`}
                     >
-                      {verifying === provider ? "Verifying..." : "Verify"}
-                    </button>
-                  </div>
-                </label>
-                <label className="block space-y-1">
-                  <span className="text-[11px] text-zinc-500">
-                    Machine identity schema (datasetId for step 4)
-                  </span>
-                  <input
-                    value={misSchemas[provider]}
-                    onChange={(event) =>
-                      setMisSchemas((current) => ({
-                        ...current,
-                        [provider]: event.target.value,
-                      }))
-                    }
-                    placeholder={DEPLOYMENT_PROVIDERS[provider].misSchemaId}
-                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
-                  />
-                  <p className="text-[11px] text-zinc-500">
-                    Must match ISC schema name and{" "}
-                    <span className="font-mono">
-                      Machine Identity Aggregation - …
-                    </span>{" "}
-                    HTTP op suffix.
-                  </p>
-                </label>
-                {verify ? (
-                  <p
-                    className={`text-xs ${
-                      verify.ok
-                        ? "text-emerald-700 dark:text-emerald-300"
-                        : "text-red-700 dark:text-red-300"
-                    }`}
-                  >
-                    {verify.message}
-                  </p>
-                ) : null}
-              </div>
-            );
-          })}
+                      {verify.message}
+                    </p>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => void saveSources()}
+            disabled={saving || loading}
+            className="rounded-md bg-zinc-900 px-4 py-2 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+          >
+            {saving ? "Saving..." : "Save source settings"}
+          </button>
+          {savedMessage ? (
+            <span className="text-xs text-emerald-700 dark:text-emerald-300">
+              {savedMessage}
+            </span>
+          ) : null}
         </div>
-      )}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={() => void saveSources()}
-          disabled={saving || loading}
-          className="rounded-md bg-zinc-900 px-4 py-2 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
-        >
-          {saving ? "Saving..." : "Save ISC settings"}
-        </button>
-        {savedMessage ? (
-          <span className="text-xs text-emerald-700 dark:text-emerald-300">
-            {savedMessage}
-          </span>
+        {error ? (
+          <p className="text-xs text-red-700 dark:text-red-300">{error}</p>
         ) : null}
-      </div>
-
-      {error ? (
-        <p className="text-xs text-red-700 dark:text-red-300">{error}</p>
-      ) : null}
-    </section>
+      </section>
+    </div>
   );
 }

@@ -13,7 +13,16 @@ const SETTINGS_PATH = path.join(DATA_DIR, "isc-settings.json");
 export type IscPlatformSources = Record<DeploymentProvider, string>;
 export type IscPlatformMisSchemas = Record<DeploymentProvider, string>;
 
+export interface IscStoredCredentials {
+  tenant: string;
+  clientId: string;
+  clientSecret: string;
+  apiVersion: string;
+  domain: string;
+}
+
 export interface IscSettingsFile {
+  credentials?: IscStoredCredentials;
   sources: IscPlatformSources;
   misSchemas: IscPlatformMisSchemas;
   updatedAt: string;
@@ -54,15 +63,34 @@ function normalizePlatformStrings(
   return base;
 }
 
-/** One-time migration for deployments that still have source IDs in env. */
+/** One-time migration for deployments that still have credentials or source IDs in env. */
 function migrateFromEnvIfNeeded(settings: IscSettingsFile): IscSettingsFile {
+  let changed = false;
+  let credentials = settings.credentials;
+
+  if (!credentials?.tenant || !credentials.clientId || !credentials.clientSecret) {
+    const tenant = process.env.ISC_TENANT?.trim();
+    const clientId = process.env.ISC_CLIENT_ID?.trim();
+    const clientSecret = process.env.ISC_CLIENT_SECRET?.trim();
+
+    if (tenant && clientId && clientSecret) {
+      credentials = {
+        tenant,
+        clientId,
+        clientSecret,
+        apiVersion: process.env.ISC_API_VERSION?.trim() || "v2026",
+        domain: process.env.ISC_DOMAIN?.trim() || "identitynow.com",
+      };
+      changed = true;
+    }
+  }
+
   const envByProvider: Record<DeploymentProvider, readonly string[]> = {
     aws_bedrock: ["ISC_SOURCE_ID_AWS_BEDROCK", "ISC_SOURCE_ID"],
     gcp_vertex: ["ISC_SOURCE_ID_GCP_VERTEX"],
     azure_ai_foundry: ["ISC_SOURCE_ID_AZURE_FOUNDRY"],
   };
 
-  let changed = false;
   const sources = { ...settings.sources };
 
   for (const provider of DEPLOYMENT_PROVIDER_VALUES) {
@@ -109,6 +137,8 @@ function migrateFromEnvIfNeeded(settings: IscSettingsFile): IscSettingsFile {
   }
 
   const migrated: IscSettingsFile = {
+    ...settings,
+    credentials,
     sources,
     misSchemas,
     updatedAt: new Date().toISOString(),
@@ -138,6 +168,7 @@ export function readIscSettings(): IscSettingsFile {
   const raw = fs.readFileSync(SETTINGS_PATH, "utf8");
   const parsed = JSON.parse(raw) as Partial<IscSettingsFile>;
   const settings: IscSettingsFile = {
+    credentials: parsed.credentials,
     sources: normalizePlatformStrings(parsed.sources, emptySources()) as IscPlatformSources,
     misSchemas: normalizePlatformStrings(
       parsed.misSchemas,
@@ -175,6 +206,110 @@ export function getConfiguredIscSourceIds(): Record<
   };
 }
 
+export function getStoredIscCredentials(): IscStoredCredentials | null {
+  const credentials = readIscSettings().credentials;
+  if (
+    !credentials?.tenant?.trim() ||
+    !credentials.clientId?.trim() ||
+    !credentials.clientSecret?.trim()
+  ) {
+    return null;
+  }
+
+  return {
+    tenant: credentials.tenant.trim(),
+    clientId: credentials.clientId.trim(),
+    clientSecret: credentials.clientSecret.trim(),
+    apiVersion: credentials.apiVersion?.trim() || "v2026",
+    domain: credentials.domain?.trim() || "identitynow.com",
+  };
+}
+
+export function getIscCredentialsPublicView() {
+  const stored = readIscSettings().credentials;
+  const hasStored =
+    Boolean(stored?.tenant?.trim()) &&
+    Boolean(stored?.clientId?.trim()) &&
+    Boolean(stored?.clientSecret?.trim());
+
+  if (hasStored && stored) {
+    return {
+      configured: true,
+      tenant: stored.tenant.trim(),
+      clientId: stored.clientId.trim(),
+      clientSecretSet: true,
+      apiVersion: stored.apiVersion?.trim() || "v2026",
+      domain: stored.domain?.trim() || "identitynow.com",
+      source: "ui" as const,
+    };
+  }
+
+  const tenant = process.env.ISC_TENANT?.trim();
+  const clientId = process.env.ISC_CLIENT_ID?.trim();
+  const clientSecret = process.env.ISC_CLIENT_SECRET?.trim();
+
+  if (tenant && clientId && clientSecret) {
+    return {
+      configured: true,
+      tenant,
+      clientId,
+      clientSecretSet: true,
+      apiVersion: process.env.ISC_API_VERSION?.trim() || "v2026",
+      domain: process.env.ISC_DOMAIN?.trim() || "identitynow.com",
+      source: "env" as const,
+    };
+  }
+
+  return {
+    configured: false,
+    tenant: stored?.tenant?.trim() ?? tenant ?? null,
+    clientId: stored?.clientId?.trim() ?? clientId ?? null,
+    clientSecretSet: Boolean(stored?.clientSecret?.trim() || clientSecret),
+    apiVersion:
+      stored?.apiVersion?.trim() ||
+      process.env.ISC_API_VERSION?.trim() ||
+      "v2026",
+    domain:
+      stored?.domain?.trim() ||
+      process.env.ISC_DOMAIN?.trim() ||
+      "identitynow.com",
+    source: null as "ui" | "env" | null,
+  };
+}
+
+export function updateIscCredentials(
+  patch: {
+    tenant: string;
+    clientId: string;
+    clientSecret?: string;
+    apiVersion?: string;
+    domain?: string;
+  },
+): IscSettingsFile {
+  const current = readIscSettings();
+  const existingSecret = current.credentials?.clientSecret?.trim() ?? "";
+  const nextSecret = patch.clientSecret?.trim() || existingSecret;
+
+  if (!nextSecret) {
+    throw new Error("Client secret is required");
+  }
+
+  const next: IscSettingsFile = {
+    ...current,
+    credentials: {
+      tenant: patch.tenant.trim(),
+      clientId: patch.clientId.trim(),
+      clientSecret: nextSecret,
+      apiVersion: patch.apiVersion?.trim() || "v2026",
+      domain: patch.domain?.trim() || "identitynow.com",
+    },
+    updatedAt: new Date().toISOString(),
+  };
+
+  writeSettingsFile(next);
+  return next;
+}
+
 export function updateIscSettings(patch: {
   sources?: Partial<Record<DeploymentProvider, string>>;
   misSchemas?: Partial<Record<DeploymentProvider, string>>;
@@ -202,6 +337,8 @@ export function updateIscSettings(patch: {
   }
 
   const next: IscSettingsFile = {
+    ...current,
+    credentials: current.credentials,
     sources,
     misSchemas,
     updatedAt: new Date().toISOString(),

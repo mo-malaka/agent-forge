@@ -1,4 +1,4 @@
-import { getIscBaseUrl, type IscConfig } from "@/lib/isc/config";
+import { getIscBaseUrl, type IscCredentials } from "@/lib/isc/config";
 
 interface TokenCache {
   accessToken: string;
@@ -7,7 +7,7 @@ interface TokenCache {
 
 let tokenCache: TokenCache | null = null;
 
-export async function getIscAccessToken(config: IscConfig): Promise<string> {
+export async function getIscAccessToken(config: IscCredentials): Promise<string> {
   const now = Date.now();
 
   if (tokenCache && tokenCache.expiresAt > now + 60_000) {
