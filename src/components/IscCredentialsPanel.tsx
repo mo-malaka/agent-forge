@@ -111,34 +111,58 @@ export function IscCredentialsPanel({
         <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
           ISC tenant connection
         </h2>
-        <p className="mt-1 text-xs text-zinc-500">
-          Connect AgentForge to your target ISC tenant using an OAuth API client.
-          Saved on the server — no Amplify redeploy required.
+        <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+          Connect AgentForge to your target ISC tenant. Use a{" "}
+          <strong>Personal Access Token</strong> (Preferences) or an{" "}
+          <strong>API Management</strong> client — both provide a Client ID and
+          secret for the fields below.
         </p>
       </div>
 
       <details className="rounded-md border border-indigo-200 bg-indigo-50/50 p-3 text-xs text-zinc-700 dark:border-indigo-900 dark:bg-indigo-950/30 dark:text-zinc-300">
         <summary className="cursor-pointer font-medium text-zinc-900 dark:text-zinc-100">
-          How to create the API client in ISC
+          How to get Client ID + secret for AgentForge
         </summary>
-        <ol className="mt-2 list-decimal space-y-1.5 pl-5 leading-relaxed">
+
+        <p className="mt-2 font-medium text-zinc-900 dark:text-zinc-100">
+          Option A — Personal Access Token (easiest; you may already be here)
+        </p>
+        <ol className="mt-1 list-decimal space-y-1.5 pl-5 leading-relaxed">
           <li>
-            In your <strong>target</strong> tenant:{" "}
-            <strong>Admin → Connections → API Management</strong> (or{" "}
-            <strong>OAuth Clients</strong>).
+            User menu (top right) → <strong>Preferences</strong> →{" "}
+            <strong>Personal Access Tokens</strong> → <strong>Create a Token</strong>.
           </li>
-          <li>Create a client with grant type <strong>Client Credentials</strong>.</li>
           <li>
-            Add scopes for the demo orchestrator, e.g.{" "}
-            <code className="text-[11px]">idn:sources:read</code>,{" "}
-            <code className="text-[11px]">idn:sources:manage</code>,{" "}
-            <code className="text-[11px]">idn:accounts:read</code>,{" "}
-            <code className="text-[11px]">idn:entitlement:manage</code>,{" "}
-            <code className="text-[11px]">idn:mis-agents:aggregate</code>,{" "}
-            <code className="text-[11px]">idn:mis-account:read</code>.
+            Select scopes for the demo orchestrator (or{" "}
+            <code className="text-[11px]">sp:scopes:all</code> if your user level
+            allows it).
           </li>
-          <li>Copy the client ID and secret into the form below.</li>
+          <li>
+            After create, copy <strong>Client ID</strong> and{" "}
+            <strong>Secret</strong> into the form below (same fields — PATs use
+            client credentials).
+          </li>
         </ol>
+
+        <p className="mt-3 font-medium text-zinc-900 dark:text-zinc-100">
+          Option B — API Management (service-style client)
+        </p>
+        <ol className="mt-1 list-decimal space-y-1.5 pl-5 leading-relaxed">
+          <li>
+            <strong>Admin → Global → Security Settings</strong> →{" "}
+            <strong>API Management</strong> tab.
+          </li>
+          <li>
+            <strong>Create API Client</strong> → grant type{" "}
+            <strong>Client Credentials</strong> → select scopes → create.
+          </li>
+          <li>Copy client ID and secret into the form below.</li>
+        </ol>
+
+        <p className="mt-3 text-zinc-500">
+          There is no <strong>Connections → API Management</strong> path in modern
+          ISC navigation. Use Preferences (PAT) or Global → Security Settings.
+        </p>
       </details>
 
       {loading ? (
