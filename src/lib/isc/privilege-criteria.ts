@@ -34,14 +34,22 @@ async function iscFetch(
   path: string,
   options: RequestInit = {},
 ): Promise<unknown> {
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${token.trim()}`,
-      Accept: "application/json",
-      ...(options.headers as Record<string, string> | undefined),
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${token.trim()}`,
+        Accept: "application/json",
+        ...(options.headers as Record<string, string> | undefined),
+      },
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Could not reach ISC at ${baseUrl} (${detail}). Check tenant, API domain, and network access from AgentForge.`,
+    );
+  }
 
   const text = await response.text();
   let body: unknown = null;

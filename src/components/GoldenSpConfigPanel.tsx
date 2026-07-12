@@ -10,7 +10,12 @@ import {
   loadIscBootstrapPrefill,
   resolveBootstrapClientSecret,
 } from "@/lib/isc/bootstrap-prefill";
-import { saveIscSessionCache } from "@/lib/isc/session-cache";
+import {
+  hasIscSessionCache,
+  saveIscSessionCache,
+  withIscRuntimeBody,
+  withIscRuntimeHeaders,
+} from "@/lib/isc/session-cache";
 import { DEPLOYMENT_PROVIDERS } from "@/lib/providers/profiles";
 
 interface PlatformStatus {
@@ -105,6 +110,10 @@ function PrivilegeClassificationApplyPanel({
     };
   }, [platforms]);
 
+  const usingSavedConnection =
+    Boolean(connection?.credentialsConfigured && connection.tenant?.trim()) ||
+    hasIscSessionCache();
+
   async function runApply() {
     setBusy(true);
     setError(null);
@@ -121,34 +130,55 @@ function PrivilegeClassificationApplyPanel({
           continue;
         }
 
-        const response = await fetch(
-          "/api/setup/isc-sp-config/apply-privilege-classification",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              tenant,
-              domain: domain.trim() || undefined,
-              client_id: clientId,
-              client_secret: resolvedSecret,
-              connector_slug: platform.connectorSlug,
-              source_id: sourceId,
-            }),
-          },
-        );
+        try {
+          const response = await fetch(
+            "/api/setup/isc-sp-config/apply-privilege-classification",
+            {
+              method: "POST",
+              headers: withIscRuntimeHeaders({
+                "Content-Type": "application/json",
+              }),
+              body: JSON.stringify(
+                withIscRuntimeBody({
+                  ...(tenant.trim() ? { tenant } : {}),
+                  ...(domain.trim() ? { domain: domain.trim() } : {}),
+                  ...(!usingSavedConnection
+                    ? {
+                        client_id: clientId,
+                        client_secret: resolvedSecret,
+                      }
+                    : {}),
+                  connector_slug: platform.connectorSlug,
+                  source_id: sourceId,
+                }),
+              ),
+            },
+          );
 
-        const body = (await response.json()) as {
-          error?: string;
-          message?: string;
-        };
+          let body: { error?: string; message?: string } = {};
+          try {
+            body = (await response.json()) as { error?: string; message?: string };
+          } catch {
+            body = { error: `AgentForge API error (${response.status})` };
+          }
 
-        applied.push({
-          connectorSlug: platform.connectorSlug,
-          ok: response.ok,
-          message: response.ok
-            ? (body.message ?? "Applied")
-            : (body.error ?? "Apply failed"),
-        });
+          applied.push({
+            connectorSlug: platform.connectorSlug,
+            ok: response.ok,
+            message: response.ok
+              ? (body.message ?? "Applied")
+              : (body.error ?? "Apply failed"),
+          });
+        } catch (fetchError) {
+          applied.push({
+            connectorSlug: platform.connectorSlug,
+            ok: false,
+            message:
+              fetchError instanceof Error
+                ? fetchError.message
+                : "Network error calling AgentForge",
+          });
+        }
       }
 
       if (applied.length === 0) {
@@ -181,7 +211,9 @@ function PrivilegeClassificationApplyPanel({
 
         await fetch("/api/isc/sources", {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: withIscRuntimeHeaders({
+            "Content-Type": "application/json",
+          }),
           body: JSON.stringify({
             sources,
             mis_schemas: {
@@ -206,15 +238,13 @@ function PrivilegeClassificationApplyPanel({
     }
   }
 
-  const canApply =
-    tenant.trim() &&
-    clientId.trim() &&
-    (clientSecret.trim().length >= 8 ||
-      Boolean(resolveBootstrapClientSecret(""))) &&
-    eligible.some((p) => sourceIds[p.connectorSlug]?.trim());
-
-  const usingSavedConnection =
-    connection?.credentialsConfigured && Boolean(connection.tenant?.trim());
+  const canApply = usingSavedConnection
+    ? eligible.some((p) => sourceIds[p.connectorSlug]?.trim())
+    : tenant.trim() &&
+      clientId.trim() &&
+      (clientSecret.trim().length >= 8 ||
+        Boolean(resolveBootstrapClientSecret(""))) &&
+      eligible.some((p) => sourceIds[p.connectorSlug]?.trim());
 
   return (
     <div className="space-y-3">
@@ -233,10 +263,15 @@ function PrivilegeClassificationApplyPanel({
 
       {usingSavedConnection ? (
         <p className="rounded-md border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-xs text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
-          Using saved connection:{" "}
-          <span className="font-mono">{connection?.tenant}</span>
-          {connection?.domain ? ` · ${connection.domain}` : null}. Source IDs
-          below are pre-filled from Connect.
+          Using Client ID &amp; secret from <strong>Connect</strong>
+          {connection?.tenant ? (
+            <>
+              {" "}
+              (<span className="font-mono">{connection.tenant}</span>
+              {connection.domain ? ` · ${connection.domain}` : null})
+            </>
+          ) : null}
+          . No need to re-enter credentials here.
         </p>
       ) : null}
 
@@ -251,75 +286,66 @@ function PrivilegeClassificationApplyPanel({
         </p>
       ) : null}
 
-      <IscOrgAdminPatGuide defaultOpen={false} />
-
-      {usingSavedConnection ? (
-        <label className="block text-xs">
-          <span className="font-medium text-zinc-800 dark:text-zinc-200">
-            PAT Client Secret
-          </span>
-          <input
-            type="password"
-            value={clientSecret}
-            onChange={(event) => setClientSecret(event.target.value)}
-            autoComplete="off"
-            placeholder="Only if not already saved in Connect"
-            className="mt-1 w-full max-w-md rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
-          />
-        </label>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block text-xs">
-            <span className="font-medium text-zinc-800 dark:text-zinc-200">
-              Target tenant slug
-            </span>
-            <input
-              type="text"
-              value={tenant}
-              onChange={(event) => setTenant(event.target.value)}
-              placeholder="company23447-poc"
-              className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
-            />
-          </label>
-          <label className="block text-xs">
-            <span className="font-medium text-zinc-800 dark:text-zinc-200">
-              API domain (optional)
-            </span>
-            <input
-              type="text"
-              value={domain}
-              onChange={(event) => setDomain(event.target.value)}
-              placeholder="identitynow-demo.com"
-              className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
-            />
-          </label>
-          <label className="block text-xs">
-            <span className="font-medium text-zinc-800 dark:text-zinc-200">
-              PAT Client ID
-            </span>
-            <input
-              type="text"
-              value={clientId}
-              onChange={(event) => setClientId(event.target.value)}
-              autoComplete="off"
-              className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
-            />
-          </label>
-          <label className="block text-xs">
-            <span className="font-medium text-zinc-800 dark:text-zinc-200">
-              PAT Client Secret
-            </span>
-            <input
-              type="password"
-              value={clientSecret}
-              onChange={(event) => setClientSecret(event.target.value)}
-              autoComplete="off"
-              placeholder="Leave blank if already saved in Connect"
-              className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
-            />
-          </label>
-        </div>
-      )}
+      {!usingSavedConnection ? (
+        <>
+          <p className="text-xs text-amber-800 dark:text-amber-200">
+            Save tenant, Client ID, and secret in <strong>Connect</strong> first
+            — then return here. Or enter them below if you have not connected
+            yet.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block text-xs">
+              <span className="font-medium text-zinc-800 dark:text-zinc-200">
+                Target tenant slug
+              </span>
+              <input
+                type="text"
+                value={tenant}
+                onChange={(event) => setTenant(event.target.value)}
+                placeholder="company23447-poc"
+                className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
+              />
+            </label>
+            <label className="block text-xs">
+              <span className="font-medium text-zinc-800 dark:text-zinc-200">
+                API domain (optional)
+              </span>
+              <input
+                type="text"
+                value={domain}
+                onChange={(event) => setDomain(event.target.value)}
+                placeholder="identitynow-demo.com"
+                className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
+              />
+            </label>
+            <label className="block text-xs">
+              <span className="font-medium text-zinc-800 dark:text-zinc-200">
+                Client ID
+              </span>
+              <input
+                type="text"
+                value={clientId}
+                onChange={(event) => setClientId(event.target.value)}
+                autoComplete="off"
+                className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
+              />
+            </label>
+            <label className="block text-xs">
+              <span className="font-medium text-zinc-800 dark:text-zinc-200">
+                Client secret
+              </span>
+              <input
+                type="password"
+                value={clientSecret}
+                onChange={(event) => setClientSecret(event.target.value)}
+                autoComplete="off"
+                placeholder="From Preferences → Personal Access Tokens"
+                className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
+              />
+            </label>
+          </div>
+        </>
+      ) : null}
 
       {eligible.length > 0 ? (
         <div className="grid gap-2 sm:grid-cols-2">
@@ -579,8 +605,8 @@ function ApiImportPanel({
         <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
           AgentForge calls{" "}
           <code className="text-[11px]">POST /beta/sp-config/import</code> on
-          your target tenant using a short-lived ORG_ADMIN PAT. The token is sent
-          only for this request and is never saved.
+          your target tenant. This is separate from Connect — paste a one-time
+          ORG_ADMIN access token below (not saved).
         </p>
       </div>
 

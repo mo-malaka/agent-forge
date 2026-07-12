@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { iscRuntimeSchema } from "@/lib/validation/isc.schema";
+
 export const iscSpConfigImportSchema = z.object({
   tenant: z.string().trim().min(1, "Tenant slug is required"),
   domain: z.string().trim().optional(),
@@ -15,24 +17,15 @@ export const iscSpConfigImportSchema = z.object({
 
 export const iscPrivilegeClassificationApplySchema = z
   .object({
-    tenant: z.string().trim().min(1, "Tenant slug is required"),
+    tenant: z.string().trim().min(1).optional(),
     domain: z.string().trim().optional(),
     personal_access_token: z.string().trim().min(20).optional(),
     client_id: z.string().trim().min(1).optional(),
     client_secret: z.string().trim().min(1).optional(),
     connector_slug: z.enum(["aws-bedrock", "gcp-vertex", "azure-ai-foundry"]),
     source_id: z.string().trim().min(1, "ISC source ID is required"),
-  })
-  .refine(
-    (data) =>
-      Boolean(data.personal_access_token) ||
-      Boolean(data.client_id && data.client_secret),
-    {
-      message:
-        "Provide personal_access_token (JWT) or PAT client_id + client_secret",
-      path: ["client_id"],
-    },
-  );
+    isc_runtime: iscRuntimeSchema,
+  });
 
 export const iscSpConfigImportAllSchema = z.object({
   tenant: z.string().trim().min(1, "Tenant slug is required"),

@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
+import { withRequestIscRuntime } from "@/lib/isc/apply-runtime";
 import { jsonError, jsonValidationError } from "@/lib/api/response";
 import {
   applyPrivilegeCriteriaGolden,
   loadPrivilegeCriteriaGolden,
 } from "@/lib/isc/privilege-criteria";
+import {
+  assertIscTargetAuth,
+  resolveIscTargetAuth,
+} from "@/lib/isc/resolve-target-auth";
 import { iscPrivilegeClassificationApplySchema } from "@/lib/validation/setup.schema";
 
 const PLATFORM_BY_SLUG = {
@@ -16,38 +21,49 @@ const PLATFORM_BY_SLUG = {
 
 export async function POST(request: Request) {
   try {
-    const payload = iscPrivilegeClassificationApplySchema.parse(
-      await request.json(),
-    );
-    const platform = PLATFORM_BY_SLUG[payload.connector_slug];
-    const golden = await loadPrivilegeCriteriaGolden(platform);
+    const raw = await request.json();
 
-    if (!golden) {
-      return jsonError(
-        `Golden privilege classification for "${payload.connector_slug}" is not published. Maintainer must run scripts/export-privilege-criteria.mjs and commit config/isc/golden/privilege-classification.*.json`,
-        404,
-      );
-    }
+    return withRequestIscRuntime(request, raw, async () => {
+      const payload = iscPrivilegeClassificationApplySchema.parse(raw);
+      const platform = PLATFORM_BY_SLUG[payload.connector_slug];
+      const golden = await loadPrivilegeCriteriaGolden(platform);
 
-    const result = await applyPrivilegeCriteriaGolden({
-      target: {
+      if (!golden) {
+        return jsonError(
+          `Golden privilege classification for "${payload.connector_slug}" is not published. Maintainer must run scripts/export-privilege-criteria.mjs and commit config/isc/golden/privilege-classification.*.json`,
+          404,
+        );
+      }
+
+      const auth = resolveIscTargetAuth({
         tenant: payload.tenant,
         domain: payload.domain,
         personalAccessToken: payload.personal_access_token,
         clientId: payload.client_id,
         clientSecret: payload.client_secret,
-      },
-      sourceId: payload.source_id,
-      golden,
-    });
+      });
+      assertIscTargetAuth(auth);
 
-    return NextResponse.json({
-      ok: true,
-      connector_slug: payload.connector_slug,
-      source_id: payload.source_id,
-      ...result,
-      message:
-        "Privilege classification applied. Re-run outboundPermissions and inboundCallers entitlement aggregation in ISC.",
+      const result = await applyPrivilegeCriteriaGolden({
+        target: {
+          tenant: auth.tenant,
+          domain: auth.domain,
+          personalAccessToken: auth.personalAccessToken,
+          clientId: auth.clientId,
+          clientSecret: auth.clientSecret,
+        },
+        sourceId: payload.source_id,
+        golden,
+      });
+
+      return NextResponse.json({
+        ok: true,
+        connector_slug: payload.connector_slug,
+        source_id: payload.source_id,
+        ...result,
+        message:
+          "Privilege classification applied. Re-run outboundPermissions and inboundCallers entitlement aggregation in ISC.",
+      });
     });
   } catch (error) {
     if (error instanceof ZodError) {

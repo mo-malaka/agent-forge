@@ -22,7 +22,7 @@ export async function resolveIscAccessToken(
 
   if (!clientId || !clientSecret) {
     throw new Error(
-      "Provide personal_access_token (JWT) or client_id + client_secret from your ISC PAT.",
+      "Provide client_id + client_secret from Connect (step 1), or save credentials there first.",
     );
   }
 
@@ -32,14 +32,19 @@ export async function resolveIscAccessToken(
     client_secret: clientSecret,
   });
 
-  const response = await fetch(
-    `https://${tenant}.api.${domain}/oauth/token`,
-    {
+  let response: Response;
+  try {
+    response = await fetch(`https://${tenant}.api.${domain}/oauth/token`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,
-    },
-  );
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Could not reach ISC oauth/token for ${tenant}.api.${domain} (${detail}).`,
+    );
+  }
 
   const text = await response.text();
   let payload: { access_token?: string; error?: string } | null = null;
