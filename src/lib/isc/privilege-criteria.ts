@@ -109,6 +109,7 @@ export async function applyPrivilegeCriteriaGolden(params: {
 }): Promise<{
   criteriaConfigId: string;
   customCriteriaCreated: number;
+  customCriteriaSkipped?: number;
 }> {
   const { resolveIscAccessToken } = await import("@/lib/isc/pat-auth");
   const baseUrl = getApiBase(params.target);
@@ -131,7 +132,7 @@ export async function applyPrivilegeCriteriaGolden(params: {
 
   if (configs.length === 0) {
     throw new Error(
-      `No privilege criteria config found for source ${sourceId}. Complete SP-Config import first.`,
+      `No privilege criteria config found for source ${sourceId}. Complete SP-Config import first, then wait ~30 seconds and retry. If it still fails, open the source in ISC → Entitlement Management and confirm privilege classification is available for Web Services sources.`,
     );
   }
 
@@ -150,8 +151,33 @@ export async function applyPrivilegeCriteriaGolden(params: {
     body: JSON.stringify(patch),
   });
 
+  let existingCustom: Array<Record<string, unknown>> = [];
+  try {
+    const customListed = await iscFetch(
+      baseUrl,
+      token,
+      `/criteria/privilege?filters=${filter}&count=true`,
+    );
+    existingCustom = asArray(customListed);
+  } catch {
+    existingCustom = [];
+  }
+
+  const existingLevels = new Set(
+    existingCustom
+      .map((row) => String(row.privilegeLevel ?? "").trim())
+      .filter(Boolean),
+  );
+
   let created = 0;
+  let skipped = 0;
   for (const row of params.golden.customCriteria ?? []) {
+    const privilegeLevel = String(row.privilegeLevel ?? "").trim();
+    if (privilegeLevel && existingLevels.has(privilegeLevel)) {
+      skipped += 1;
+      continue;
+    }
+
     await iscFetch(baseUrl, token, "/criteria/privilege", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -163,10 +189,13 @@ export async function applyPrivilegeCriteriaGolden(params: {
         privilegeLevel: row.privilegeLevel,
       }),
     });
+    if (privilegeLevel) {
+      existingLevels.add(privilegeLevel);
+    }
     created += 1;
   }
 
-  return { criteriaConfigId, customCriteriaCreated: created };
+  return { criteriaConfigId, customCriteriaCreated: created, customCriteriaSkipped: skipped };
 }
 
 export async function loadPrivilegeCriteriaGolden(

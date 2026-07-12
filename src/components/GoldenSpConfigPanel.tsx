@@ -155,11 +155,16 @@ function PrivilegeClassificationApplyPanel({
             },
           );
 
-          let body: { error?: string; message?: string } = {};
+          const rawText = await response.text();
+          let body: { error?: string; message?: string };
           try {
-            body = (await response.json()) as { error?: string; message?: string };
+            body = JSON.parse(rawText) as { error?: string; message?: string };
           } catch {
-            body = { error: `AgentForge API error (${response.status})` };
+            body = {
+              error:
+                rawText.trim().slice(0, 400) ||
+                `AgentForge API error (${response.status})`,
+            };
           }
 
           applied.push({
