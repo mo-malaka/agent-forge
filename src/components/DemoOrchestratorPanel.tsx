@@ -6,7 +6,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { DemoPhaseHeader } from "@/components/DemoPhaseHeader";
 import { DemoPreflightPanel } from "@/components/DemoPreflightPanel";
 import { GoldenSpConfigPanel } from "@/components/GoldenSpConfigPanel";
-import { IscSourceSettingsPanel } from "@/components/IscSourceSettingsPanel";
+import { IscCredentialsPanel } from "@/components/IscCredentialsPanel";
+import { IscSourceIdsPanel } from "@/components/IscSourceIdsPanel";
 import { isPreflightBlockingForStep, getStepDisableReason } from "@/lib/demo/preflight-blocking";
 import type { PreflightResult } from "@/lib/demo/preflight";
 import {
@@ -950,7 +951,7 @@ export function DemoOrchestratorPanel() {
         <DemoPhaseHeader
           phase={1}
           title="Connect to ISC"
-          description="Save tenant credentials and Web Services source IDs once — used for bootstrap and demo steps."
+          description="Save tenant credentials once. Source IDs come after bootstrap import (phase 2)."
         />
         <details
           open={iscSetupOpen}
@@ -963,7 +964,7 @@ export function DemoOrchestratorPanel() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                  ISC connection &amp; sources
+                  ISC tenant connection
                 </p>
                 <p className="text-xs text-zinc-500">
                   {iscCredentialsReady ? (
@@ -975,12 +976,9 @@ export function DemoOrchestratorPanel() {
                         : iscStatus?.credentialSource === "session"
                           ? " (browser session)"
                           : null}
-                      {platformSourceConfigured
-                        ? ` · ${DEPLOYMENT_PROVIDERS[syncProvider].label} source ready`
-                        : " · add a source ID below"}
                     </>
                   ) : (
-                    "Configure tenant credentials and Web Services source IDs"
+                    "Tenant slug, Client ID, and secret"
                   )}
                 </p>
               </div>
@@ -990,16 +988,8 @@ export function DemoOrchestratorPanel() {
             </div>
           </summary>
           <div className="border-t border-zinc-200 px-4 pb-4 pt-3 dark:border-zinc-700">
-            <IscSourceSettingsPanel
-              credentialsConfigured={iscCredentialsReady}
-              tenant={iscStatus?.tenant ?? null}
-              apiBaseUrl={iscStatus?.apiBaseUrl ?? null}
-              credentialSource={iscStatus?.credentialSource ?? null}
+            <IscCredentialsPanel
               onCredentialsChange={() => {
-                refreshIscStatus();
-                bumpPreflightRefresh();
-              }}
-              onSourcesChange={() => {
                 refreshIscStatus();
                 bumpPreflightRefresh();
               }}
@@ -1062,7 +1052,17 @@ export function DemoOrchestratorPanel() {
         <DemoPhaseHeader
           phase={3}
           title="Run demo"
-          description="Prepare agents, sync to ISC, and run govern + enforce."
+          description="Register source IDs after import, then prepare agents and sync to ISC."
+        />
+        <IscSourceIdsPanel
+          credentialsConfigured={iscCredentialsReady}
+          tenant={iscStatus?.tenant ?? null}
+          apiBaseUrl={iscStatus?.apiBaseUrl ?? null}
+          credentialSource={iscStatus?.credentialSource ?? null}
+          onSourcesChange={() => {
+            refreshIscStatus();
+            bumpPreflightRefresh();
+          }}
         />
         <div className="space-y-4 rounded-lg border border-indigo-200 bg-indigo-50/40 p-5 dark:border-indigo-900 dark:bg-indigo-950/20">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1177,7 +1177,7 @@ export function DemoOrchestratorPanel() {
                 {!platformSourceConfigured ? (
                   <p className="text-xs text-amber-700 dark:text-amber-300">
                     Save the {DEPLOYMENT_PROVIDERS[provider].label} source ID
-                    under ISC sources above, then click Verify.
+                    above (after bootstrap import), then click Verify.
                   </p>
                 ) : null}
               </label>

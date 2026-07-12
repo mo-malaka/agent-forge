@@ -11,6 +11,7 @@ import {
   resolveBootstrapClientSecret,
 } from "@/lib/isc/bootstrap-prefill";
 import { saveIscSessionCache } from "@/lib/isc/session-cache";
+import { DEPLOYMENT_PROVIDERS } from "@/lib/providers/profiles";
 
 interface PlatformStatus {
   id: string;
@@ -177,6 +178,21 @@ function PrivilegeClassificationApplyPanel({
           client_secret: resolvedSecret,
           sources,
         });
+
+        await fetch("/api/isc/sources", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sources,
+            mis_schemas: {
+              aws_bedrock: DEPLOYMENT_PROVIDERS.aws_bedrock.misSchemaId,
+              gcp_vertex: DEPLOYMENT_PROVIDERS.gcp_vertex.misSchemaId,
+              azure_ai_foundry:
+                DEPLOYMENT_PROVIDERS.azure_ai_foundry.misSchemaId,
+            },
+          }),
+        });
+
         onApplied?.();
       }
 
@@ -209,8 +225,9 @@ function PrivilegeClassificationApplyPanel({
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
           <strong>Required for Identity Graph rings.</strong> SP-Config import
           (Step 2) creates sources only — it does <em>not</em> copy privilege
-          classification. Uses tenant and API client from{" "}
-          <strong>Connect</strong> above when saved.
+          classification. Copy source IDs from{" "}
+          <strong>Admin → Connections → Sources</strong> after import. Uses
+          tenant and API client from <strong>Connect</strong> when saved.
         </p>
       </div>
 
@@ -725,8 +742,8 @@ function PostImportSteps({ embedded = false }: { embedded?: boolean }) {
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
             {embedded ? (
               <>
-                Scroll to <strong>Run demo</strong> below — save source IDs in
-                Connect if you have not already, then start with step 1 (prepare
+                Register source IDs in <strong>Run demo</strong> below (or enter
+                them here for privilege apply). Then start with step 1 (prepare
                 agents).
               </>
             ) : (
