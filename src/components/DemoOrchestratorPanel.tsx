@@ -18,6 +18,11 @@ import {
   loadDemoProgress,
   saveDemoProgress,
 } from "@/lib/demo/progress-storage";
+import {
+  describeAgentTotals,
+  loadDemoSettings,
+  saveDemoSettings,
+} from "@/lib/demo/settings-storage";
 
 import {
   DEMO_MODES,
@@ -58,8 +63,8 @@ interface IscConfigStatus {
   apiVersion: string;
 }
 
-const BULK_COUNTS = [5, 10, 20] as const;
-type BulkCount = (typeof BULK_COUNTS)[number];
+const ADDITIONAL_AGENT_COUNTS = [0, 5, 10, 20] as const;
+type AdditionalAgentCountOption = (typeof ADDITIONAL_AGENT_COUNTS)[number];
 
 function providerForDemoAgent(agentId: string): DeploymentProvider {
   if (agentId.includes("gcp")) {
@@ -79,7 +84,7 @@ function buildStepPayload(
   step: DemoStepId,
   options: {
     deploymentProvider: DeploymentProvider;
-    count: BulkCount;
+    additionalCount: AdditionalAgentCountOption;
     agentId: string;
     principal: string;
     allowPermission: string;
@@ -93,7 +98,7 @@ function buildStepPayload(
       return {
         ...base,
         deployment_provider: options.deploymentProvider,
-        count: options.count,
+        count: options.additionalCount,
       };
     case "machine-identity-aggregation":
       return {
@@ -226,7 +231,8 @@ export function DemoOrchestratorPanel() {
   const router = useRouter();
   const [iscStatus, setIscStatus] = useState<IscConfigStatus | null>(null);
   const [provider, setProvider] = useState<DeploymentProvider>("aws_bedrock");
-  const [count, setCount] = useState<BulkCount>(5);
+  const [additionalCount, setAdditionalCount] =
+    useState<AdditionalAgentCountOption>(0);
   const [agentId, setAgentId] = useState("agt_demo_aws_bedrock");
   const [principal, setPrincipal] = useState("demo-user");
   const [allowPermission, setAllowPermission] = useState("S3:Read");
@@ -277,6 +283,16 @@ export function DemoOrchestratorPanel() {
   useEffect(() => {
     refreshIscStatus();
   }, [refreshIscStatus]);
+
+  useEffect(() => {
+    const saved = loadDemoSettings();
+    setProvider(saved.provider);
+    setAdditionalCount(saved.additionalCount);
+  }, []);
+
+  useEffect(() => {
+    saveDemoSettings({ provider, additionalCount });
+  }, [provider, additionalCount]);
 
   useEffect(() => {
     if (hasIscSessionCache()) {
@@ -403,7 +419,7 @@ export function DemoOrchestratorPanel() {
 
     const payload = buildStepPayload(step, {
       deploymentProvider,
-      count,
+      additionalCount,
       agentId,
       principal,
       allowPermission,
@@ -736,6 +752,53 @@ export function DemoOrchestratorPanel() {
             ) : null}
           </div>
           <p className="text-xs text-zinc-500">{DEMO_STEPS[step].description}</p>
+          {step === "bulk-create" && activeMode === "full-sync" ? (
+            <div className="mt-3 grid gap-3 rounded-md border border-zinc-200 bg-zinc-50 p-3 sm:grid-cols-2 dark:border-zinc-700 dark:bg-zinc-900/40">
+              <label className="space-y-1 text-xs">
+                <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                  Platform
+                </span>
+                <select
+                  value={provider}
+                  onChange={(event) =>
+                    setProvider(event.target.value as DeploymentProvider)
+                  }
+                  disabled={runningStep !== null}
+                  className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 dark:border-zinc-700 dark:bg-zinc-950"
+                >
+                  {DEPLOYMENT_PROVIDER_VALUES.map((value) => (
+                    <option key={value} value={value}>
+                      {DEPLOYMENT_PROVIDERS[value].label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="space-y-1 text-xs">
+                <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                  Additional agents (beyond hero)
+                </span>
+                <select
+                  value={additionalCount}
+                  onChange={(event) =>
+                    setAdditionalCount(
+                      Number(event.target.value) as AdditionalAgentCountOption,
+                    )
+                  }
+                  disabled={runningStep !== null}
+                  className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 dark:border-zinc-700 dark:bg-zinc-950"
+                >
+                  {ADDITIONAL_AGENT_COUNTS.map((value) => (
+                    <option key={value} value={value}>
+                      {value === 0 ? "None — hero only" : `+${value} more`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p className="text-xs text-zinc-600 sm:col-span-2 dark:text-zinc-400">
+                {describeAgentTotals(provider, additionalCount)}
+              </p>
+            </div>
+          ) : null}
           {isManualIsc && iscInstruction ? (
             <div className="mt-2 rounded border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
               <p className="font-medium">Run this in ISC first</p>
@@ -1041,22 +1104,27 @@ export function DemoOrchestratorPanel() {
               </label>
               <label className="space-y-1 text-sm">
                 <span className="text-xs uppercase tracking-wide text-zinc-500">
-                  Bulk count
+                  Additional agents (beyond hero)
                 </span>
                 <select
-                  value={count}
+                  value={additionalCount}
                   onChange={(event) =>
-                    setCount(Number(event.target.value) as BulkCount)
+                    setAdditionalCount(
+                      Number(event.target.value) as AdditionalAgentCountOption,
+                    )
                   }
                   disabled={runningStep !== null}
                   className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
                 >
-                  {BULK_COUNTS.map((value) => (
+                  {ADDITIONAL_AGENT_COUNTS.map((value) => (
                     <option key={value} value={value}>
-                      {value}
+                      {value === 0 ? "None — hero only" : `+${value} more`}
                     </option>
                   ))}
                 </select>
+                <p className="text-xs text-zinc-500">
+                  {describeAgentTotals(provider, additionalCount)}
+                </p>
               </label>
             </>
           ) : (
@@ -1114,8 +1182,10 @@ export function DemoOrchestratorPanel() {
         </div>
         {activeMode === "full-sync" ? (
           <p className="border-t border-zinc-200 px-3 py-2 text-xs text-zinc-500 dark:border-zinc-700">
-            Full store reset restores all three hero agents and removes bulk-created
-            agents from AgentForge (not ISC).{" "}
+            Step 1 always includes the seeded hero for the selected platform.
+            Choose additional agents above if you want a larger fleet. Full store
+            reset restores heroes and removes bulk agents from AgentForge (not
+            ISC).{" "}
             <button
               type="button"
               onClick={() => void resetDemoData("full-store")}
@@ -1144,9 +1214,10 @@ export function DemoOrchestratorPanel() {
 
       {activeMode === "full-sync" ? (
         <p className="text-xs text-zinc-500">
-          Step 1 creates agents in AgentForge only — open the Agents page to
-          view them. ISC discovers them in steps 4–5. Steps 2–3 run in the ISC
-          UI; other steps call ISC APIs and poll until complete.
+          Step 1 prepares agents in AgentForge only — hero is always included;
+          additional agents are optional. ISC discovers them in steps 4–5. Steps
+          2–3 run in the ISC UI; other steps call ISC APIs and poll until
+          complete.
         </p>
       ) : (
         <p className="text-xs text-zinc-500">

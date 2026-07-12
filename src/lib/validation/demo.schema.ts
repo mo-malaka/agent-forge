@@ -7,7 +7,7 @@ import { iscRuntimeSchema } from "@/lib/validation/isc.schema";
 export const demoStepSchema = z.object({
   step: z.enum(DEMO_STEP_IDS),
   deployment_provider: deploymentProviderSchema.optional(),
-  count: z.union([z.literal(5), z.literal(10), z.literal(20)]).optional(),
+  count: z.union([z.literal(0), z.literal(5), z.literal(10), z.literal(20)]).optional(),
   agent_id: z.string().trim().min(1).optional(),
   principal: z.string().trim().min(1).optional(),
   permission: z.string().trim().min(1).optional(),

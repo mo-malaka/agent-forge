@@ -7,6 +7,8 @@ import { serializeAgent } from "@/lib/agents/serializer";
 import { DEFAULT_LIMIT, DEFAULT_PAGE } from "@/lib/constants";
 import { getRequestBaseUrl } from "@/lib/url";
 
+export const dynamic = "force-dynamic";
+
 export default async function AgentsPage() {
   const baseUrl = await getRequestBaseUrl();
   const { rows, total } = await listAgents({

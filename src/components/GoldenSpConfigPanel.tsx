@@ -4,6 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { IscOrgAdminPatGuide } from "@/components/IscOrgAdminPatGuide";
+import {
+  CONNECTOR_SLUG_TO_PROVIDER,
+  type ConnectorSlug,
+  loadIscBootstrapPrefill,
+  resolveBootstrapClientSecret,
+} from "@/lib/isc/bootstrap-prefill";
+import { saveIscSessionCache } from "@/lib/isc/session-cache";
 
 interface PlatformStatus {
   id: string;
@@ -58,6 +65,35 @@ function PrivilegeClassificationApplyPanel({
   const eligible = platforms.filter((p) => p.privilegeGoldenAvailable);
   const anyGolden = eligible.length > 0;
 
+  useEffect(() => {
+    let cancelled = false;
+    const slugs = platforms
+      .filter((p) => p.privilegeGoldenAvailable)
+      .map((p) => p.connectorSlug as ConnectorSlug);
+
+    void loadIscBootstrapPrefill(slugs).then((prefill) => {
+      if (cancelled) {
+        return;
+      }
+      if (prefill.tenant) {
+        setTenant(prefill.tenant);
+      }
+      if (prefill.domain) {
+        setDomain(prefill.domain);
+      }
+      if (prefill.clientId) {
+        setClientId(prefill.clientId);
+      }
+      if (Object.keys(prefill.sourceIds).length > 0) {
+        setSourceIds((current) => ({ ...current, ...prefill.sourceIds }));
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [platforms]);
+
   async function runApply() {
     setBusy(true);
     setError(null);
@@ -66,6 +102,8 @@ function PrivilegeClassificationApplyPanel({
     const applied: PrivilegeApplyResult[] = [];
 
     try {
+      const resolvedSecret = resolveBootstrapClientSecret(clientSecret);
+
       for (const platform of eligible) {
         const sourceId = sourceIds[platform.connectorSlug]?.trim();
         if (!sourceId) {
@@ -81,7 +119,7 @@ function PrivilegeClassificationApplyPanel({
               tenant,
               domain: domain.trim() || undefined,
               client_id: clientId,
-              client_secret: clientSecret,
+              client_secret: resolvedSecret,
               connector_slug: platform.connectorSlug,
               source_id: sourceId,
             }),
@@ -106,6 +144,31 @@ function PrivilegeClassificationApplyPanel({
         throw new Error("Enter at least one ISC source ID to apply.");
       }
 
+      if (applied.every((row) => row.ok)) {
+        const sources = {
+          aws_bedrock: "",
+          gcp_vertex: "",
+          azure_ai_foundry: "",
+        };
+        for (const platform of eligible) {
+          const sourceId = sourceIds[platform.connectorSlug]?.trim();
+          if (!sourceId) {
+            continue;
+          }
+          const provider =
+            CONNECTOR_SLUG_TO_PROVIDER[platform.connectorSlug as ConnectorSlug];
+          sources[provider] = sourceId;
+        }
+
+        saveIscSessionCache({
+          tenant: tenant.trim(),
+          domain: domain.trim() || "identitynow-demo.com",
+          client_id: clientId.trim(),
+          client_secret: resolvedSecret,
+          sources,
+        });
+      }
+
       setResults(applied);
     } catch (applyError) {
       setError(
@@ -119,7 +182,8 @@ function PrivilegeClassificationApplyPanel({
   const canApply =
     tenant.trim() &&
     clientId.trim() &&
-    clientSecret.trim().length >= 8 &&
+    (clientSecret.trim().length >= 8 ||
+      Boolean(resolveBootstrapClientSecret(""))) &&
     eligible.some((p) => sourceIds[p.connectorSlug]?.trim());
 
   return (
@@ -131,9 +195,14 @@ function PrivilegeClassificationApplyPanel({
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
           <strong>Required for Identity Graph rings.</strong> SP-Config import
           (Step 2) creates sources only — it does <em>not</em> copy privilege
-          classification. Paste each <strong>new</strong> source ID from{" "}
-          <strong>Admin → Connections → Sources</strong> on the target tenant,
-          then apply the golden criteria you exported from your reference tenant.
+          classification. If you already connected on{" "}
+          <Link
+            href="/demo"
+            className="font-medium text-indigo-700 underline underline-offset-2 dark:text-indigo-300"
+          >
+            Demo
+          </Link>
+          , tenant and source IDs are pre-filled below.
         </p>
       </div>
 
@@ -148,7 +217,7 @@ function PrivilegeClassificationApplyPanel({
         </p>
       ) : null}
 
-      <IscOrgAdminPatGuide />
+      <IscOrgAdminPatGuide defaultOpen={false} />
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-xs">
@@ -196,6 +265,7 @@ function PrivilegeClassificationApplyPanel({
             value={clientSecret}
             onChange={(event) => setClientSecret(event.target.value)}
             autoComplete="off"
+            placeholder="Leave blank if already saved on Demo"
             className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
           />
         </label>
@@ -374,6 +444,28 @@ function ApiImportPanel({
   const [results, setResults] = useState<ImportResult[] | null>(null);
   const [lastPreviewOk, setLastPreviewOk] = useState(false);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    void loadIscBootstrapPrefill(
+      platforms.map((p) => p.connectorSlug as ConnectorSlug),
+    ).then((prefill) => {
+      if (cancelled) {
+        return;
+      }
+      if (prefill.tenant) {
+        setTenant(prefill.tenant);
+      }
+      if (prefill.domain) {
+        setDomain(prefill.domain);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [platforms]);
+
   async function runImport(preview: boolean) {
     setBusy(true);
     setError(null);
@@ -430,7 +522,7 @@ function ApiImportPanel({
         </p>
       </div>
 
-      <IscOrgAdminPatGuide />
+      <IscOrgAdminPatGuide defaultOpen={false} />
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-xs">
@@ -547,11 +639,7 @@ function ApiImportPanel({
   );
 }
 
-function PostImportSteps({
-  platforms,
-}: {
-  platforms: PlatformStatus[];
-}) {
+function PostImportSteps() {
   return (
     <>
       <li className="flex gap-3">
@@ -560,12 +648,15 @@ function PostImportSteps({
         </span>
         <div>
           <p className="font-medium text-zinc-900 dark:text-zinc-100">
-            Test each source
+            Test sources &amp; clean up entitlement types
           </p>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
             <strong>Admin → Connections → Sources</strong> — test connection on
-            each imported source (
-            <code className="text-xs">/api/health</code>).
+            each source. If you see an unused default{" "}
+            <strong>group</strong> entitlement type with an empty schema, delete
+            it under <strong>Entitlement Management → Entitlement Types</strong>{" "}
+            — golden import uses <code className="text-xs">outboundPermissions</code>{" "}
+            and <code className="text-xs">inboundCallers</code> only.
           </p>
         </div>
       </li>
@@ -576,7 +667,7 @@ function PostImportSteps({
         </span>
         <div>
           <p className="font-medium text-zinc-900 dark:text-zinc-100">
-            Link sources in AgentForge
+            Continue on Demo
           </p>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
             Open{" "}
@@ -586,9 +677,8 @@ function PostImportSteps({
             >
               Demo
             </Link>{" "}
-            → <strong>ISC tenant connection</strong> (tenant + OAuth client) →{" "}
-            <strong>ISC sources</strong> (paste IDs, verify MIS schemas:{" "}
-            {platforms.map((p) => p.misSchemaDefault).join(", ")}).
+            — tenant and source IDs from Step 3 carry over when saved in this
+            browser session.
           </p>
         </div>
       </li>
@@ -746,24 +836,8 @@ export function GoldenSpConfigPanel() {
               </div>
             </li>
 
-            <PostImportSteps platforms={status.platforms} />
+            <PostImportSteps />
           </ol>
-
-          <details className="mt-4 rounded-md border border-zinc-200 bg-white p-3 text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-400">
-            <summary className="cursor-pointer font-medium text-zinc-800 dark:text-zinc-200">
-              Expected ISC source names after import
-            </summary>
-            <ul className="mt-2 list-disc space-y-1 pl-5">
-              {status.platforms.map((platform) => (
-                <li key={platform.id}>
-                  <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                    {platform.label}:
-                  </span>{" "}
-                  {platform.suggestedSourceName}
-                </li>
-              ))}
-            </ul>
-          </details>
         </>
       ) : null}
     </section>

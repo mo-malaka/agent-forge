@@ -8,6 +8,7 @@ import {
   insertAgents,
   removeAgent,
   updateAgent as updateAgentRow,
+  upsertAgent,
 } from "@/lib/db/store";
 import {
   assertProviderMatch,
@@ -22,9 +23,9 @@ import {
 import { generateRandomAgentBatch } from "@/lib/agents/bulk-generator";
 import { buildAgentEnrichment } from "@/lib/agents/enrichment-builder";
 import type { Archetype } from "@/lib/constants";
+import type { DeploymentProvider } from "@/lib/providers/profiles";
 import type { BulkCreateAgentsPayload } from "@/lib/validation/agent.schema";
 import { mergeDeploymentConfig } from "@/lib/providers/deployment";
-import type { DeploymentProvider } from "@/lib/providers/profiles";
 import type { CreateAgentInput, ListAgentsQuery } from "@/types/agent";
 
 function nowIso(): string {
@@ -111,20 +112,29 @@ export async function listAgents(query: ListAgentsQuery): Promise<{
   });
 }
 
+function bulkAgentId(provider: DeploymentProvider, index: number): string {
+  return `agt_bulk_${provider}_${String(index + 1).padStart(2, "0")}`;
+}
+
 export async function createAgentsBulk(
   input: BulkCreateAgentsPayload,
 ): Promise<AgentRow[]> {
+  if (input.count === 0) {
+    return [];
+  }
+
   const timestamp = nowIso();
   const payloads = generateRandomAgentBatch(input.deployment_provider, input.count);
 
-  const rows = payloads.map((payload) => {
+  const rows: AgentRow[] = [];
+  for (const [index, payload] of payloads.entries()) {
     const deploymentConfig = mergeDeploymentConfig(
       payload.deployment_provider,
       (payload.deployment_config ?? {}) as Record<string, string>,
     );
 
-    return buildEnrichedAgentRow({
-      id: `agt_${nanoid(12)}`,
+    const row = buildEnrichedAgentRow({
+      id: bulkAgentId(input.deployment_provider, index),
       name: payload.name,
       archetype: payload.archetype,
       deploymentProvider: payload.deployment_provider,
@@ -134,9 +144,11 @@ export async function createAgentsBulk(
       inboundAccess: payload.inbound_access ?? [],
       timestamp,
     });
-  });
 
-  return insertAgents(rows);
+    rows.push(upsertAgent(row));
+  }
+
+  return rows;
 }
 
 export async function deleteAgent(id: string): Promise<boolean> {

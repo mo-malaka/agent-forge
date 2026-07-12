@@ -103,10 +103,38 @@ function stripTenantRuntimeState(node) {
   }
   if (node && typeof node === "object") {
     const out = { ...node };
-    // Tenant-specific status from exports — do not carry into golden packages.
     delete out.recommendationStatus;
     for (const key of Object.keys(out)) {
       out[key] = stripTenantRuntimeState(out[key]);
+    }
+    return out;
+  }
+  return node;
+}
+
+function stripEmptyGroupEntitlementSchemas(node) {
+  if (Array.isArray(node)) {
+    return node.map(stripEmptyGroupEntitlementSchemas);
+  }
+  if (node && typeof node === "object") {
+    const out = { ...node };
+    if (Array.isArray(out.schemas)) {
+      out.schemas = out.schemas.filter((schema) => {
+        if (!schema || typeof schema !== "object") {
+          return true;
+        }
+        const name = String(schema.name ?? schema.nativeObjectType ?? "");
+        const attributes = schema.attributes;
+        const isEmptyGroup =
+          name === "group" &&
+          (!Array.isArray(attributes) || attributes.length === 0);
+        return !isEmptyGroup;
+      });
+    }
+    for (const key of Object.keys(out)) {
+      if (key !== "schemas") {
+        out[key] = stripEmptyGroupEntitlementSchemas(out[key]);
+      }
     }
     return out;
   }
@@ -137,6 +165,7 @@ function main() {
   let data = JSON.parse(text);
   data = stripSecrets(data);
   data = stripTenantRuntimeState(data);
+  data = stripEmptyGroupEntitlementSchemas(data);
   if (args.blankSourceId) {
     data = blankSourceObjectIds(data);
   }

@@ -99,15 +99,20 @@ export async function runDemoPreflight(
   }
 
   const activeAgentCount = countAgents({ status: "active" });
+  const platform = options?.deploymentProvider ?? "aws_bedrock";
+  const platformAgentCount = countAgents({
+    status: "active",
+    deploymentProvider: platform,
+  });
   checks.push({
     id: "active_agents",
     label: "Active agents in AgentForge",
     status: activeAgentCount > 0 ? "pass" : "warn",
     message:
       activeAgentCount > 0
-        ? `${activeAgentCount} active agent(s) available`
-        : "No active agents — run bulk create (step 1) first",
-    detail: { count: activeAgentCount },
+        ? `${platformAgentCount} on ${DEPLOYMENT_PROVIDERS[platform].label} (${activeAgentCount} total across platforms)`
+        : "No active agents — run step 1 first",
+    detail: { count: activeAgentCount, platform, platformAgentCount },
   });
 
   const { rows: bedrockAgents } = findAgents({

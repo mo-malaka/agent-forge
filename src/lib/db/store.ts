@@ -6,12 +6,26 @@ import { agentNeedsEnrichment, enrichAgentRow } from "@/lib/agents/enrichment-bu
 import { buildHeroSeedAgents, HERO_AGENT_IDS } from "@/lib/db/hero-seed-data";
 import { normalizeAgentRow } from "@/lib/providers/deployment";
 
-const DATA_DIR = path.join(process.cwd(), "data");
+function resolveDataDir(): string {
+  if (process.env.AGENT_STORE_DIR?.trim()) {
+    return process.env.AGENT_STORE_DIR.trim();
+  }
+
+  if (process.env.AWS_EXECUTION_ENV || process.env.AWS_REGION) {
+    return path.join("/tmp", "agent-forge-data");
+  }
+
+  return path.join(process.cwd(), "data");
+}
+
+const DATA_DIR = resolveDataDir();
 const STORE_PATH = path.join(DATA_DIR, "agents.json");
 
 interface AgentStoreFile {
   agents: AgentRow[];
 }
+
+let cachedStore: AgentStoreFile | null = null;
 
 function heroNeedsRefresh(agent: AgentRow | undefined): boolean {
   if (!agent) {
@@ -84,7 +98,21 @@ function ensureBulkAgentsEnriched(store: AgentStoreFile): AgentStoreFile {
   return refreshed;
 }
 
-function readStore(): AgentStoreFile {
+function writeStore(store: AgentStoreFile) {
+  cachedStore = store;
+
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(STORE_PATH, JSON.stringify(store, null, 2));
+  } catch (error) {
+    console.warn(
+      `Failed to persist agent store at ${STORE_PATH}; using in-memory cache for this instance.`,
+      error,
+    );
+  }
+}
+
+function loadStoreFromDisk(): AgentStoreFile {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 
   if (!fs.existsSync(STORE_PATH)) {
@@ -113,9 +141,14 @@ function readStore(): AgentStoreFile {
   return ensureBulkAgentsEnriched(ensureHeroAgents(seedIfEmpty(store)));
 }
 
-function writeStore(store: AgentStoreFile) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(STORE_PATH, JSON.stringify(store, null, 2));
+function readStore(): AgentStoreFile {
+  if (cachedStore) {
+    return cachedStore;
+  }
+
+  const store = loadStoreFromDisk();
+  cachedStore = store;
+  return store;
 }
 
 export function insertAgent(row: NewAgentRow): AgentRow {
@@ -231,12 +264,24 @@ export function removeNonSeedAgents(): string[] {
   return removed;
 }
 
-export function countAgents(filters?: { status?: string }): number {
+export function countAgents(filters?: {
+  status?: string;
+  deploymentProvider?: string;
+}): number {
   const store = readStore();
-  if (!filters?.status) {
-    return store.agents.length;
+  let rows = store.agents;
+
+  if (filters?.status) {
+    rows = rows.filter((agent) => agent.status === filters.status);
   }
-  return store.agents.filter((agent) => agent.status === filters.status).length;
+
+  if (filters?.deploymentProvider) {
+    rows = rows.filter(
+      (agent) => agent.deploymentProvider === filters.deploymentProvider,
+    );
+  }
+
+  return rows.length;
 }
 
 export function updateAgent(

@@ -308,6 +308,12 @@ export function buildHeroSeedAgents(): NewAgentRow[] {
 
 export const HERO_AGENT_IDS = HERO_CONFIGS.map((agent) => agent.id);
 
+export const HERO_AGENT_ID_BY_PROVIDER: Record<DeploymentProvider, string> = {
+  aws_bedrock: "agt_demo_aws_bedrock",
+  gcp_vertex: "agt_demo_gcp_vertex",
+  azure_ai_foundry: "agt_demo_azure_foundry",
+};
+
 export function getHeroSeedById(id: string): HeroSeedConfig | undefined {
   return HERO_CONFIGS.find((agent) => agent.id === id);
 }

@@ -7,6 +7,8 @@ import {
 import { serializeAgent } from "@/lib/agents/serializer";
 import { DEMO_STEPS, type DemoStepId } from "@/lib/demo/steps";
 import type { AgentRow } from "@/lib/db/schema";
+import { HERO_AGENT_ID_BY_PROVIDER } from "@/lib/db/hero-seed-data";
+import { countAgents } from "@/lib/db/store";
 import {
   getIscConfigForProvider,
   type IscConfig,
@@ -103,19 +105,40 @@ export async function runDemoStep(
 
   switch (payload.step) {
     case "bulk-create": {
-      const created = await createAgentsBulk({
-        deployment_provider: payload.deployment_provider ?? "aws_bedrock",
-        count: payload.count ?? 5,
+      const deploymentProvider =
+        payload.deployment_provider ?? "aws_bedrock";
+      const additionalCount = payload.count ?? 0;
+
+      const created =
+        additionalCount > 0
+          ? await createAgentsBulk({
+              deployment_provider: deploymentProvider,
+              count: additionalCount,
+            })
+          : [];
+
+      const totalForPlatform = countAgents({
+        status: "active",
+        deploymentProvider,
       });
+      const heroId = HERO_AGENT_ID_BY_PROVIDER[deploymentProvider];
+
+      const message =
+        additionalCount === 0
+          ? `Using seeded hero only on ${deploymentProvider.replace("_", " ")} (${heroId}). ${totalForPlatform} active agent(s) on this platform — open Agents to verify.`
+          : `Added ${created.length} additional agent(s) on ${deploymentProvider.replace("_", " ")}. Total on this platform: ${totalForPlatform} (1 hero + ${created.length} additional). ISC sync happens in steps 4–5.`;
 
       return {
         step: payload.step,
         status: "completed",
-        message: `Created ${created.length} agents in AgentForge (view on Agents page). ISC sync happens in steps 4–5.`,
+        message,
         system,
         taskId: null,
         result: {
-          created_count: created.length,
+          additional_count: created.length,
+          heroes_on_platform: 1,
+          total_on_platform: totalForPlatform,
+          hero_agent_id: heroId,
           agents: created.map((row) => serializeAgent(row, baseUrl)),
         },
       };

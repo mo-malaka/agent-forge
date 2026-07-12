@@ -50,10 +50,11 @@ export function IscCredentialsPanel({
       }
 
       setView(body);
-      setTenant(body.tenant ?? "");
-      setClientId(body.clientId ?? "");
-      setApiVersion(body.apiVersion ?? "v2026");
-      setDomain(body.domain ?? "identitynow.com");
+      const cache = loadIscSessionCache();
+      setTenant(body.tenant ?? cache?.tenant ?? "");
+      setClientId(body.clientId ?? cache?.client_id ?? "");
+      setApiVersion(body.apiVersion ?? cache?.api_version ?? "v2026");
+      setDomain(body.domain ?? cache?.domain ?? "identitynow.com");
       setClientSecret("");
     } catch (loadError) {
       setError(

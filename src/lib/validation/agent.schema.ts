@@ -67,7 +67,7 @@ export const webServicesEntitlementsQuerySchema = z.object({
 
 export const bulkCreateAgentsSchema = z.object({
   deployment_provider: deploymentProviderSchema,
-  count: z.union([z.literal(5), z.literal(10), z.literal(20)]),
+  count: z.union([z.literal(0), z.literal(5), z.literal(10), z.literal(20)]),
 });
 
 export const entitlementAttributeSchema = z.enum([

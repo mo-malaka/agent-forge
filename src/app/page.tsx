@@ -14,9 +14,9 @@ const PATHS = [
   },
   {
     href: "/setup",
-    title: "Setup ISC source",
+    title: "Prep ISC tenant",
     description:
-      "Checklist, copy-paste Web Services URLs, and the full SailPoint configuration guide.",
+      "Import golden Web Services sources and apply privilege classification in three steps.",
     cta: "Open setup",
     primary: false,
   },

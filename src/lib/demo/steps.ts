@@ -45,9 +45,9 @@ export const MANUAL_ISC_UI_INSTRUCTIONS: Partial<Record<DemoStepId, string>> = {
 export const DEMO_STEPS: Record<DemoStepId, DemoStepDefinition> = {
   "bulk-create": {
     id: "bulk-create",
-    label: "Bulk create agents",
+    label: "Prepare demo agents",
     description:
-      "Adds synthetic agents to AgentForge only — ISC sees them after steps 4–5",
+      "Choose hero only or add more synthetic agents on the selected platform (AgentForge only until steps 4–5)",
     system: "agentforge",
   },
   "entitlement-aggregation": {

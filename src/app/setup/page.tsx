@@ -1,25 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { ConnectorChecklist } from "@/components/ConnectorChecklist";
-import { ConnectorEndpoints } from "@/components/ConnectorEndpoints";
 import { GoldenSpConfigPanel } from "@/components/GoldenSpConfigPanel";
-import { MarkdownContent } from "@/components/MarkdownContent";
-import { loadConnectorSetupGuide } from "@/lib/docs/load-guide";
-import { getRequestBaseUrl } from "@/lib/url";
 
 export const metadata: Metadata = {
-  title: "SailPoint Setup Guide | AgentForge",
+  title: "Prep ISC tenant | AgentForge",
   description:
-    "Configure Identity Security Cloud Web Services SaaS to aggregate AgentForge synthetic AI agents.",
+    "Import golden Web Services sources and apply privilege classification for AgentForge demos.",
 };
 
-export default async function SetupGuidePage() {
-  const [content, baseUrl] = await Promise.all([
-    loadConnectorSetupGuide(),
-    getRequestBaseUrl(),
-  ]);
-
+export default function SetupPage() {
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-6 py-8">
       <Link
@@ -31,21 +21,29 @@ export default async function SetupGuidePage() {
 
       <section className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
-          Setup
+          Prep your ISC tenant
         </h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Prep Identity Security Cloud with golden source packages, or follow the
-          manual checklist and full guide below.
+          Import three golden Web Services sources, apply privilege
+          classification, then continue on{" "}
+          <Link
+            href="/demo"
+            className="font-medium text-indigo-700 underline underline-offset-2 dark:text-indigo-300"
+          >
+            Demo
+          </Link>
+          .{" "}
+          <Link
+            href="/setup/guide"
+            className="text-zinc-500 underline underline-offset-2 hover:text-zinc-800 dark:hover:text-zinc-200"
+          >
+            Manual connector reference
+          </Link>{" "}
+          for maintainers only.
         </p>
       </section>
 
       <GoldenSpConfigPanel />
-      <ConnectorChecklist />
-      <ConnectorEndpoints baseUrl={baseUrl} />
-
-      <section className="border-t border-zinc-200 pt-8 dark:border-zinc-800">
-        <MarkdownContent content={content} />
-      </section>
     </div>
   );
 }
