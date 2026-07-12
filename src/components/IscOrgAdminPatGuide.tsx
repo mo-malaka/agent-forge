@@ -45,12 +45,25 @@ export function IscOrgAdminPatGuide() {
           bootstrap).
         </li>
         <li>
-          Copy the token immediately — SailPoint shows it <strong>once</strong>
-          .
+          Copy <strong>Client ID</strong> and <strong>Client Secret</strong>{" "}
+          immediately — SailPoint shows the secret <strong>once</strong>.
+          <span className="mt-1 block text-zinc-500">
+            These are <em>not</em> the Bearer token. AgentForge exchanges them
+            for a short-lived access token via{" "}
+            <code className="text-[11px]">/oauth/token</code> (or paste a JWT if
+            you already fetched one).
+          </span>
         </li>
         <li>
-          Paste it below. AgentForge uses it only for this import request and{" "}
-          <strong>does not store it</strong>. Revoke the token in ISC when
+          For CLI export scripts, set{" "}
+          <code className="text-[11px]">ISC_CLIENT_ID</code> and{" "}
+          <code className="text-[11px]">ISC_CLIENT_SECRET</code> — do not put
+          Client ID or Secret in the token field.
+        </li>
+        <li>
+          Paste Client ID + Secret below (Setup API import) or use env vars for
+          scripts. AgentForge uses them only for this request and{" "}
+          <strong>does not store them</strong>. Revoke the PAT in ISC when
           finished.
         </li>
       </ol>

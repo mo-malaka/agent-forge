@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "description": "Golden privilege classification — export from source tenant; apply after SP-Config import with new source ID",
+  "platform": "gcp_vertex",
+  "exportedFrom": {
+    "tenant": "company23069-poc",
+    "sourceId": "27a98701d1ea42d9a4022aa22ff6049e",
+    "exportedAt": "2026-07-12T17:41:36.232Z"
+  },
+  "criteriaConfig": {
+    "id": "dac350d5-18d7-418e-84ef-eaf48bcb504c",
+    "config": {
+      "globalPrivilegeLevelEnabled": true,
+      "privilegeClassificationMode": "CRITERIA_PRIVILEGE_LEVEL",
+      "singlePrivilegeLevel": {
+        "privilegeLevel": "LOW"
+      },
+      "criteriaPrivilegeLevel": {
+        "connectorHighEnabled": false,
+        "connectorMediumEnabled": false,
+        "connectorLowEnabled": false,
+        "customHighEnabled": true,
+        "customMediumEnabled": true,
+        "customLowEnabled": true
+      }
+    }
+  },
+  "customCriteria": [
+    {
+      "type": "CUSTOM",
+      "operator": "OR",
+      "privilegeLevel": "LOW",
+      "groups": [
+        {
+          "operator": "OR",
+          "criteriaItems": [
+            {
+              "targetType": "outboundPermissions",
+              "operator": "EQUALS",
+              "ignoreCase": true,
+              "property": "attributes.riskScore",
+              "values": [
+                "4"
+              ]
+            },
+            {
+              "targetType": "outboundPermissions",
+              "operator": "EQUALS",
+              "ignoreCase": true,
+              "property": "attributes.riskScore",
+              "values": [
+                "3"
+              ]
+            }
+          ]
+        },
+        {
+          "operator": "OR",
+          "criteriaItems": [
+            {
+              "targetType": "inboundCallers",
+              "operator": "EQUALS",
+              "ignoreCase": true,
+              "property": "attributes.riskScore",
+              "values": [
+                "4"
+              ]
+            },
+            {
+              "targetType": "inboundCallers",
+              "operator": "EQUALS",
+              "ignoreCase": true,
+              "property": "attributes.riskScore",
+              "values": [
+                "3"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "CUSTOM",
+      "operator": "OR",
+      "privilegeLevel": "MEDIUM",
+      "groups": [
+        {
+          "operator": "OR",
+          "criteriaItems": [
+            {
+              "targetType": "outboundPermissions",
+              "operator": "EQUALS",
+              "ignoreCase": true,
+              "property": "attributes.riskScore",
+              "values": [
+                "6"
+              ]
+            },
+            {
+              "targetType": "outboundPermissions",
+              "operator": "EQUALS",
+              "ignoreCase": true,
+              "property": "attributes.riskScore",
+              "values": [
+                "5"
+              ]
+            }
+          ]
+        },
+        {
+          "operator": "OR",
+          "criteriaItems": [
+            {
+              "targetType": "inboundCallers",
+              "operator": "EQUALS",
+              "ignoreCase": true,
+              "property": "attributes.riskScore",
+              "values": [
+                "6"
+              ]
+            },
+            {
+              "targetType": "inboundCallers",
+              "operator": "EQUALS",
+              "ignoreCase": true,
+              "property": "attributes.riskScore",
+              "values": [
+                "5"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "CUSTOM",
+      "operator": "OR",
+      "privilegeLevel": "HIGH",
+      "groups": [
+        {
+          "operator": "OR",
+          "criteriaItems": [
+            {
+              "targetType": "outboundPermissions",
+              "operator": "EQUALS",
+              "ignoreCase": true,
+              "property": "attributes.riskScore",
+              "values": [
+                "9"
+              ]
+            },
+            {
+              "targetType": "outboundPermissions",
+              "operator": "EQUALS",
+              "ignoreCase": true,
+              "property": "attributes.riskScore",
+              "values": [
+                "8"
+              ]
+            },
+            {
+              "targetType": "outboundPermissions",
+              "operator": "EQUALS",
+              "ignoreCase": true,
+              "property": "attributes.riskScore",
+              "values": [
+                "7"
+              ]
+            }
+          ]
+        },
+        {
+          "operator": "OR",
+          "criteriaItems": [
+            {
+              "targetType": "inboundCallers",
+              "operator": "EQUALS",
+              "ignoreCase": true,
+              "property": "attributes.riskScore",
+              "values": [
+                "9"
+              ]
+            },
+            {
+              "targetType": "inboundCallers",
+              "operator": "EQUALS",
+              "ignoreCase": true,
+              "property": "attributes.riskScore",
+              "values": [
+                "8"
+              ]
+            },
+            {
+              "targetType": "inboundCallers",
+              "operator": "EQUALS",
+              "ignoreCase": true,
+              "property": "attributes.riskScore",
+              "values": [
+                "7"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

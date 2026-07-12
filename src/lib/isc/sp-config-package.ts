@@ -9,6 +9,7 @@ export const SP_CONFIG_BASE_URL_TOKEN = "{{AGENTFORGE_BASE_URL}}";
 export interface SpConfigManifestPlatform {
   id: DeploymentProvider;
   goldenFile: string;
+  privilegeGoldenFile?: string;
   connectorSlug: string;
   misSchemaDefault: string;
   suggestedSourceName: string;
@@ -29,6 +30,7 @@ export interface SpConfigPlatformStatus {
   suggestedSourceName: string;
   misSchemaDefault: string;
   available: boolean;
+  privilegeGoldenAvailable: boolean;
   downloadPath: string;
   downloadFileName: string;
 }
@@ -68,6 +70,9 @@ export async function getSpConfigPlatformStatuses(): Promise<SpConfigPlatformSta
     manifest.platforms.map(async (platform) => {
       const profile = DEPLOYMENT_PROVIDERS[platform.id];
       const available = await goldenFileIsPublished(platform.goldenFile);
+      const privilegeGoldenAvailable = platform.privilegeGoldenFile
+        ? await goldenFileIsPublished(platform.privilegeGoldenFile)
+        : false;
 
       return {
         id: platform.id,
@@ -76,6 +81,7 @@ export async function getSpConfigPlatformStatuses(): Promise<SpConfigPlatformSta
         suggestedSourceName: platform.suggestedSourceName,
         misSchemaDefault: platform.misSchemaDefault,
         available,
+        privilegeGoldenAvailable,
         downloadPath: `/api/setup/isc-sp-config/${platform.connectorSlug}`,
         downloadFileName: `agentforge-${platform.connectorSlug}.sp-config.json`,
       };
