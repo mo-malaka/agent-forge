@@ -133,7 +133,18 @@ export function withIscRuntimeBody<T extends Record<string, unknown>>(
     return body;
   }
 
-  return { ...body, isc_runtime: runtime };
+  const explicitTenant =
+    typeof body.tenant === "string" ? body.tenant.trim() : "";
+  const explicitDomain =
+    typeof body.domain === "string" ? body.domain.trim() : "";
+
+  const patchedRuntime: IscRuntimePayload = {
+    ...runtime,
+    ...(explicitTenant ? { tenant: explicitTenant } : {}),
+    ...(explicitDomain ? { domain: explicitDomain } : {}),
+  };
+
+  return { ...body, isc_runtime: patchedRuntime };
 }
 
 export function withIscRuntimeHeaders(

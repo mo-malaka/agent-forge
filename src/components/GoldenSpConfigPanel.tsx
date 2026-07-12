@@ -110,6 +110,15 @@ function PrivilegeClassificationApplyPanel({
     };
   }, [platforms]);
 
+  useEffect(() => {
+    if (connection?.tenant?.trim()) {
+      setTenant(connection.tenant.trim());
+    }
+    if (connection?.domain?.trim()) {
+      setDomain(connection.domain.trim());
+    }
+  }, [connection?.tenant, connection?.domain]);
+
   const usingSavedConnection =
     Boolean(connection?.credentialsConfigured && connection.tenant?.trim()) ||
     hasIscSessionCache();
@@ -123,6 +132,8 @@ function PrivilegeClassificationApplyPanel({
 
     try {
       const resolvedSecret = resolveBootstrapClientSecret(clientSecret);
+      const resolvedTenant = (connection?.tenant || tenant).trim();
+      const resolvedDomain = (connection?.domain || domain).trim();
 
       for (const platform of eligible) {
         const sourceId = sourceIds[platform.connectorSlug]?.trim();
@@ -140,8 +151,8 @@ function PrivilegeClassificationApplyPanel({
               }),
               body: JSON.stringify(
                 withIscRuntimeBody({
-                  ...(tenant.trim() ? { tenant } : {}),
-                  ...(domain.trim() ? { domain: domain.trim() } : {}),
+                  ...(resolvedTenant ? { tenant: resolvedTenant } : {}),
+                  ...(resolvedDomain ? { domain: resolvedDomain } : {}),
                   ...(!usingSavedConnection
                     ? {
                         client_id: clientId,
@@ -207,8 +218,8 @@ function PrivilegeClassificationApplyPanel({
         }
 
         saveIscSessionCache({
-          tenant: tenant.trim(),
-          domain: domain.trim() || "identitynow-demo.com",
+          tenant: resolvedTenant || tenant.trim(),
+          domain: resolvedDomain || domain.trim() || "identitynow-demo.com",
           client_id: clientId.trim(),
           client_secret: resolvedSecret,
           sources,
