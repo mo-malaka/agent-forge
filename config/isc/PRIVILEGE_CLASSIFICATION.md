@@ -46,20 +46,17 @@ The export captures:
 
 ## Demo user: apply after SP-Config import
 
-**Option A — Setup UI (API import):** check **Apply privilege classification** and pass the **new** Bedrock source ID after import.
+**AgentForge Setup → Prep your ISC tenant → Step 3 — Apply privilege classification**
 
-**Option B — CLI (maintainer / SE):**
+1. Sign in to your **target** ISC tenant and create an ORG_ADMIN PAT (Client ID + Client Secret).
+2. In AgentForge **Setup**, scroll to **Step 3**.
+3. Enter target tenant slug, PAT Client ID + Secret, and each **new** source ID from **Admin → Connections → Sources**.
+4. Click **Apply privilege classification**.
+5. In ISC, re-run **outboundPermissions** and **inboundCallers** entitlement aggregation on each source.
 
-```bash
-node scripts/apply-privilege-criteria.mjs \
-  --tenant TARGET_TENANT \
-  --domain identitynow-demo.com \
-  --token "$ORG_ADMIN_PAT" \
-  --source-id NEW_SOURCE_ID_AFTER_IMPORT \
-  --golden config/isc/golden/privilege-classification.aws-bedrock.json
-```
+Works after Configuration Hub import (Option 1) or API import (Option 2) — Step 3 is the same either way.
 
-Then re-run **entitlement aggregation** (`outboundPermissions` + `inboundCallers`) so direct privilege levels are assigned.
+Maintainers export golden files once (see below); demo users never run CLI scripts.
 
 ## AgentForge data prerequisites
 

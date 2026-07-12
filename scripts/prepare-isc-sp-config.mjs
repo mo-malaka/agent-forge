@@ -97,6 +97,22 @@ function blankSourceObjectIds(node) {
   return node;
 }
 
+function stripTenantRuntimeState(node) {
+  if (Array.isArray(node)) {
+    return node.map(stripTenantRuntimeState);
+  }
+  if (node && typeof node === "object") {
+    const out = { ...node };
+    // Tenant-specific status from exports — do not carry into golden packages.
+    delete out.recommendationStatus;
+    for (const key of Object.keys(out)) {
+      out[key] = stripTenantRuntimeState(out[key]);
+    }
+    return out;
+  }
+  return node;
+}
+
 function main() {
   const args = parseArgs(process.argv);
   const inputPath = resolve(args.input);
@@ -120,6 +136,7 @@ function main() {
 
   let data = JSON.parse(text);
   data = stripSecrets(data);
+  data = stripTenantRuntimeState(data);
   if (args.blankSourceId) {
     data = blankSourceObjectIds(data);
   }

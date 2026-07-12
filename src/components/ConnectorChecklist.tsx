@@ -41,10 +41,10 @@ const CHECKLIST_ITEMS = [
   },
   {
     id: "privilege-classification",
-    title: "Optional: privilege classification",
+    title: "Apply privilege classification (Step 3)",
     description:
-      "Map riskScore / privilegeLevel to ISC direct privilege for Identity Graph ring colors.",
-    href: "/setup#part-m--privilege-classification-identity-graph-colors",
+      "In AgentForge Setup — paste target source IDs and apply golden criteria for Identity Graph rings.",
+    href: "/setup#privilege-classification",
   },
   {
     id: "run-demo",

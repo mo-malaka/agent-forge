@@ -456,7 +456,6 @@
               }
             }
           ],
-          "recommendationStatus": "ERROR",
           "hasFullAggregationCompleted": true,
           "possibleHttpErrorMessages": {},
           "connectionTimeout": "60",

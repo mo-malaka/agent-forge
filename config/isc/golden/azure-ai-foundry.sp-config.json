@@ -335,7 +335,7 @@
                 "riskScore": "riskScore",
                 "accessDirection": "accessDirection"
               },
-              "contextUrl": "/api/connectors/web-services/azure-ai-foundry/entitlements?type=outbound",
+              "contextUrl": "/api/connectors/web-services/azure-ai-foundry/entitlements?type=inbound",
               "httpMethodType": "GET",
               "pagingInitialOffset": 0,
               "pagingSize": 50,
@@ -456,7 +456,6 @@
               }
             }
           ],
-          "recommendationStatus": "ERROR",
           "hasFullAggregationCompleted": true,
           "possibleHttpErrorMessages": {},
           "connectionTimeout": "60",

@@ -34,6 +34,8 @@ export async function POST(request: Request) {
         tenant: payload.tenant,
         domain: payload.domain,
         personalAccessToken: payload.personal_access_token,
+        clientId: payload.client_id,
+        clientSecret: payload.client_secret,
       },
       sourceId: payload.source_id,
       golden,

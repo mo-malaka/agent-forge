@@ -17,7 +17,7 @@ Import **Web Services SaaS** sources into a new ISC tenant in minutes instead of
 2. **Option 1 — Configuration Hub:** Solution Center → Configuration Hub → **Uploads** → upload each JSON → prepare draft → deploy (no PAT).
 3. **Option 2 — API import:** follow the ORG_ADMIN PAT guide on Setup → preview → run import (PAT is not stored).
 4. **Connections → Sources** — test connection on each source.
-5. **Optional:** apply privilege classification (Phase 2) — see [PRIVILEGE_CLASSIFICATION.md](./PRIVILEGE_CLASSIFICATION.md). SP-Config does not export Identity Graph rings.
+5. **AgentForge Setup → Step 3** — apply privilege classification (paste target source IDs + ORG_ADMIN PAT). Required for Identity Graph rings.
 6. Set `ISC_TENANT`, `ISC_CLIENT_ID`, `ISC_CLIENT_SECRET` on AgentForge; open **Demo → ISC sources** and paste source IDs.
 
 Option 2 uses `POST /beta/sp-config/import` with a user-supplied PAT (session only). The demo OAuth client on Amplify keeps narrower scopes for orchestrator runtime — it is not used for bootstrap import.

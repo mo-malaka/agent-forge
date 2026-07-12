@@ -42,18 +42,14 @@ interface PrivilegeApplyResult {
 }
 
 function PrivilegeClassificationApplyPanel({
-  tenant,
-  domain,
-  pat,
   platforms,
-  importCompleted,
 }: {
-  tenant: string;
-  domain: string;
-  pat: string;
   platforms: PlatformStatus[];
-  importCompleted: boolean;
 }) {
+  const [tenant, setTenant] = useState("");
+  const [domain, setDomain] = useState("identitynow-demo.com");
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
   const [sourceIds, setSourceIds] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +80,8 @@ function PrivilegeClassificationApplyPanel({
             body: JSON.stringify({
               tenant,
               domain: domain.trim() || undefined,
-              personal_access_token: pat,
+              client_id: clientId,
+              client_secret: clientSecret,
               connector_slug: platform.connectorSlug,
               source_id: sourceId,
             }),
@@ -120,50 +117,96 @@ function PrivilegeClassificationApplyPanel({
   }
 
   const canApply =
-    tenant.trim() && pat.trim().length >= 20 && eligible.some((p) => sourceIds[p.connectorSlug]?.trim());
+    tenant.trim() &&
+    clientId.trim() &&
+    clientSecret.trim().length >= 8 &&
+    eligible.some((p) => sourceIds[p.connectorSlug]?.trim());
 
   return (
-    <div className="space-y-3 rounded-md border border-indigo-200 bg-indigo-50/40 p-3 dark:border-indigo-900/50 dark:bg-indigo-950/20">
+    <div className="space-y-3">
       <div>
-        <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
-          Phase 2 — Privilege classification (optional)
+        <p className="font-medium text-zinc-900 dark:text-zinc-100">
+          Step 3 — Apply privilege classification
         </p>
-        <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-          SP-Config import does not copy Identity Graph privilege rings. After
-          import, copy each new source ID from{" "}
-          <strong>Admin → Connections → Sources</strong>, then apply the golden
-          criteria from your maintainer tenant.
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          <strong>Required for Identity Graph rings.</strong> SP-Config import
+          (Step 2) creates sources only — it does <em>not</em> copy privilege
+          classification. Paste each <strong>new</strong> source ID from{" "}
+          <strong>Admin → Connections → Sources</strong> on the target tenant,
+          then apply the golden criteria you exported from your reference tenant.
         </p>
       </div>
 
       {!anyGolden ? (
         <p className="text-xs text-amber-800 dark:text-amber-200">
-          Golden privilege files are not published yet. Maintainer: run{" "}
-          <code className="text-[10px]">scripts/export-privilege-criteria.mjs</code>{" "}
-          against your configured source tenant and commit{" "}
-          <code className="text-[10px]">config/isc/golden/privilege-classification.*.json</code>
-          .
+          Golden privilege files are not published in this deployment. Maintainer
+          must commit{" "}
+          <code className="text-[10px]">
+            config/isc/golden/privilege-classification.*.json
+          </code>{" "}
+          and redeploy.
         </p>
       ) : null}
 
-      {importCompleted ? (
-        <p className="text-xs text-emerald-700 dark:text-emerald-300">
-          Import completed — paste source IDs below and apply privilege
-          classification.
-        </p>
-      ) : (
-        <p className="text-xs text-zinc-500">
-          You can also apply after a successful import, or if sources already
-          exist on this tenant.
-        </p>
-      )}
+      <IscOrgAdminPatGuide />
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block text-xs">
+          <span className="font-medium text-zinc-800 dark:text-zinc-200">
+            Target tenant slug
+          </span>
+          <input
+            type="text"
+            value={tenant}
+            onChange={(event) => setTenant(event.target.value)}
+            placeholder="company23447-poc"
+            className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
+          />
+        </label>
+        <label className="block text-xs">
+          <span className="font-medium text-zinc-800 dark:text-zinc-200">
+            API domain (optional)
+          </span>
+          <input
+            type="text"
+            value={domain}
+            onChange={(event) => setDomain(event.target.value)}
+            placeholder="identitynow-demo.com"
+            className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
+          />
+        </label>
+        <label className="block text-xs">
+          <span className="font-medium text-zinc-800 dark:text-zinc-200">
+            PAT Client ID
+          </span>
+          <input
+            type="text"
+            value={clientId}
+            onChange={(event) => setClientId(event.target.value)}
+            autoComplete="off"
+            className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
+          />
+        </label>
+        <label className="block text-xs">
+          <span className="font-medium text-zinc-800 dark:text-zinc-200">
+            PAT Client Secret
+          </span>
+          <input
+            type="password"
+            value={clientSecret}
+            onChange={(event) => setClientSecret(event.target.value)}
+            autoComplete="off"
+            className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
+          />
+        </label>
+      </div>
 
       {eligible.length > 0 ? (
         <div className="grid gap-2 sm:grid-cols-2">
           {eligible.map((platform) => (
             <label key={platform.connectorSlug} className="block text-xs">
               <span className="font-medium text-zinc-800 dark:text-zinc-200">
-                {platform.label} source ID
+                {platform.label} source ID (target tenant)
               </span>
               <input
                 type="text"
@@ -174,7 +217,7 @@ function PrivilegeClassificationApplyPanel({
                     [platform.connectorSlug]: event.target.value,
                   }))
                 }
-                placeholder="32-char ISC source id"
+                placeholder="32-char id from Connections → Sources"
                 className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
               />
             </label>
@@ -186,7 +229,7 @@ function PrivilegeClassificationApplyPanel({
         type="button"
         disabled={!canApply || busy || !anyGolden}
         onClick={() => void runApply()}
-        className="rounded-md border border-indigo-300 bg-white px-3 py-1.5 text-xs font-medium text-indigo-900 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-indigo-700 dark:bg-indigo-950 dark:text-indigo-100"
+        className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {busy ? "Applying…" : "Apply privilege classification"}
       </button>
@@ -217,6 +260,12 @@ function PrivilegeClassificationApplyPanel({
           })}
         </ul>
       ) : null}
+
+      <p className="text-xs text-zinc-500">
+        After apply succeeds, re-run <strong>outboundPermissions</strong> and{" "}
+        <strong>inboundCallers</strong> entitlement aggregation on each source in
+        ISC.
+      </p>
     </div>
   );
 }
@@ -287,6 +336,11 @@ function ConfigHubImportSteps({
           <strong>Prepare draft for deployment</strong> → review the draft →{" "}
           <strong>Deploy draft</strong>.
         </li>
+        <li>
+          Continue in AgentForge <strong>Step 3</strong> below — apply privilege
+          classification (required for Identity Graph rings). Configuration Hub
+          does not copy those settings.
+        </li>
       </ol>
       <p className="text-xs text-zinc-500">
         Configuration Hub is separate from the Admin menu (Connections, Global,
@@ -319,7 +373,6 @@ function ApiImportPanel({
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<ImportResult[] | null>(null);
   const [lastPreviewOk, setLastPreviewOk] = useState(false);
-  const [importCompleted, setImportCompleted] = useState(false);
 
   async function runImport(preview: boolean) {
     setBusy(true);
@@ -350,7 +403,6 @@ function ApiImportPanel({
 
       setResults(body.results ?? []);
       setLastPreviewOk(preview);
-      setImportCompleted(!preview);
     } catch (importError) {
       setError(
         importError instanceof Error
@@ -447,6 +499,19 @@ function ApiImportPanel({
         </p>
       ) : null}
 
+      {results && !lastPreviewOk ? (
+        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">
+          Import completed. Scroll to{" "}
+          <a
+            href="#privilege-classification"
+            className="font-semibold underline underline-offset-2"
+          >
+            Step 3 — Apply privilege classification
+          </a>{" "}
+          (required for Identity Graph rings).
+        </p>
+      ) : null}
+
       {error ? (
         <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
       ) : null}
@@ -478,14 +543,6 @@ function ApiImportPanel({
           </ul>
         </div>
       ) : null}
-
-      <PrivilegeClassificationApplyPanel
-        tenant={tenant}
-        domain={domain}
-        pat={pat}
-        platforms={platforms}
-        importCompleted={importCompleted}
-      />
     </div>
   );
 }
@@ -499,7 +556,7 @@ function PostImportSteps({
     <>
       <li className="flex gap-3">
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-semibold text-amber-950 dark:bg-amber-900 dark:text-amber-100">
-          3
+          4
         </span>
         <div>
           <p className="font-medium text-zinc-900 dark:text-zinc-100">
@@ -509,29 +566,6 @@ function PostImportSteps({
             <strong>Admin → Connections → Sources</strong> — test connection on
             each imported source (
             <code className="text-xs">/api/health</code>).
-          </p>
-        </div>
-      </li>
-
-      <li className="flex gap-3">
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-semibold text-amber-950 dark:bg-amber-900 dark:text-amber-100">
-          4
-        </span>
-        <div>
-          <p className="font-medium text-zinc-900 dark:text-zinc-100">
-            Optional: privilege classification
-          </p>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            SP-Config does not import Identity Graph privilege rings. After you
-            have each new source ID, run{" "}
-            <code className="text-xs">scripts/apply-privilege-criteria.mjs</code>{" "}
-            or{" "}
-            <code className="text-xs">
-              POST /api/setup/isc-sp-config/apply-privilege-classification
-            </code>
-            . See{" "}
-            <code className="text-xs">config/isc/PRIVILEGE_CLASSIFICATION.md</code>
-            .
           </p>
         </div>
       </li>
@@ -621,7 +655,8 @@ export function GoldenSpConfigPanel() {
         </h2>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           Import three Web Services sources with your AgentForge URL already
-          wired in. Choose Configuration Hub or API import below.
+          wired in, then complete <strong>Step 3</strong> for privilege
+          classification (Identity Graph rings). Steps 1–2 create sources only.
         </p>
       </div>
 
@@ -699,6 +734,15 @@ export function GoldenSpConfigPanel() {
                     />
                   )}
                 </div>
+              </div>
+            </li>
+
+            <li className="flex gap-3" id="privilege-classification">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-200 text-xs font-semibold text-indigo-950 dark:bg-indigo-900 dark:text-indigo-100">
+                3
+              </span>
+              <div className="min-w-0 flex-1 rounded-md border border-indigo-200 bg-indigo-50/40 p-4 dark:border-indigo-900/50 dark:bg-indigo-950/20">
+                <PrivilegeClassificationApplyPanel platforms={status.platforms} />
               </div>
             </li>
 

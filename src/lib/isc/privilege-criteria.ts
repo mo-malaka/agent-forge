@@ -16,7 +16,9 @@ export interface PrivilegeCriteriaGoldenFile {
 export interface PrivilegeCriteriaTarget {
   tenant: string;
   domain?: string;
-  personalAccessToken: string;
+  personalAccessToken?: string;
+  clientId?: string;
+  clientSecret?: string;
   apiVersion?: string;
 }
 
@@ -100,8 +102,15 @@ export async function applyPrivilegeCriteriaGolden(params: {
   criteriaConfigId: string;
   customCriteriaCreated: number;
 }> {
+  const { resolveIscAccessToken } = await import("@/lib/isc/pat-auth");
   const baseUrl = getApiBase(params.target);
-  const token = params.target.personalAccessToken;
+  const token = await resolveIscAccessToken({
+    tenant: params.target.tenant,
+    domain: params.target.domain,
+    personalAccessToken: params.target.personalAccessToken,
+    clientId: params.target.clientId,
+    clientSecret: params.target.clientSecret,
+  });
   const sourceId = params.sourceId.trim();
 
   const filter = encodeURIComponent(`sourceId eq "${sourceId}"`);
