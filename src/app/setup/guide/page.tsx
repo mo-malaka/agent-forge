@@ -21,10 +21,10 @@ export default async function SetupGuideReferencePage() {
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-6 py-8">
       <Link
-        href="/setup"
+        href="/demo?phase=bootstrap"
         className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
       >
-        ← Back to Setup (golden import)
+        ← Back to ISC demo workspace
       </Link>
 
       <section className="space-y-1">
@@ -33,12 +33,12 @@ export default async function SetupGuideReferencePage() {
         </h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           Manual Web Services configuration for maintainers and advanced
-          troubleshooting. Demo users should use{" "}
+          troubleshooting.           Demo users should use{" "}
           <Link
-            href="/setup"
+            href="/demo?phase=bootstrap"
             className="font-medium text-indigo-700 underline underline-offset-2 dark:text-indigo-300"
           >
-            Setup → golden import
+            ISC demo → bootstrap
           </Link>{" "}
           instead of building sources by hand.
         </p>

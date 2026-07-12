@@ -3,7 +3,9 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { DemoPhaseHeader } from "@/components/DemoPhaseHeader";
 import { DemoPreflightPanel } from "@/components/DemoPreflightPanel";
+import { GoldenSpConfigPanel } from "@/components/GoldenSpConfigPanel";
 import { IscSourceSettingsPanel } from "@/components/IscSourceSettingsPanel";
 import { isPreflightBlockingForStep, getStepDisableReason } from "@/lib/demo/preflight-blocking";
 import type { PreflightResult } from "@/lib/demo/preflight";
@@ -259,6 +261,7 @@ export function DemoOrchestratorPanel() {
   const [resettingDemo, setResettingDemo] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [iscSetupOpen, setIscSetupOpen] = useState(true);
+  const [bootstrapOpen, setBootstrapOpen] = useState(false);
 
   const refreshIscStatus = useCallback(() => {
     void fetch("/api/demo/config", { headers: withIscRuntimeHeaders() })
@@ -306,6 +309,19 @@ export function DemoOrchestratorPanel() {
       setIscSetupOpen(false);
     }
   }, [iscStatus?.credentialsConfigured]);
+
+  useEffect(() => {
+    const phase = searchParams.get("phase");
+    if (phase === "bootstrap") {
+      setBootstrapOpen(true);
+      requestAnimationFrame(() => {
+        document.getElementById("bootstrap")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     setExpandedSteps({});
@@ -929,63 +945,126 @@ export function DemoOrchestratorPanel() {
   ).length;
 
   return (
-    <section className="space-y-4">
-      <details
-        open={iscSetupOpen}
-        onToggle={(event) =>
-          setIscSetupOpen((event.target as HTMLDetailsElement).open)
-        }
-        className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950"
-      >
-        <summary className="cursor-pointer px-4 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                ISC connection &amp; sources
-              </p>
-              <p className="text-xs text-zinc-500">
-                {iscCredentialsReady ? (
-                  <>
-                    Connected to{" "}
-                    <span className="font-mono">{iscStatus?.tenant}</span>
-                    {iscStatus?.credentialSource === "ui"
-                      ? " (UI)"
-                      : iscStatus?.credentialSource === "session"
-                        ? " (browser session)"
-                        : null}
-                    {platformSourceConfigured
-                      ? ` · ${DEPLOYMENT_PROVIDERS[syncProvider].label} source ready`
-                      : " · add a source ID below"}
-                  </>
-                ) : (
-                  "Configure tenant credentials and Web Services source IDs"
-                )}
-              </p>
+    <div className="space-y-8">
+      <section className="space-y-3">
+        <DemoPhaseHeader
+          phase={1}
+          title="Connect to ISC"
+          description="Save tenant credentials and Web Services source IDs once — used for bootstrap and demo steps."
+        />
+        <details
+          open={iscSetupOpen}
+          onToggle={(event) =>
+            setIscSetupOpen((event.target as HTMLDetailsElement).open)
+          }
+          className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950"
+        >
+          <summary className="cursor-pointer list-none px-4 py-3 [&::-webkit-details-marker]:hidden">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                  ISC connection &amp; sources
+                </p>
+                <p className="text-xs text-zinc-500">
+                  {iscCredentialsReady ? (
+                    <>
+                      Connected ·{" "}
+                      <span className="font-mono">{iscStatus?.tenant}</span>
+                      {iscStatus?.credentialSource === "ui"
+                        ? " (saved)"
+                        : iscStatus?.credentialSource === "session"
+                          ? " (browser session)"
+                          : null}
+                      {platformSourceConfigured
+                        ? ` · ${DEPLOYMENT_PROVIDERS[syncProvider].label} source ready`
+                        : " · add a source ID below"}
+                    </>
+                  ) : (
+                    "Configure tenant credentials and Web Services source IDs"
+                  )}
+                </p>
+              </div>
+              <span className="text-xs text-zinc-400">
+                {iscSetupOpen ? "Collapse" : "Expand"}
+              </span>
             </div>
-            <span className="text-xs text-zinc-400">
-              {iscSetupOpen ? "Collapse" : "Expand"}
-            </span>
+          </summary>
+          <div className="border-t border-zinc-200 px-4 pb-4 pt-3 dark:border-zinc-700">
+            <IscSourceSettingsPanel
+              credentialsConfigured={iscCredentialsReady}
+              tenant={iscStatus?.tenant ?? null}
+              apiBaseUrl={iscStatus?.apiBaseUrl ?? null}
+              credentialSource={iscStatus?.credentialSource ?? null}
+              onCredentialsChange={() => {
+                refreshIscStatus();
+                bumpPreflightRefresh();
+              }}
+              onSourcesChange={() => {
+                refreshIscStatus();
+                bumpPreflightRefresh();
+              }}
+            />
           </div>
-        </summary>
-        <div className="border-t border-zinc-200 px-4 pb-4 pt-3 dark:border-zinc-700">
-          <IscSourceSettingsPanel
-            credentialsConfigured={iscCredentialsReady}
-            tenant={iscStatus?.tenant ?? null}
-            apiBaseUrl={iscStatus?.apiBaseUrl ?? null}
-            credentialSource={iscStatus?.credentialSource ?? null}
-            onCredentialsChange={() => {
-              refreshIscStatus();
-              bumpPreflightRefresh();
-            }}
-            onSourcesChange={() => {
-              refreshIscStatus();
-              bumpPreflightRefresh();
-            }}
-          />
-        </div>
-      </details>
+        </details>
+      </section>
 
-      <section className="space-y-4 rounded-lg border border-indigo-200 bg-indigo-50/40 p-5 dark:border-indigo-900 dark:bg-indigo-950/20">
+      <section className="space-y-3">
+        <DemoPhaseHeader
+          phase={2}
+          title="Bootstrap tenant"
+          description="First-time only — import golden Web Services sources and apply privilege classification."
+          optional
+        />
+        <details
+          open={bootstrapOpen}
+          onToggle={(event) =>
+            setBootstrapOpen((event.target as HTMLDetailsElement).open)
+          }
+          className="rounded-lg border border-amber-200 bg-amber-50/30 dark:border-amber-900/50 dark:bg-amber-950/10"
+        >
+          <summary className="cursor-pointer list-none px-4 py-3 [&::-webkit-details-marker]:hidden">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                Golden import &amp; privilege classification
+              </p>
+              <span className="text-xs text-zinc-400">
+                {bootstrapOpen ? "Collapse" : "Expand"}
+              </span>
+            </div>
+          </summary>
+          <div className="border-t border-amber-200/80 px-4 pb-4 pt-3 dark:border-amber-900/50">
+            <GoldenSpConfigPanel
+              embedded
+              connection={{
+                credentialsConfigured: iscCredentialsReady,
+                tenant: iscStatus?.tenant ?? null,
+                domain: iscStatus?.domain ?? null,
+              }}
+              onBootstrapAction={() => {
+                refreshIscStatus();
+                bumpPreflightRefresh();
+              }}
+            />
+          </div>
+        </details>
+        <p className="text-xs text-zinc-500">
+          Maintainer reference:{" "}
+          <a
+            href="/setup/guide"
+            className="font-medium text-zinc-700 underline underline-offset-2 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
+          >
+            manual connector setup
+          </a>
+        </p>
+      </section>
+
+      <section className="space-y-4">
+        <DemoPhaseHeader
+          phase={3}
+          title="Run demo"
+          description="Prepare agents, sync to ISC, and run govern + enforce."
+        />
+        <div className="space-y-4 rounded-lg border border-indigo-200 bg-indigo-50/40 p-5 dark:border-indigo-900 dark:bg-indigo-950/20">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
@@ -1226,7 +1305,8 @@ export function DemoOrchestratorPanel() {
           run.
         </p>
       )}
+        </div>
       </section>
-    </section>
+    </div>
   );
 }

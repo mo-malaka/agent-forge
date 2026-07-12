@@ -13,7 +13,7 @@ export default function NewAgentPage() {
           Configure outbound permissions and inbound callers. AgentForge exposes
           agents through Web Services endpoints for SailPoint AIS — see the{" "}
           <Link
-            href="/setup"
+            href="/demo"
             className="font-medium text-zinc-700 underline underline-offset-2 hover:text-zinc-900 dark:text-zinc-300"
           >
             setup guide

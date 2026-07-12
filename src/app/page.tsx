@@ -6,19 +6,11 @@ import { getIscPublicStatus } from "@/lib/isc/config";
 const PATHS = [
   {
     href: "/demo",
-    title: "Run ISC demo",
+    title: "ISC demo workspace",
     description:
-      "Full sync and govern + enforce with SailPoint APIs — step-by-step orchestrator for live demos.",
-    cta: "Open demo",
+      "Connect to your tenant, bootstrap sources if needed, then run full sync or govern + enforce.",
+    cta: "Open workspace",
     primary: true,
-  },
-  {
-    href: "/setup",
-    title: "Prep ISC tenant",
-    description:
-      "Import golden Web Services sources and apply privilege classification in three steps.",
-    cta: "Open setup",
-    primary: false,
   },
   {
     href: "/agents",
@@ -96,12 +88,19 @@ export default function HomePage() {
       </div>
 
       <p className="text-center text-xs text-zinc-500">
-        First time?{" "}
+        First time on a new tenant?{" "}
         <Link
-          href="/setup"
+          href="/demo?phase=bootstrap"
           className="font-medium text-zinc-700 underline underline-offset-2 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
         >
-          Read the SailPoint setup guide
+          Open bootstrap steps
+        </Link>
+        {" · "}
+        <Link
+          href="/setup/guide"
+          className="font-medium text-zinc-700 underline underline-offset-2 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
+        >
+          Maintainer connector reference
         </Link>
       </p>
     </div>

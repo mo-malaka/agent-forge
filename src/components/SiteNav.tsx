@@ -4,9 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV_LINKS = [
-  { href: "/demo", label: "Demo" },
+  { href: "/demo", label: "ISC Demo" },
   { href: "/agents", label: "Agents", matchPrefix: true },
-  { href: "/setup", label: "Setup" },
 ] as const;
 
 function isActive(pathname: string, href: string, matchPrefix?: boolean) {

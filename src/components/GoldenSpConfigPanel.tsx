@@ -48,10 +48,20 @@ interface PrivilegeApplyResult {
   message: string;
 }
 
+export interface IscConnectionContext {
+  credentialsConfigured: boolean;
+  tenant: string | null;
+  domain?: string | null;
+}
+
 function PrivilegeClassificationApplyPanel({
   platforms,
+  connection,
+  onApplied,
 }: {
   platforms: PlatformStatus[];
+  connection?: IscConnectionContext;
+  onApplied?: () => void;
 }) {
   const [tenant, setTenant] = useState("");
   const [domain, setDomain] = useState("identitynow-demo.com");
@@ -167,6 +177,7 @@ function PrivilegeClassificationApplyPanel({
           client_secret: resolvedSecret,
           sources,
         });
+        onApplied?.();
       }
 
       setResults(applied);
@@ -186,6 +197,9 @@ function PrivilegeClassificationApplyPanel({
       Boolean(resolveBootstrapClientSecret(""))) &&
     eligible.some((p) => sourceIds[p.connectorSlug]?.trim());
 
+  const usingSavedConnection =
+    connection?.credentialsConfigured && Boolean(connection.tenant?.trim());
+
   return (
     <div className="space-y-3">
       <div>
@@ -195,16 +209,19 @@ function PrivilegeClassificationApplyPanel({
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
           <strong>Required for Identity Graph rings.</strong> SP-Config import
           (Step 2) creates sources only — it does <em>not</em> copy privilege
-          classification. If you already connected on{" "}
-          <Link
-            href="/demo"
-            className="font-medium text-indigo-700 underline underline-offset-2 dark:text-indigo-300"
-          >
-            Demo
-          </Link>
-          , tenant and source IDs are pre-filled below.
+          classification. Uses tenant and API client from{" "}
+          <strong>Connect</strong> above when saved.
         </p>
       </div>
+
+      {usingSavedConnection ? (
+        <p className="rounded-md border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-xs text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+          Using saved connection:{" "}
+          <span className="font-mono">{connection?.tenant}</span>
+          {connection?.domain ? ` · ${connection.domain}` : null}. Source IDs
+          below are pre-filled from Connect.
+        </p>
+      ) : null}
 
       {!anyGolden ? (
         <p className="text-xs text-amber-800 dark:text-amber-200">
@@ -219,43 +236,7 @@ function PrivilegeClassificationApplyPanel({
 
       <IscOrgAdminPatGuide defaultOpen={false} />
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block text-xs">
-          <span className="font-medium text-zinc-800 dark:text-zinc-200">
-            Target tenant slug
-          </span>
-          <input
-            type="text"
-            value={tenant}
-            onChange={(event) => setTenant(event.target.value)}
-            placeholder="company23447-poc"
-            className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
-          />
-        </label>
-        <label className="block text-xs">
-          <span className="font-medium text-zinc-800 dark:text-zinc-200">
-            API domain (optional)
-          </span>
-          <input
-            type="text"
-            value={domain}
-            onChange={(event) => setDomain(event.target.value)}
-            placeholder="identitynow-demo.com"
-            className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
-          />
-        </label>
-        <label className="block text-xs">
-          <span className="font-medium text-zinc-800 dark:text-zinc-200">
-            PAT Client ID
-          </span>
-          <input
-            type="text"
-            value={clientId}
-            onChange={(event) => setClientId(event.target.value)}
-            autoComplete="off"
-            className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
-          />
-        </label>
+      {usingSavedConnection ? (
         <label className="block text-xs">
           <span className="font-medium text-zinc-800 dark:text-zinc-200">
             PAT Client Secret
@@ -265,11 +246,63 @@ function PrivilegeClassificationApplyPanel({
             value={clientSecret}
             onChange={(event) => setClientSecret(event.target.value)}
             autoComplete="off"
-            placeholder="Leave blank if already saved on Demo"
-            className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
+            placeholder="Only if not already saved in Connect"
+            className="mt-1 w-full max-w-md rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
           />
         </label>
-      </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block text-xs">
+            <span className="font-medium text-zinc-800 dark:text-zinc-200">
+              Target tenant slug
+            </span>
+            <input
+              type="text"
+              value={tenant}
+              onChange={(event) => setTenant(event.target.value)}
+              placeholder="company23447-poc"
+              className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
+            />
+          </label>
+          <label className="block text-xs">
+            <span className="font-medium text-zinc-800 dark:text-zinc-200">
+              API domain (optional)
+            </span>
+            <input
+              type="text"
+              value={domain}
+              onChange={(event) => setDomain(event.target.value)}
+              placeholder="identitynow-demo.com"
+              className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
+            />
+          </label>
+          <label className="block text-xs">
+            <span className="font-medium text-zinc-800 dark:text-zinc-200">
+              PAT Client ID
+            </span>
+            <input
+              type="text"
+              value={clientId}
+              onChange={(event) => setClientId(event.target.value)}
+              autoComplete="off"
+              className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
+            />
+          </label>
+          <label className="block text-xs">
+            <span className="font-medium text-zinc-800 dark:text-zinc-200">
+              PAT Client Secret
+            </span>
+            <input
+              type="password"
+              value={clientSecret}
+              onChange={(event) => setClientSecret(event.target.value)}
+              autoComplete="off"
+              placeholder="Leave blank if already saved in Connect"
+              className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
+            />
+          </label>
+        </div>
+      )}
 
       {eligible.length > 0 ? (
         <div className="grid gap-2 sm:grid-cols-2">
@@ -432,9 +465,11 @@ function ConfigHubImportSteps({
 function ApiImportPanel({
   allAvailable,
   platforms,
+  connection,
 }: {
   allAvailable: boolean;
   platforms: PlatformStatus[];
+  connection?: IscConnectionContext;
 }) {
   const [tenant, setTenant] = useState("");
   const [domain, setDomain] = useState("identitynow.com");
@@ -465,6 +500,15 @@ function ApiImportPanel({
       cancelled = true;
     };
   }, [platforms]);
+
+  useEffect(() => {
+    if (connection?.tenant?.trim()) {
+      setTenant(connection.tenant.trim());
+    }
+    if (connection?.domain?.trim()) {
+      setDomain(connection.domain.trim());
+    }
+  }, [connection?.tenant, connection?.domain]);
 
   async function runImport(preview: boolean) {
     setBusy(true);
@@ -507,6 +551,7 @@ function ApiImportPanel({
   }
 
   const canSubmit = tenant.trim() && pat.trim().length >= 20 && allAvailable;
+  const usingSavedTenant = Boolean(connection?.tenant?.trim());
 
   return (
     <div className="space-y-4 text-sm text-zinc-700 dark:text-zinc-300">
@@ -524,32 +569,40 @@ function ApiImportPanel({
 
       <IscOrgAdminPatGuide defaultOpen={false} />
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block text-xs">
-          <span className="font-medium text-zinc-800 dark:text-zinc-200">
-            Target tenant slug
-          </span>
-          <input
-            type="text"
-            value={tenant}
-            onChange={(event) => setTenant(event.target.value)}
-            placeholder="acme-demo"
-            className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
-          />
-        </label>
-        <label className="block text-xs">
-          <span className="font-medium text-zinc-800 dark:text-zinc-200">
-            API domain (optional)
-          </span>
-          <input
-            type="text"
-            value={domain}
-            onChange={(event) => setDomain(event.target.value)}
-            placeholder="identitynow.com"
-            className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
-          />
-        </label>
-      </div>
+      {usingSavedTenant ? (
+        <p className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+          Target tenant:{" "}
+          <span className="font-mono font-medium">{connection?.tenant}</span>
+          {connection?.domain ? ` · ${connection.domain}` : null} (from Connect)
+        </p>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block text-xs">
+            <span className="font-medium text-zinc-800 dark:text-zinc-200">
+              Target tenant slug
+            </span>
+            <input
+              type="text"
+              value={tenant}
+              onChange={(event) => setTenant(event.target.value)}
+              placeholder="acme-demo"
+              className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
+            />
+          </label>
+          <label className="block text-xs">
+            <span className="font-medium text-zinc-800 dark:text-zinc-200">
+              API domain (optional)
+            </span>
+            <input
+              type="text"
+              value={domain}
+              onChange={(event) => setDomain(event.target.value)}
+              placeholder="identitynow.com"
+              className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-950"
+            />
+          </label>
+        </div>
+      )}
 
       <label className="block text-xs">
         <span className="font-medium text-zinc-800 dark:text-zinc-200">
@@ -639,7 +692,7 @@ function ApiImportPanel({
   );
 }
 
-function PostImportSteps() {
+function PostImportSteps({ embedded = false }: { embedded?: boolean }) {
   return (
     <>
       <li className="flex gap-3">
@@ -667,18 +720,28 @@ function PostImportSteps() {
         </span>
         <div>
           <p className="font-medium text-zinc-900 dark:text-zinc-100">
-            Continue on Demo
+            {embedded ? "Continue to Run demo" : "Continue on Demo"}
           </p>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Open{" "}
-            <Link
-              href="/demo"
-              className="font-medium text-indigo-700 underline underline-offset-2 dark:text-indigo-300"
-            >
-              Demo
-            </Link>{" "}
-            — tenant and source IDs from Step 3 carry over when saved in this
-            browser session.
+            {embedded ? (
+              <>
+                Scroll to <strong>Run demo</strong> below — save source IDs in
+                Connect if you have not already, then start with step 1 (prepare
+                agents).
+              </>
+            ) : (
+              <>
+                Open{" "}
+                <Link
+                  href="/demo"
+                  className="font-medium text-indigo-700 underline underline-offset-2 dark:text-indigo-300"
+                >
+                  Demo
+                </Link>{" "}
+                — tenant and source IDs from Step 3 carry over when saved in this
+                browser session.
+              </>
+            )}
           </p>
         </div>
       </li>
@@ -686,7 +749,15 @@ function PostImportSteps() {
   );
 }
 
-export function GoldenSpConfigPanel() {
+export function GoldenSpConfigPanel({
+  embedded = false,
+  connection,
+  onBootstrapAction,
+}: {
+  embedded?: boolean;
+  connection?: IscConnectionContext;
+  onBootstrapAction?: () => void;
+}) {
   const [status, setStatus] = useState<PackageStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -736,19 +807,25 @@ export function GoldenSpConfigPanel() {
 
   return (
     <section
-      id="golden-sp-config"
-      className="rounded-lg border border-amber-200 bg-amber-50/50 p-5 dark:border-amber-900/60 dark:bg-amber-950/20"
+      id="bootstrap"
+      className={
+        embedded
+          ? "space-y-4"
+          : "rounded-lg border border-amber-200 bg-amber-50/50 p-5 dark:border-amber-900/60 dark:bg-amber-950/20"
+      }
     >
-      <div className="space-y-1">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-          Prep your ISC tenant (recommended)
-        </h2>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Import three Web Services sources with your AgentForge URL already
-          wired in, then complete <strong>Step 3</strong> for privilege
-          classification (Identity Graph rings). Steps 1–2 create sources only.
-        </p>
-      </div>
+      {!embedded ? (
+        <div className="space-y-1">
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            Prep your ISC tenant (recommended)
+          </h2>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            Import three Web Services sources with your AgentForge URL already
+            wired in, then complete <strong>Step 3</strong> for privilege
+            classification (Identity Graph rings). Steps 1–2 create sources only.
+          </p>
+        </div>
+      ) : null}
 
       {loading ? (
         <p className="mt-4 text-sm text-zinc-500">Loading bootstrap package…</p>
@@ -821,6 +898,7 @@ export function GoldenSpConfigPanel() {
                     <ApiImportPanel
                       allAvailable={status.allAvailable}
                       platforms={status.platforms}
+                      connection={connection}
                     />
                   )}
                 </div>
@@ -832,11 +910,15 @@ export function GoldenSpConfigPanel() {
                 3
               </span>
               <div className="min-w-0 flex-1 rounded-md border border-indigo-200 bg-indigo-50/40 p-4 dark:border-indigo-900/50 dark:bg-indigo-950/20">
-                <PrivilegeClassificationApplyPanel platforms={status.platforms} />
+                <PrivilegeClassificationApplyPanel
+                  platforms={status.platforms}
+                  connection={connection}
+                  onApplied={onBootstrapAction}
+                />
               </div>
             </li>
 
-            <PostImportSteps />
+            <PostImportSteps embedded={embedded} />
           </ol>
         </>
       ) : null}
