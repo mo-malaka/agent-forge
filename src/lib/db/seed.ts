@@ -19,20 +19,20 @@ export function getSeedAgentRow(id: string): NewAgentRow | null {
   return buildSeedAgents().find((agent) => agent.id === id) ?? null;
 }
 
-export function getDemoSeedOutboundEntitlements(): string[] {
-  const seed = buildSeedAgents().find(
-    (agent) => agent.id === DEMO_RESET_AGENT_ID,
-  );
+export function getDemoSeedOutboundEntitlements(
+  agentId: string = DEMO_RESET_AGENT_ID,
+): string[] {
+  const seed = getSeedAgentRow(agentId);
   if (!seed) {
     return [];
   }
   return JSON.parse(seed.entitlements) as string[];
 }
 
-export function getDemoSeedInboundAccess(): string[] {
-  const seed = buildSeedAgents().find(
-    (agent) => agent.id === DEMO_RESET_AGENT_ID,
-  );
+export function getDemoSeedInboundAccess(
+  agentId: string = DEMO_RESET_AGENT_ID,
+): string[] {
+  const seed = getSeedAgentRow(agentId);
   if (!seed) {
     return [];
   }

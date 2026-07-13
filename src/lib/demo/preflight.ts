@@ -5,13 +5,8 @@ import {
   getOutboundAccess,
 } from "@/lib/agents/access";
 import type { DemoModeId } from "@/lib/demo/steps";
-import {
-  DEMO_GOVERN_ALLOW_PERMISSION,
-  DEMO_GOVERN_REVOKE_ENTITLEMENT,
-  DEMO_RESET_AGENT_ID,
-  getDemoSeedInboundAccess,
-  getDemoSeedOutboundEntitlements,
-} from "@/lib/db/seed";
+import { getGovernDemoProfile } from "@/lib/demo/govern-profiles";
+import { DEMO_RESET_AGENT_ID } from "@/lib/db/seed";
 import { countAgents, findAgents } from "@/lib/db/store";
 import {
   findDemoAgent,
@@ -53,12 +48,17 @@ export async function runDemoPreflight(
   options?: {
     agentId?: string;
     allowPermission?: string;
+    revokeEntitlement?: string;
     principal?: string;
     deploymentProvider?: DeploymentProvider;
   },
 ): Promise<PreflightResult> {
   const agentId = options?.agentId ?? DEMO_RESET_AGENT_ID;
-  const allowPermission = options?.allowPermission ?? DEMO_GOVERN_ALLOW_PERMISSION;
+  const profile = getGovernDemoProfile(agentId);
+  const allowPermission =
+    options?.allowPermission?.trim() || profile.allowPermission;
+  const revokeEntitlement =
+    options?.revokeEntitlement?.trim() || profile.revokeEntitlement;
   const principal = options?.principal ?? "demo-user";
   const checks: PreflightCheck[] = [];
 
@@ -99,7 +99,10 @@ export async function runDemoPreflight(
   }
 
   const activeAgentCount = countAgents({ status: "active" });
-  const platform = options?.deploymentProvider ?? "aws_bedrock";
+  const platform =
+    options?.deploymentProvider ??
+    profile.provider ??
+    "aws_bedrock";
   const platformAgentCount = countAgents({
     status: "active",
     deploymentProvider: platform,
@@ -183,17 +186,24 @@ export async function runDemoPreflight(
 
   if (mode === "govern-enforce") {
     const demoAgent = findDemoAgent(agentId);
-    const expectedOutbound = getDemoSeedOutboundEntitlements();
-    const expectedInbound = getDemoGovernExpectedInbound();
-    const required = getDemoGovernRequiredEntitlements();
+    const expectedInbound = getDemoGovernExpectedInbound(agentId);
+    const required = getDemoGovernRequiredEntitlements(
+      agentId,
+      allowPermission,
+      revokeEntitlement,
+    );
+    const [, requiredRevoke] = required;
 
     if (!demoAgent) {
       checks.push({
         id: "demo_agent",
         label: "Demo agent",
         status: "fail",
-        message: `Agent ${agentId} not found — run demo reset or full sync step 1`,
-        detail: { expected_id: agentId, expected_name: "CloudOps-Navigator:Infra-DevOps-Agent" },
+        message: `Agent ${agentId} not found — run full sync step 1 or restore demo agent`,
+        detail: {
+          expected_id: agentId,
+          expected_name: profile.label,
+        },
       });
     } else {
       checks.push({
@@ -214,7 +224,7 @@ export async function runDemoPreflight(
       const entitlementsOk = missingRequired.length === 0;
       const onlyRevokeEntitlementMissing =
         missingRequired.length === 1 &&
-        missingRequired[0] === DEMO_GOVERN_REVOKE_ENTITLEMENT;
+        missingRequired[0] === requiredRevoke;
 
       checks.push({
         id: "demo_entitlements",
@@ -227,11 +237,10 @@ export async function runDemoPreflight(
         message: entitlementsOk
           ? `Required entitlements present (${required.join(", ")})`
           : onlyRevokeEntitlementMissing
-            ? `${DEMO_GOVERN_REVOKE_ENTITLEMENT} already removed — continue to re-aggregate or reset demo agent to run again`
+            ? `${requiredRevoke} already removed — continue to re-aggregate or reset demo agent to run again`
             : `Missing ${missingRequired.join(", ")} — restore demo agent before govern + enforce`,
         detail: {
           required,
-          expected: expectedOutbound,
           actual: actualOutbound,
           missing: missingRequired,
         },
@@ -275,21 +284,21 @@ export async function runDemoPreflight(
         const denyProbe = evaluateAuthorization(demoAgent, {
           principal,
           direction: "outbound",
-          permission: DEMO_GOVERN_REVOKE_ENTITLEMENT,
+          permission: revokeEntitlement,
         });
-        if (!actualOutbound.includes(DEMO_GOVERN_REVOKE_ENTITLEMENT)) {
+        if (!actualOutbound.includes(revokeEntitlement)) {
           checks.push({
             id: "revoke_already_applied",
             label: "Revoke entitlement state",
             status: "warn",
-            message: `${DEMO_GOVERN_REVOKE_ENTITLEMENT} already removed — reset demo agent before re-running govern + enforce`,
+            message: `${revokeEntitlement} already removed — reset demo agent before re-running govern + enforce`,
           });
         } else {
           checks.push({
             id: "revoke_ready",
             label: "Revoke entitlement ready",
             status: "pass",
-            message: `${DEMO_GOVERN_REVOKE_ENTITLEMENT} is present and can be revoked in step 2`,
+            message: `${revokeEntitlement} is present and can be revoked in step 2`,
             detail: { probe_decision: denyProbe.decision },
           });
         }

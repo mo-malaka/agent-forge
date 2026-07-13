@@ -3,11 +3,12 @@ import {
   getOutboundAccess,
 } from "@/lib/agents/access";
 import {
-  DEMO_GOVERN_ALLOW_PERMISSION,
-  DEMO_GOVERN_REVOKE_ENTITLEMENT,
+  getDemoSeedInboundForAgent,
+  getDemoSeedOutboundForAgent,
+  getDemoGovernRequiredForAgent,
+} from "@/lib/demo/govern-profiles";
+import {
   DEMO_RESET_AGENT_ID,
-  getDemoSeedInboundAccess,
-  getDemoSeedOutboundEntitlements,
   getSeedAgentRow,
   SEED_AGENT_IDS,
 } from "@/lib/db/seed";
@@ -102,16 +103,24 @@ export function resetDemoData(options: DemoResetOptions = {}): DemoResetResult {
   };
 }
 
-export function getDemoGovernExpectedEntitlements(): string[] {
-  return getDemoSeedOutboundEntitlements();
+export function getDemoGovernExpectedEntitlements(agentId?: string): string[] {
+  return getDemoSeedOutboundForAgent(agentId ?? DEMO_RESET_AGENT_ID);
 }
 
-export function getDemoGovernRequiredEntitlements(): string[] {
-  return [DEMO_GOVERN_ALLOW_PERMISSION, DEMO_GOVERN_REVOKE_ENTITLEMENT];
+export function getDemoGovernRequiredEntitlements(
+  agentId?: string,
+  allowPermission?: string,
+  revokeEntitlement?: string,
+): string[] {
+  return getDemoGovernRequiredForAgent(
+    agentId ?? DEMO_RESET_AGENT_ID,
+    allowPermission,
+    revokeEntitlement,
+  );
 }
 
-export function getDemoGovernExpectedInbound(): string[] {
-  return getDemoSeedInboundAccess();
+export function getDemoGovernExpectedInbound(agentId?: string): string[] {
+  return getDemoSeedInboundForAgent(agentId ?? DEMO_RESET_AGENT_ID);
 }
 
 export function findDemoAgent(agentId: string = DEMO_RESET_AGENT_ID) {

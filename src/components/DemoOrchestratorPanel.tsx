@@ -25,6 +25,10 @@ import {
   loadDemoSettings,
   saveDemoSettings,
 } from "@/lib/demo/settings-storage";
+import {
+  getGovernDemoProfile,
+  GOVERN_DEMO_PROFILES,
+} from "@/lib/demo/govern-profiles";
 
 import {
   DEMO_MODES,
@@ -240,6 +244,16 @@ export function DemoOrchestratorPanel() {
   const [principal, setPrincipal] = useState("demo-user");
   const [allowPermission, setAllowPermission] = useState("S3:Read");
   const [revokeEntitlement, setRevokeEntitlement] = useState("Jira:Admin");
+
+  function applyGovernProfile(nextAgentId: string) {
+    const profile = getGovernDemoProfile(nextAgentId);
+    setAgentId(profile.agentId);
+    setAllowPermission(profile.allowPermission);
+    setRevokeEntitlement(profile.revokeEntitlement);
+    setPreflightRefreshKey((current) => current + 1);
+  }
+
+  const governProfile = getGovernDemoProfile(agentId);
   const [runningStep, setRunningStep] = useState<DemoStepId | null>(null);
   const [stepStatus, setStepStatus] = useState<StepStatusMap>({});
   const [manualAckChecked, setManualAckChecked] = useState<
@@ -1140,6 +1154,7 @@ export function DemoOrchestratorPanel() {
         mode={activeMode}
         agentId={agentId}
         allowPermission={allowPermission}
+        revokeEntitlement={revokeEntitlement}
         principal={principal}
         deploymentProvider={activeMode === "full-sync" ? provider : syncProvider}
         refreshKey={preflightRefreshKey}
@@ -1185,16 +1200,22 @@ export function DemoOrchestratorPanel() {
           <div className="grid gap-4 border-t border-zinc-200 p-3 sm:grid-cols-2 dark:border-zinc-700">
             <label className="space-y-1 text-sm sm:col-span-2">
               <span className="text-xs uppercase tracking-wide text-zinc-500">
-                Demo agent ID
+                Hero agent
               </span>
-              <input
+              <select
                 value={agentId}
-                onChange={(event) => setAgentId(event.target.value)}
+                onChange={(event) => applyGovernProfile(event.target.value)}
                 disabled={runningStep !== null}
                 className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
-              />
+              >
+                {GOVERN_DEMO_PROFILES.map((profile) => (
+                  <option key={profile.agentId} value={profile.agentId}>
+                    {profile.label}
+                  </option>
+                ))}
+              </select>
               <p className="text-xs text-zinc-500">
-                ISC source: {DEPLOYMENT_PROVIDERS[syncProvider].label}
+                ISC source: {DEPLOYMENT_PROVIDERS[governProfile.provider].label}
                 {platformSourceConfigured
                   ? " (configured)"
                   : " — register in Bootstrap → step 3"}
@@ -1261,8 +1282,8 @@ export function DemoOrchestratorPanel() {
       ) : (
         <p className="text-xs text-zinc-500">
           Revoke removes an entitlement in AgentForge. Re-aggregate pushes the
-          change to ISC. Use Restore demo agent to put Jira:Admin back for another
-          run.
+          change to ISC. Use Restore demo agent to put {revokeEntitlement} back
+          for another run.
         </p>
       )}
         </div>

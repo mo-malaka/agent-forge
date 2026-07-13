@@ -41,6 +41,7 @@ interface DemoPreflightPanelProps {
   mode: DemoModeId;
   agentId: string;
   allowPermission: string;
+  revokeEntitlement: string;
   principal: string;
   deploymentProvider?: DeploymentProvider;
   refreshKey?: number;
@@ -55,6 +56,7 @@ export function DemoPreflightPanel({
   mode,
   agentId,
   allowPermission,
+  revokeEntitlement,
   principal,
   deploymentProvider,
   refreshKey = 0,
@@ -101,6 +103,7 @@ export function DemoPreflightPanel({
         mode,
         agent_id: agentId,
         allow_permission: allowPermission,
+        revoke_entitlement: revokeEntitlement,
         principal,
         ...(deploymentProvider ? { deployment_provider: deploymentProvider } : {}),
       };
@@ -128,7 +131,7 @@ export function DemoPreflightPanel({
     } finally {
       setLoading(false);
     }
-  }, [mode, agentId, allowPermission, principal, deploymentProvider]);
+  }, [mode, agentId, allowPermission, revokeEntitlement, principal, deploymentProvider]);
 
   useEffect(() => {
     void loadPreflight();

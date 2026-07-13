@@ -36,6 +36,7 @@ export const demoPreflightQuerySchema = z.object({
   mode: z.enum(["full-sync", "govern-enforce"]),
   agent_id: z.string().trim().min(1).optional(),
   allow_permission: z.string().trim().min(1).optional(),
+  revoke_entitlement: z.string().trim().min(1).optional(),
   principal: z.string().trim().min(1).optional(),
   deployment_provider: deploymentProviderSchema.optional(),
   isc_runtime: iscRuntimeSchema,
