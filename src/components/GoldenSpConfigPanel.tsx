@@ -729,7 +729,11 @@ function PostImportSteps({ embedded = false }: { embedded?: boolean }) {
             shows <strong>Empty Schema</strong>, delete it under{" "}
             <strong>Entitlement Management → Entitlement Types</strong> — golden
             import uses <code className="text-xs">outboundPermissions</code> and{" "}
-            <code className="text-xs">inboundCallers</code> only.
+            <code className="text-xs">inboundCallers</code> only. After import,
+            confirm <strong>account</strong> and <strong>machine identity</strong>{" "}
+            schemas include an <code className="text-xs">owner</code> attribute
+            (golden packages include it) — then re-run account and machine
+            identity aggregation so <strong>OWNERS</strong> populate on AI Agents.
           </p>
         </div>
       </li>

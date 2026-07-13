@@ -155,6 +155,71 @@ function stripEmptyGroupEntitlementSchemas(node) {
   return node;
 }
 
+const OWNER_SCHEMA_ATTRIBUTE = {
+  name: "owner",
+  nativeName: null,
+  type: "STRING",
+  schema: null,
+  description: "owner",
+  isMulti: false,
+  isEntitlement: false,
+  isGroup: false,
+  isManaged: false,
+};
+
+const PLATFORM_SCHEMA_ATTRIBUTE = {
+  name: "platform",
+  nativeName: null,
+  type: "STRING",
+  schema: null,
+  description: "platform",
+  isMulti: false,
+  isEntitlement: false,
+  isGroup: false,
+  isManaged: false,
+};
+
+function schemaHasAttribute(schema, name) {
+  return (schema.attributes ?? []).some((attr) => attr.name === name);
+}
+
+function ensureOwnerSchemaAttributes(node) {
+  if (Array.isArray(node)) {
+    return node.map(ensureOwnerSchemaAttributes);
+  }
+  if (node && typeof node === "object") {
+    const out = { ...node };
+    if (Array.isArray(out.schemas)) {
+      out.schemas = out.schemas.map((schema) => {
+        if (!schema || typeof schema !== "object") {
+          return schema;
+        }
+        const config = schema.configuration ?? {};
+        const isMis = config.datasetType === "std:machine-identity";
+        const isAccount =
+          schema.nativeObjectType === "User" || schema.name === "account";
+        const attributes = [...(schema.attributes ?? [])];
+
+        if ((isAccount || isMis) && !schemaHasAttribute(schema, "owner")) {
+          attributes.push({ ...OWNER_SCHEMA_ATTRIBUTE });
+        }
+        if (isMis && !schemaHasAttribute(schema, "platform")) {
+          attributes.push({ ...PLATFORM_SCHEMA_ATTRIBUTE });
+        }
+
+        return { ...schema, attributes };
+      });
+    }
+    for (const key of Object.keys(out)) {
+      if (key !== "schemas") {
+        out[key] = ensureOwnerSchemaAttributes(out[key]);
+      }
+    }
+    return out;
+  }
+  return node;
+}
+
 function main() {
   const args = parseArgs(process.argv);
   const inputPath = resolve(args.input);
@@ -180,6 +245,7 @@ function main() {
   data = stripSecrets(data);
   data = stripTenantRuntimeState(data);
   data = stripEmptyGroupEntitlementSchemas(data);
+  data = ensureOwnerSchemaAttributes(data);
   if (args.blankSourceId) {
     data = blankSourceObjectIds(data);
   }

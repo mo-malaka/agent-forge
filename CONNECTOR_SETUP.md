@@ -368,6 +368,7 @@ Map **`nativeIdentity`** to the ARN field, **not** `accountId`.
 | `accountId` | string | No | No |
 | `name` | string | No | No |
 | `nativeIdentity` | string | No | No |
+| `owner` | string | No | No |
 | `outboundPermissions` | **outboundPermissions** | Yes | Yes |
 | `inboundCallers` | **inboundCallers** | Yes | Yes |
 
@@ -384,7 +385,14 @@ Add attributes, then **Actions → Edit Type**:
 | **Native Identifier** | `nativeIdentity` |
 | **Identity Name** | `identityName` |
 
-The schema name must match the suffix in **Machine Identity Aggregation - {schema name}**.
+Add these attributes on the machine identity schema (required for **OWNERS** on AI Agents):
+
+| Attribute | Type |
+|-----------|------|
+| `owner` | string — work email of an ISC identity |
+| `platform` | string |
+
+HTTP **Machine Identity Aggregation** response mapping must include `owner` → `owner` (already in golden packages).
 
 ---
 

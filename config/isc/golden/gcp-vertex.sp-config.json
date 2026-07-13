@@ -120,6 +120,17 @@
                 "isEntitlement": true,
                 "isGroup": true,
                 "isManaged": false
+              },
+              {
+                "name": "owner",
+                "nativeName": null,
+                "type": "STRING",
+                "schema": null,
+                "description": "owner",
+                "isMulti": false,
+                "isEntitlement": false,
+                "isGroup": false,
+                "isManaged": false
               }
             ],
             "id": "546312d94fdb494c883708d6273258c4",
@@ -252,6 +263,28 @@
                 "type": "STRING",
                 "schema": null,
                 "description": "identityName",
+                "isMulti": false,
+                "isEntitlement": false,
+                "isGroup": false,
+                "isManaged": false
+              },
+              {
+                "name": "owner",
+                "nativeName": null,
+                "type": "STRING",
+                "schema": null,
+                "description": "owner",
+                "isMulti": false,
+                "isEntitlement": false,
+                "isGroup": false,
+                "isManaged": false
+              },
+              {
+                "name": "platform",
+                "nativeName": null,
+                "type": "STRING",
+                "schema": null,
+                "description": "platform",
                 "isMulti": false,
                 "isEntitlement": false,
                 "isGroup": false,

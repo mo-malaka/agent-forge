@@ -789,6 +789,12 @@ export function DemoOrchestratorPanel() {
                     </option>
                   ))}
                 </select>
+                {!platformSourceConfigured ? (
+                  <p className="text-amber-700 dark:text-amber-300">
+                    Register the {DEPLOYMENT_PROVIDERS[provider].label} source ID
+                    in <strong>Bootstrap → step 3</strong>, then Verify.
+                  </p>
+                ) : null}
               </label>
               <label className="space-y-1 text-xs">
                 <span className="font-medium text-zinc-700 dark:text-zinc-300">
@@ -812,7 +818,16 @@ export function DemoOrchestratorPanel() {
                 </select>
               </label>
               <p className="text-xs text-zinc-600 sm:col-span-2 dark:text-zinc-400">
-                {describeAgentTotals(provider, additionalCount)}
+                {describeAgentTotals(provider, additionalCount)}. Step 1 always
+                includes the seeded hero for the selected platform.{" "}
+                <button
+                  type="button"
+                  onClick={() => void resetDemoData("full-store")}
+                  disabled={runningStep !== null || resettingDemo}
+                  className="font-medium text-indigo-700 hover:underline disabled:opacity-50 dark:text-indigo-300"
+                >
+                  Reset full store to seed
+                </button>
               </p>
             </div>
           ) : null}
@@ -1156,141 +1171,71 @@ export function DemoOrchestratorPanel() {
         ))}
       </div>
 
-      <details
-        open={settingsOpen}
-        onToggle={(event) =>
-          setSettingsOpen((event.target as HTMLDetailsElement).open)
-        }
-        className="rounded-md border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950"
-      >
-        <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          Demo settings
-        </summary>
-        <div className="grid gap-4 border-t border-zinc-200 p-3 sm:grid-cols-2 dark:border-zinc-700">
-          {activeMode === "full-sync" ? (
-            <>
-              <label className="space-y-1 text-sm">
-                <span className="text-xs uppercase tracking-wide text-zinc-500">
-                  Platform
-                </span>
-                <select
-                  value={provider}
-                  onChange={(event) =>
-                    setProvider(event.target.value as DeploymentProvider)
-                  }
-                  disabled={runningStep !== null}
-                  className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
-                >
-                  {DEPLOYMENT_PROVIDER_VALUES.map((value) => (
-                    <option key={value} value={value}>
-                      {DEPLOYMENT_PROVIDERS[value].label}
-                    </option>
-                  ))}
-                </select>
-                {!platformSourceConfigured ? (
-                  <p className="text-xs text-amber-700 dark:text-amber-300">
-                    Save the {DEPLOYMENT_PROVIDERS[provider].label} source ID in{" "}
-                    <strong>Bootstrap → step 3</strong>, then click Verify.
-                  </p>
-                ) : null}
-              </label>
-              <label className="space-y-1 text-sm">
-                <span className="text-xs uppercase tracking-wide text-zinc-500">
-                  Additional agents (beyond hero)
-                </span>
-                <select
-                  value={additionalCount}
-                  onChange={(event) =>
-                    setAdditionalCount(
-                      Number(event.target.value) as AdditionalAgentCountOption,
-                    )
-                  }
-                  disabled={runningStep !== null}
-                  className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
-                >
-                  {ADDITIONAL_AGENT_COUNTS.map((value) => (
-                    <option key={value} value={value}>
-                      {value === 0 ? "None — hero only" : `+${value} more`}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-zinc-500">
-                  {describeAgentTotals(provider, additionalCount)}
-                </p>
-              </label>
-            </>
-          ) : (
-            <>
-              <label className="space-y-1 text-sm sm:col-span-2">
-                <span className="text-xs uppercase tracking-wide text-zinc-500">
-                  Demo agent ID
-                </span>
-                <input
-                  value={agentId}
-                  onChange={(event) => setAgentId(event.target.value)}
-                  disabled={runningStep !== null}
-                  className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
-                />
-                <p className="text-xs text-zinc-500">
-                  ISC source: {DEPLOYMENT_PROVIDERS[syncProvider].label}
-                  {platformSourceConfigured
-                    ? " (configured)"
-                    : " — register in Bootstrap → step 3"}
-                </p>
-              </label>
-              <label className="space-y-1 text-sm">
-                <span className="text-xs uppercase tracking-wide text-zinc-500">
-                  Principal
-                </span>
-                <input
-                  value={principal}
-                  onChange={(event) => setPrincipal(event.target.value)}
-                  disabled={runningStep !== null}
-                  className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
-                />
-              </label>
-              <label className="space-y-1 text-sm">
-                <span className="text-xs uppercase tracking-wide text-zinc-500">
-                  Allow permission
-                </span>
-                <input
-                  value={allowPermission}
-                  onChange={(event) => setAllowPermission(event.target.value)}
-                  disabled={runningStep !== null}
-                  className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
-                />
-              </label>
-              <label className="space-y-1 text-sm">
-                <span className="text-xs uppercase tracking-wide text-zinc-500">
-                  Revoke entitlement
-                </span>
-                <input
-                  value={revokeEntitlement}
-                  onChange={(event) => setRevokeEntitlement(event.target.value)}
-                  disabled={runningStep !== null}
-                  className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
-                />
-              </label>
-            </>
-          )}
-        </div>
-        {activeMode === "full-sync" ? (
-          <p className="border-t border-zinc-200 px-3 py-2 text-xs text-zinc-500 dark:border-zinc-700">
-            Step 1 always includes the seeded hero for the selected platform.
-            Choose additional agents above if you want a larger fleet. Full store
-            reset restores heroes and removes bulk agents from AgentForge (not
-            ISC).{" "}
-            <button
-              type="button"
-              onClick={() => void resetDemoData("full-store")}
-              disabled={runningStep !== null || resettingDemo}
-              className="font-medium text-indigo-700 hover:underline disabled:opacity-50 dark:text-indigo-300"
-            >
-              Reset full store to seed
-            </button>
-          </p>
-        ) : null}
-      </details>
+      {activeMode === "govern-enforce" ? (
+        <details
+          open={settingsOpen}
+          onToggle={(event) =>
+            setSettingsOpen((event.target as HTMLDetailsElement).open)
+          }
+          className="rounded-md border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950"
+        >
+          <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            Govern + enforce settings
+          </summary>
+          <div className="grid gap-4 border-t border-zinc-200 p-3 sm:grid-cols-2 dark:border-zinc-700">
+            <label className="space-y-1 text-sm sm:col-span-2">
+              <span className="text-xs uppercase tracking-wide text-zinc-500">
+                Demo agent ID
+              </span>
+              <input
+                value={agentId}
+                onChange={(event) => setAgentId(event.target.value)}
+                disabled={runningStep !== null}
+                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+              />
+              <p className="text-xs text-zinc-500">
+                ISC source: {DEPLOYMENT_PROVIDERS[syncProvider].label}
+                {platformSourceConfigured
+                  ? " (configured)"
+                  : " — register in Bootstrap → step 3"}
+              </p>
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="text-xs uppercase tracking-wide text-zinc-500">
+                Principal
+              </span>
+              <input
+                value={principal}
+                onChange={(event) => setPrincipal(event.target.value)}
+                disabled={runningStep !== null}
+                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+              />
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="text-xs uppercase tracking-wide text-zinc-500">
+                Allow permission
+              </span>
+              <input
+                value={allowPermission}
+                onChange={(event) => setAllowPermission(event.target.value)}
+                disabled={runningStep !== null}
+                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+              />
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="text-xs uppercase tracking-wide text-zinc-500">
+                Revoke entitlement
+              </span>
+              <input
+                value={revokeEntitlement}
+                onChange={(event) => setRevokeEntitlement(event.target.value)}
+                disabled={runningStep !== null}
+                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+              />
+            </label>
+          </div>
+        </details>
+      ) : null}
 
       <ol className="space-y-2">
         {activeSteps.map((step, index) =>
