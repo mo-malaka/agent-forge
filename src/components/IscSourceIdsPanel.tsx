@@ -20,11 +20,26 @@ type VerifyState = Partial<
   Record<DeploymentProvider, { ok: boolean; message: string }>
 >;
 
+const EMPTY_SOURCES: SourceMap = {
+  aws_bedrock: "",
+  gcp_vertex: "",
+  azure_ai_foundry: "",
+};
+
 function defaultMisSchemas(): Record<DeploymentProvider, string> {
   return {
     aws_bedrock: DEPLOYMENT_PROVIDERS.aws_bedrock.misSchemaId,
     gcp_vertex: DEPLOYMENT_PROVIDERS.gcp_vertex.misSchemaId,
     azure_ai_foundry: DEPLOYMENT_PROVIDERS.azure_ai_foundry.misSchemaId,
+  };
+}
+
+function mergeSources(saved: SourceMap, draft: SourceMap): SourceMap {
+  return {
+    aws_bedrock: draft.aws_bedrock.trim() || saved.aws_bedrock.trim(),
+    gcp_vertex: draft.gcp_vertex.trim() || saved.gcp_vertex.trim(),
+    azure_ai_foundry:
+      draft.azure_ai_foundry.trim() || saved.azure_ai_foundry.trim(),
   };
 }
 
@@ -43,11 +58,8 @@ export function IscSourceIdsPanel({
   credentialSource,
   onSourcesChange,
 }: IscSourceIdsPanelProps) {
-  const [sources, setSources] = useState<SourceMap>({
-    aws_bedrock: "",
-    gcp_vertex: "",
-    azure_ai_foundry: "",
-  });
+  const [savedSources, setSavedSources] = useState<SourceMap>(EMPTY_SOURCES);
+  const [draftSources, setDraftSources] = useState<SourceMap>(EMPTY_SOURCES);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [verifying, setVerifying] = useState<DeploymentProvider | null>(null);
@@ -56,6 +68,11 @@ export function IscSourceIdsPanel({
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
   const connectionReady = credentialsConfigured || hasIscSessionCache();
+
+  const effectiveSources = mergeSources(savedSources, draftSources);
+  const savedCount = DEPLOYMENT_PROVIDER_VALUES.filter((provider) =>
+    Boolean(savedSources[provider].trim()),
+  ).length;
 
   const loadSources = useCallback(async () => {
     setLoading(true);
@@ -74,7 +91,7 @@ export function IscSourceIdsPanel({
 
       const cached = loadIscSessionCache();
 
-      setSources({
+      setSavedSources({
         aws_bedrock:
           body.sources?.aws_bedrock || cached?.sources.aws_bedrock || "",
         gcp_vertex: body.sources?.gcp_vertex || cached?.sources.gcp_vertex || "",
@@ -83,6 +100,7 @@ export function IscSourceIdsPanel({
           cached?.sources.azure_ai_foundry ||
           "",
       });
+      setDraftSources(EMPTY_SOURCES);
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -98,7 +116,10 @@ export function IscSourceIdsPanel({
     void loadSources();
   }, [loadSources]);
 
-  async function saveSources(options?: { quiet?: boolean }) {
+  async function saveSources(
+    sourcesToSave: SourceMap,
+    options?: { quiet?: boolean },
+  ) {
     setSaving(true);
     if (!options?.quiet) {
       setError(null);
@@ -111,7 +132,7 @@ export function IscSourceIdsPanel({
       const response = await fetch("/api/isc/sources", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sources, mis_schemas: misSchemas }),
+        body: JSON.stringify({ sources: sourcesToSave, mis_schemas: misSchemas }),
       });
       const body = (await response.json()) as { error?: string };
 
@@ -122,10 +143,13 @@ export function IscSourceIdsPanel({
       const cached = loadIscSessionCache();
       if (cached) {
         saveIscSessionCache({
-          sources,
+          sources: sourcesToSave,
           mis_schemas: misSchemas,
         });
       }
+
+      setSavedSources(sourcesToSave);
+      setDraftSources(EMPTY_SOURCES);
 
       if (!options?.quiet) {
         setSavedMessage("Source IDs saved.");
@@ -150,7 +174,8 @@ export function IscSourceIdsPanel({
       return;
     }
 
-    if (!sources[provider].trim()) {
+    const sourceId = effectiveSources[provider].trim();
+    if (!sourceId) {
       setError(`Enter a source ID for ${DEPLOYMENT_PROVIDERS[provider].label}.`);
       return;
     }
@@ -159,7 +184,7 @@ export function IscSourceIdsPanel({
     setError(null);
 
     try {
-      await saveSources({ quiet: true });
+      await saveSources(effectiveSources, { quiet: true });
 
       const response = await fetch("/api/isc/sources/verify", {
         method: "POST",
@@ -167,7 +192,7 @@ export function IscSourceIdsPanel({
         body: JSON.stringify(
           withIscRuntimeBody({
             provider,
-            source_id: sources[provider],
+            source_id: sourceId,
           }),
         ),
       });
@@ -200,6 +225,10 @@ export function IscSourceIdsPanel({
     }
   }
 
+  const hasAnyEffective = DEPLOYMENT_PROVIDER_VALUES.some((provider) =>
+    Boolean(effectiveSources[provider].trim()),
+  );
+
   return (
     <section className="space-y-3 rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-950">
       <div>
@@ -220,6 +249,12 @@ export function IscSourceIdsPanel({
           {DEPLOYMENT_PROVIDERS.azure_ai_foundry.misSchemaId}) are already in the
           golden packages.
         </p>
+        {savedCount > 0 ? (
+          <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
+            {savedCount}/3 source IDs saved — fields stay empty; paste to add or
+            update, then Verify.
+          </p>
+        ) : null}
         {apiBaseUrl ? (
           <p className="mt-1 font-mono text-[10px] text-zinc-500">
             Verify calls: {apiBaseUrl}
@@ -246,6 +281,7 @@ export function IscSourceIdsPanel({
         <div className="space-y-3">
           {DEPLOYMENT_PROVIDER_VALUES.map((provider) => {
             const verify = verifyState[provider];
+            const effectiveId = effectiveSources[provider].trim();
             return (
               <div
                 key={provider}
@@ -253,14 +289,19 @@ export function IscSourceIdsPanel({
               >
                 <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
                   {DEPLOYMENT_PROVIDERS[provider].label}
+                  {savedSources[provider].trim() && !draftSources[provider].trim() ? (
+                    <span className="ml-2 font-normal text-emerald-700 dark:text-emerald-300">
+                      (saved)
+                    </span>
+                  ) : null}
                 </p>
                 <label className="block space-y-1">
                   <span className="text-[11px] text-zinc-500">Source ID</span>
                   <div className="flex flex-wrap gap-2">
                     <input
-                      value={sources[provider]}
+                      value={draftSources[provider]}
                       onChange={(event) =>
-                        setSources((current) => ({
+                        setDraftSources((current) => ({
                           ...current,
                           [provider]: event.target.value,
                         }))
@@ -273,7 +314,7 @@ export function IscSourceIdsPanel({
                       type="button"
                       onClick={() => void verifySource(provider)}
                       disabled={
-                        !sources[provider].trim() ||
+                        !effectiveId ||
                         verifying !== null ||
                         !connectionReady
                       }
@@ -303,8 +344,8 @@ export function IscSourceIdsPanel({
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
-          onClick={() => void saveSources()}
-          disabled={saving || loading || !connectionReady}
+          onClick={() => void saveSources(effectiveSources)}
+          disabled={saving || loading || !connectionReady || !hasAnyEffective}
           className="rounded-md bg-zinc-900 px-4 py-2 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
         >
           {saving ? "Saving..." : "Save source IDs"}

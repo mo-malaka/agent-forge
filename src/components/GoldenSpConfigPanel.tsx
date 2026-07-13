@@ -8,7 +8,6 @@ import { IscSourceIdsPanel } from "@/components/IscSourceIdsPanel";
 import {
   CONNECTOR_SLUG_TO_PROVIDER,
   type ConnectorSlug,
-  loadIscBootstrapPrefill,
   resolveBootstrapClientSecret,
 } from "@/lib/isc/bootstrap-prefill";
 import {
@@ -114,37 +113,6 @@ function PrivilegeClassificationApplyPanel({
 
   const eligible = platforms.filter((p) => p.privilegeGoldenAvailable);
   const anyGolden = eligible.length > 0;
-
-  useEffect(() => {
-    let cancelled = false;
-    const slugs = platforms
-      .filter((p) => p.privilegeGoldenAvailable)
-      .map((p) => p.connectorSlug as ConnectorSlug);
-
-    void loadIscBootstrapPrefill(slugs).then((prefill) => {
-      if (cancelled) {
-        return;
-      }
-      if (prefill.tenantUrl) {
-        setTenantUrl(prefill.tenantUrl);
-      }
-      if (prefill.clientId) {
-        setClientId(prefill.clientId);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [platforms]);
-
-  useEffect(() => {
-    if (connection?.tenantUrl?.trim()) {
-      setTenantUrl(connection.tenantUrl.trim());
-    } else if (connection?.tenant?.trim() && connection.domain?.trim()) {
-      setTenantUrl(formatIscTenantUrl(connection.tenant, connection.domain));
-    }
-  }, [connection?.tenant, connection?.domain, connection?.tenantUrl]);
 
   const usingSavedConnection =
     Boolean(connection?.credentialsConfigured && connection.tenant?.trim()) ||
@@ -553,33 +521,6 @@ function ApiImportPanel({
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<ImportResult[] | null>(null);
   const [lastPreviewOk, setLastPreviewOk] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    void loadIscBootstrapPrefill(
-      platforms.map((p) => p.connectorSlug as ConnectorSlug),
-    ).then((prefill) => {
-      if (cancelled) {
-        return;
-      }
-      if (prefill.tenantUrl) {
-        setTenantUrl(prefill.tenantUrl);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [platforms]);
-
-  useEffect(() => {
-    if (connection?.tenantUrl?.trim()) {
-      setTenantUrl(connection.tenantUrl.trim());
-    } else if (connection?.tenant?.trim() && connection.domain?.trim()) {
-      setTenantUrl(formatIscTenantUrl(connection.tenant, connection.domain));
-    }
-  }, [connection?.tenant, connection?.domain, connection?.tenantUrl]);
 
   async function runImport(preview: boolean) {
     setBusy(true);

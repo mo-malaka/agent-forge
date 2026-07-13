@@ -7,7 +7,6 @@ import {
   saveIscSessionCache,
 } from "@/lib/isc/session-cache";
 import {
-  formatIscTenantUrl,
   ISC_TENANT_URL_PLACEHOLDER,
   parseIscTenantUrlOrThrow,
 } from "@/lib/isc/tenant-url";
@@ -53,15 +52,8 @@ export function IscCredentialsPanel({
       }
 
       setView(body);
-      const cache = loadIscSessionCache();
-      const resolvedTenantUrl =
-        body.configured && body.tenantUrl
-          ? body.tenantUrl
-          : cache?.tenant && cache.domain
-            ? formatIscTenantUrl(cache.tenant, cache.domain)
-            : "";
-      setTenantUrl(resolvedTenantUrl);
-      setClientId(body.clientId ?? cache?.client_id ?? "");
+      setTenantUrl("");
+      setClientId("");
       setClientSecret("");
     } catch (loadError) {
       setError(
@@ -319,6 +311,12 @@ export function IscCredentialsPanel({
         {view?.configured ? (
           <span className="text-xs text-emerald-700 dark:text-emerald-300">
             Connected ({view.source === "env" ? "server env" : "UI saved"})
+            {view.tenantUrl ? (
+              <>
+                {" "}
+                · <span className="font-mono">{view.tenantUrl}</span>
+              </>
+            ) : null}
           </span>
         ) : null}
         {savedMessage ? (
