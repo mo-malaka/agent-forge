@@ -3,7 +3,11 @@ import {
   getInboundAccess,
   getOutboundAccess,
 } from "@/lib/agents/access";
-import { getLinkedAccounts } from "@/lib/agents/enrichment";
+import {
+  getExtendedEntitlements,
+  getLinkedAccounts,
+  type ExtendedEntitlement,
+} from "@/lib/agents/enrichment";
 import type { AgentRow } from "@/lib/db/schema";
 import { buildDeployment } from "@/lib/providers/deployment";
 import type { DeploymentProvider } from "@/lib/providers/profiles";
@@ -90,6 +94,34 @@ export function setEntitlementsForAttribute(
     return { entitlements: serialized, inboundAccess: agent.inboundAccess };
   }
   return { entitlements: agent.entitlements, inboundAccess: serialized };
+}
+
+function entitlementValueForAttribute(
+  item: ExtendedEntitlement,
+  attribute: EntitlementAttributeName,
+): string {
+  if (attribute === "outboundPermissions" || attribute === "inboundCallers") {
+    return item.entitlementName;
+  }
+  return item.attributeValue;
+}
+
+export function removeFromExtendedEntitlements(
+  agent: AgentRow,
+  attribute: EntitlementAttributeName,
+  entitlement: string,
+): { extendedEntitlements: string; removedCount: number } {
+  const current = getExtendedEntitlements(agent);
+  const next = current.filter(
+    (item) =>
+      item.attributeName !== attribute ||
+      entitlementValueForAttribute(item, attribute) !== entitlement,
+  );
+
+  return {
+    extendedEntitlements: JSON.stringify(next),
+    removedCount: current.length - next.length,
+  };
 }
 
 export function assertProviderMatch(

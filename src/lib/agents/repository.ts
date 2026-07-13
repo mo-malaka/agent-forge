@@ -16,6 +16,7 @@ import {
   findAgentForProvisioning,
   getEntitlementsForAttribute,
   ProvisioningError,
+  removeFromExtendedEntitlements,
   setEntitlementsForAttribute,
   type EntitlementAttributeName,
   type ProvisioningAccountRef,
@@ -233,13 +234,21 @@ export async function removeAgentEntitlement(input: {
   );
   const current = getEntitlementsForAttribute(agent, input.attribute);
   const next = current.filter((value) => value !== input.entitlement);
+  const extendedPatch = removeFromExtendedEntitlements(
+    agent,
+    input.attribute,
+    input.entitlement,
+  );
 
-  if (next.length === current.length) {
+  if (next.length === current.length && extendedPatch.removedCount === 0) {
     throw new ProvisioningError("Entitlement not found on agent", 404);
   }
 
   const timestamp = nowIso();
-  const patch = setEntitlementsForAttribute(agent, input.attribute, next);
+  const patch = {
+    ...setEntitlementsForAttribute(agent, input.attribute, next),
+    extendedEntitlements: extendedPatch.extendedEntitlements,
+  };
   const updated = updateAgentRow(agent.id, {
     ...patch,
     updatedAt: timestamp,
