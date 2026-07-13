@@ -40,11 +40,9 @@ export const iscSourcesUpdateSchema = z.object({
 });
 
 export const iscCredentialsUpdateSchema = z.object({
-  tenant: z.string().trim().min(1, "Tenant slug is required"),
+  tenant_url: z.string().trim().min(1, "Tenant URL is required"),
   client_id: z.string().trim().min(1, "Client ID is required"),
   client_secret: z.string().trim().optional(),
-  api_version: z.string().trim().optional(),
-  domain: z.string().trim().optional(),
 });
 
 export const iscSourceVerifySchema = z.object({
@@ -52,4 +50,3 @@ export const iscSourceVerifySchema = z.object({
   source_id: z.string().trim().min(1).optional(),
   isc_runtime: iscRuntimeSchema,
 });
-

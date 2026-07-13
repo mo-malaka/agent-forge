@@ -9,6 +9,7 @@ import {
   getStoredIscCredentials,
 } from "@/lib/isc/settings-store";
 import { getActiveIscRuntime, runtimeToCredentials } from "@/lib/isc/runtime-config";
+import { formatIscTenantUrl } from "@/lib/isc/tenant-url";
 
 export interface IscConfig {
   tenant: string;
@@ -138,6 +139,9 @@ export function getIscPublicStatus() {
     configured: credentials !== null && configuredSourceCount > 0,
     tenant: credentials?.tenant ?? null,
     domain: credentials?.domain ?? null,
+    tenantUrl: credentials
+      ? formatIscTenantUrl(credentials.tenant, credentials.domain)
+      : null,
     apiBaseUrl: credentials ? getIscBaseUrl(credentials) : null,
     credentialSource,
     sources,

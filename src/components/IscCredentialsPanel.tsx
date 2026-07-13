@@ -6,14 +6,19 @@ import {
   loadIscSessionCache,
   saveIscSessionCache,
 } from "@/lib/isc/session-cache";
+import {
+  formatIscTenantUrl,
+  ISC_TENANT_URL_PLACEHOLDER,
+  parseIscTenantUrlOrThrow,
+} from "@/lib/isc/tenant-url";
 
 interface CredentialsView {
   configured: boolean;
   tenant: string | null;
   clientId: string | null;
   clientSecretSet: boolean;
-  apiVersion: string;
   domain: string;
+  tenantUrl: string | null;
   source: "ui" | "env" | null;
 }
 
@@ -25,11 +30,9 @@ export function IscCredentialsPanel({
   onCredentialsChange,
 }: IscCredentialsPanelProps) {
   const [view, setView] = useState<CredentialsView | null>(null);
-  const [tenant, setTenant] = useState("");
+  const [tenantUrl, setTenantUrl] = useState("");
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
-  const [apiVersion, setApiVersion] = useState("v2026");
-  const [domain, setDomain] = useState("identitynow.com");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,10 +54,14 @@ export function IscCredentialsPanel({
 
       setView(body);
       const cache = loadIscSessionCache();
-      setTenant(body.tenant ?? cache?.tenant ?? "");
+      const resolvedTenantUrl =
+        body.configured && body.tenantUrl
+          ? body.tenantUrl
+          : cache?.tenant && cache.domain
+            ? formatIscTenantUrl(cache.tenant, cache.domain)
+            : "";
+      setTenantUrl(resolvedTenantUrl);
       setClientId(body.clientId ?? cache?.client_id ?? "");
-      setApiVersion(body.apiVersion ?? cache?.api_version ?? "v2026");
-      setDomain(body.domain ?? cache?.domain ?? "identitynow.com");
       setClientSecret("");
     } catch (loadError) {
       setError(
@@ -77,15 +84,15 @@ export function IscCredentialsPanel({
     setSavedMessage(null);
 
     try {
+      const parsed = parseIscTenantUrlOrThrow(tenantUrl);
+
       const response = await fetch("/api/isc/credentials", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          tenant,
+          tenant_url: tenantUrl,
           client_id: clientId,
           client_secret: clientSecret.trim() || undefined,
-          api_version: apiVersion,
-          domain,
         }),
       });
 
@@ -103,11 +110,10 @@ export function IscCredentialsPanel({
       const secretForCache = clientSecret.trim() || cached?.client_secret || "";
       if (secretForCache) {
         saveIscSessionCache({
-          tenant,
+          tenant: parsed.tenant,
           client_id: clientId,
           client_secret: secretForCache,
-          api_version: apiVersion,
-          domain,
+          domain: parsed.domain,
         });
       }
       setClientSecret("");
@@ -129,7 +135,8 @@ export function IscCredentialsPanel({
           ISC tenant connection
         </h2>
         <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-          Connect AgentForge to your target ISC tenant. Use a{" "}
+          Connect AgentForge to your target ISC tenant. Paste your tenant URL
+          from the browser address bar, then add a{" "}
           <strong>Personal Access Token</strong> (Preferences) or an{" "}
           <strong>API Management</strong> client — both provide a Client ID and
           secret for the fields below.
@@ -255,14 +262,19 @@ export function IscCredentialsPanel({
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block text-xs sm:col-span-2">
             <span className="font-medium text-zinc-800 dark:text-zinc-200">
-              Tenant slug
+              Tenant URL
             </span>
             <input
-              value={tenant}
-              onChange={(event) => setTenant(event.target.value)}
-              placeholder="acme-demo"
+              value={tenantUrl}
+              onChange={(event) => setTenantUrl(event.target.value)}
+              placeholder={ISC_TENANT_URL_PLACEHOLDER}
               className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
             />
+            <span className="mt-1 block text-zinc-500">
+              Copy from your browser while logged into ISC (e.g.{" "}
+              <code className="text-[10px]">https://acme.identitynow-demo.com/</code>
+              ). AgentForge derives the tenant slug and API domain from this URL.
+            </span>
           </label>
           <label className="block text-xs sm:col-span-2">
             <span className="font-medium text-zinc-800 dark:text-zinc-200">
@@ -271,6 +283,7 @@ export function IscCredentialsPanel({
             <input
               value={clientId}
               onChange={(event) => setClientId(event.target.value)}
+              placeholder="From Preferences → Personal Access Tokens"
               className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
             />
           </label>
@@ -291,27 +304,6 @@ export function IscCredentialsPanel({
               className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
             />
           </label>
-          <label className="block text-xs">
-            <span className="font-medium text-zinc-800 dark:text-zinc-200">
-              API version
-            </span>
-            <input
-              value={apiVersion}
-              onChange={(event) => setApiVersion(event.target.value)}
-              className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
-            />
-          </label>
-          <label className="block text-xs">
-            <span className="font-medium text-zinc-800 dark:text-zinc-200">
-              API domain
-            </span>
-            <input
-              value={domain}
-              onChange={(event) => setDomain(event.target.value)}
-              placeholder="identitynow.com"
-              className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
-            />
-          </label>
         </div>
       )}
 
@@ -319,7 +311,7 @@ export function IscCredentialsPanel({
         <button
           type="button"
           onClick={() => void saveCredentials()}
-          disabled={saving || loading || !tenant.trim() || !clientId.trim()}
+          disabled={saving || loading || !tenantUrl.trim() || !clientId.trim()}
           className="rounded-md bg-zinc-900 px-4 py-2 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
         >
           {saving ? "Verifying…" : "Save & verify connection"}

@@ -114,7 +114,21 @@ function stripTenantRuntimeState(node) {
 
 function stripEmptyGroupEntitlementSchemas(node) {
   if (Array.isArray(node)) {
-    return node.map(stripEmptyGroupEntitlementSchemas);
+    return node
+      .map(stripEmptyGroupEntitlementSchemas)
+      .filter((item) => {
+        if (!item || typeof item !== "object") {
+          return true;
+        }
+        const name = String(
+          item.name ?? item.nativeObjectType ?? "",
+        ).toLowerCase();
+        const attributes = item.attributes;
+        const isEmptyGroup =
+          name === "group" &&
+          (!Array.isArray(attributes) || attributes.length === 0);
+        return !isEmptyGroup;
+      });
   }
   if (node && typeof node === "object") {
     const out = { ...node };

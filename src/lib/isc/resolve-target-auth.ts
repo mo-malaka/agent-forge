@@ -43,7 +43,7 @@ export function assertIscTargetAuth(
 
   if (!auth.tenant?.trim()) {
     throw new Error(
-      "Tenant slug is required. Save your connection in Connect (step 1) first.",
+      "Tenant URL is required. Save your connection in Connect (step 1) first.",
     );
   }
 

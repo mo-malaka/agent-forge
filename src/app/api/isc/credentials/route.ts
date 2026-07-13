@@ -8,6 +8,7 @@ import {
   getIscCredentialsPublicView,
   updateIscCredentials,
 } from "@/lib/isc/settings-store";
+import { parseIscTenantUrlOrThrow } from "@/lib/isc/tenant-url";
 import { iscCredentialsUpdateSchema } from "@/lib/validation/isc.schema";
 
 export const runtime = "nodejs";
@@ -30,12 +31,22 @@ export async function PUT(request: Request) {
       return jsonError("Client secret is required", 400);
     }
 
+    let tenant: string;
+    let domain: string;
+    try {
+      ({ tenant, domain } = parseIscTenantUrlOrThrow(body.tenant_url));
+    } catch (parseError) {
+      return jsonError(
+        parseError instanceof Error ? parseError.message : "Invalid tenant URL",
+        400,
+      );
+    }
+
     const settings = updateIscCredentials({
-      tenant: body.tenant,
+      tenant,
       clientId: body.client_id,
       clientSecret: body.client_secret,
-      apiVersion: body.api_version,
-      domain: body.domain,
+      domain,
     });
 
     const credentials: IscCredentials = {

@@ -7,7 +7,6 @@ import { DemoPhaseHeader } from "@/components/DemoPhaseHeader";
 import { DemoPreflightPanel } from "@/components/DemoPreflightPanel";
 import { GoldenSpConfigPanel } from "@/components/GoldenSpConfigPanel";
 import { IscCredentialsPanel } from "@/components/IscCredentialsPanel";
-import { IscSourceIdsPanel } from "@/components/IscSourceIdsPanel";
 import { isPreflightBlockingForStep, getStepDisableReason } from "@/lib/demo/preflight-blocking";
 import type { PreflightResult } from "@/lib/demo/preflight";
 import {
@@ -59,6 +58,7 @@ interface IscConfigStatus {
   configured: boolean;
   tenant: string | null;
   domain?: string | null;
+  tenantUrl?: string | null;
   apiBaseUrl?: string | null;
   credentialSource?: "ui" | "env" | "session" | null;
   sourceId: string | null;
@@ -869,7 +869,7 @@ export function DemoOrchestratorPanel() {
                 <p className="text-xs text-amber-700 dark:text-amber-300">
                   {!iscCredentialsReady
                     ? "Save and verify the ISC tenant connection above first."
-                    : `Save and verify the ${DEPLOYMENT_PROVIDERS[syncProvider].label} source ID above first.`}
+                    : `Register and verify the ${DEPLOYMENT_PROVIDERS[syncProvider].label} source ID in Bootstrap → step 3 first.`}
                 </p>
               ) : disableReason && !missingIscPrereqs ? (
                 <p className="text-xs text-amber-700 dark:text-amber-300">
@@ -970,7 +970,9 @@ export function DemoOrchestratorPanel() {
                   {iscCredentialsReady ? (
                     <>
                       Connected ·{" "}
-                      <span className="font-mono">{iscStatus?.tenant}</span>
+                      <span className="font-mono">
+                        {iscStatus?.tenantUrl ?? iscStatus?.tenant}
+                      </span>
                       {iscStatus?.credentialSource === "ui"
                         ? " (saved)"
                         : iscStatus?.credentialSource === "session"
@@ -978,7 +980,7 @@ export function DemoOrchestratorPanel() {
                           : null}
                     </>
                   ) : (
-                    "Tenant slug, Client ID, and secret"
+                    "Tenant URL, Client ID, and secret"
                   )}
                 </p>
               </div>
@@ -1029,6 +1031,17 @@ export function DemoOrchestratorPanel() {
                 credentialsConfigured: iscCredentialsReady,
                 tenant: iscStatus?.tenant ?? null,
                 domain: iscStatus?.domain ?? null,
+                tenantUrl: iscStatus?.tenantUrl ?? null,
+              }}
+              sourcePanel={{
+                credentialsConfigured: iscCredentialsReady,
+                tenant: iscStatus?.tenant ?? null,
+                apiBaseUrl: iscStatus?.apiBaseUrl ?? null,
+                credentialSource: iscStatus?.credentialSource ?? null,
+                onSourcesChange: () => {
+                  refreshIscStatus();
+                  bumpPreflightRefresh();
+                },
               }}
               onBootstrapAction={() => {
                 refreshIscStatus();
@@ -1052,18 +1065,18 @@ export function DemoOrchestratorPanel() {
         <DemoPhaseHeader
           phase={3}
           title="Run demo"
-          description="Register source IDs after import, then prepare agents and sync to ISC."
+          description="Prepare agents, sync to ISC, and run govern + enforce. Source IDs are registered in bootstrap step 3."
         />
-        <IscSourceIdsPanel
-          credentialsConfigured={iscCredentialsReady}
-          tenant={iscStatus?.tenant ?? null}
-          apiBaseUrl={iscStatus?.apiBaseUrl ?? null}
-          credentialSource={iscStatus?.credentialSource ?? null}
-          onSourcesChange={() => {
-            refreshIscStatus();
-            bumpPreflightRefresh();
-          }}
-        />
+        {!platformSourceConfigured ? (
+          <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+            Register and verify source IDs in{" "}
+            <strong>Bootstrap → step 3</strong> before running ISC sync steps.
+          </p>
+        ) : (
+          <p className="rounded-md border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-xs text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+            Source IDs saved from bootstrap — ready for demo sync steps.
+          </p>
+        )}
         <div className="space-y-4 rounded-lg border border-indigo-200 bg-indigo-50/40 p-5 dark:border-indigo-900 dark:bg-indigo-950/20">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -1176,8 +1189,8 @@ export function DemoOrchestratorPanel() {
                 </select>
                 {!platformSourceConfigured ? (
                   <p className="text-xs text-amber-700 dark:text-amber-300">
-                    Save the {DEPLOYMENT_PROVIDERS[provider].label} source ID
-                    above (after bootstrap import), then click Verify.
+                    Save the {DEPLOYMENT_PROVIDERS[provider].label} source ID in{" "}
+                    <strong>Bootstrap → step 3</strong>, then click Verify.
                   </p>
                 ) : null}
               </label>
@@ -1220,7 +1233,9 @@ export function DemoOrchestratorPanel() {
                 />
                 <p className="text-xs text-zinc-500">
                   ISC source: {DEPLOYMENT_PROVIDERS[syncProvider].label}
-                  {platformSourceConfigured ? " (configured)" : " — save source ID above"}
+                  {platformSourceConfigured
+                    ? " (configured)"
+                    : " — register in Bootstrap → step 3"}
                 </p>
               </label>
               <label className="space-y-1 text-sm">

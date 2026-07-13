@@ -6,6 +6,7 @@ import {
   DEPLOYMENT_PROVIDER_VALUES,
   type DeploymentProvider,
 } from "@/lib/providers/profiles";
+import { formatIscTenantUrl } from "@/lib/isc/tenant-url";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const SETTINGS_PATH = path.join(DATA_DIR, "isc-settings.json");
@@ -214,13 +215,16 @@ export function getIscCredentialsPublicView() {
     Boolean(stored?.clientSecret?.trim());
 
   if (hasStored && stored) {
+    const domain = stored.domain?.trim() || "identitynow.com";
+    const tenant = stored.tenant.trim();
     return {
       configured: true,
-      tenant: stored.tenant.trim(),
+      tenant,
       clientId: stored.clientId.trim(),
       clientSecretSet: true,
       apiVersion: stored.apiVersion?.trim() || "v2026",
-      domain: stored.domain?.trim() || "identitynow.com",
+      domain,
+      tenantUrl: formatIscTenantUrl(tenant, domain),
       source: "ui" as const,
     };
   }
@@ -230,30 +234,39 @@ export function getIscCredentialsPublicView() {
   const clientSecret = process.env.ISC_CLIENT_SECRET?.trim();
 
   if (tenant && clientId && clientSecret) {
+    const domain = process.env.ISC_DOMAIN?.trim() || "identitynow.com";
     return {
       configured: true,
       tenant,
       clientId,
       clientSecretSet: true,
       apiVersion: process.env.ISC_API_VERSION?.trim() || "v2026",
-      domain: process.env.ISC_DOMAIN?.trim() || "identitynow.com",
+      domain,
+      tenantUrl: formatIscTenantUrl(tenant, domain),
       source: "env" as const,
     };
   }
 
+  const partialDomain =
+    stored?.domain?.trim() ||
+    process.env.ISC_DOMAIN?.trim() ||
+    "identitynow.com";
+  const partialTenant =
+    stored?.tenant?.trim() ?? tenant ?? null;
+
   return {
     configured: false,
-    tenant: stored?.tenant?.trim() ?? tenant ?? null,
+    tenant: partialTenant,
     clientId: stored?.clientId?.trim() ?? clientId ?? null,
     clientSecretSet: Boolean(stored?.clientSecret?.trim() || clientSecret),
     apiVersion:
       stored?.apiVersion?.trim() ||
       process.env.ISC_API_VERSION?.trim() ||
       "v2026",
-    domain:
-      stored?.domain?.trim() ||
-      process.env.ISC_DOMAIN?.trim() ||
-      "identitynow.com",
+    domain: partialDomain,
+    tenantUrl: partialTenant
+      ? formatIscTenantUrl(partialTenant, partialDomain)
+      : null,
     source: null as "ui" | "env" | null,
   };
 }

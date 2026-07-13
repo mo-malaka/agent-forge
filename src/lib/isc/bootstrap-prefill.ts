@@ -1,6 +1,7 @@
 import type { DeploymentProvider } from "@/lib/providers/profiles";
 
 import { loadIscSessionCache } from "./session-cache";
+import { formatIscTenantUrl } from "./tenant-url";
 
 export const CONNECTOR_SLUG_TO_PROVIDER = {
   "aws-bedrock": "aws_bedrock",
@@ -13,6 +14,7 @@ export type ConnectorSlug = keyof typeof CONNECTOR_SLUG_TO_PROVIDER;
 export interface IscBootstrapPrefill {
   tenant: string;
   domain: string;
+  tenantUrl: string;
   clientId: string;
   sourceIds: Record<string, string>;
 }
@@ -33,7 +35,7 @@ export async function loadIscBootstrapPrefill(
   }
 
   let tenant = cache?.tenant?.trim() ?? "";
-  let domain = cache?.domain?.trim() || "identitynow-demo.com";
+  let domain = cache?.domain?.trim() ?? "";
   let clientId = cache?.client_id?.trim() ?? "";
 
   try {
@@ -73,7 +75,13 @@ export async function loadIscBootstrapPrefill(
     // Prefill is best-effort.
   }
 
-  return { tenant, domain, clientId, sourceIds };
+  return {
+    tenant,
+    domain,
+    tenantUrl: tenant && domain ? formatIscTenantUrl(tenant, domain) : "",
+    clientId,
+    sourceIds,
+  };
 }
 
 export function resolveBootstrapClientSecret(typedSecret: string): string {

@@ -47,7 +47,7 @@ async function iscFetch(
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `Could not reach ISC at ${baseUrl} (${detail}). Check tenant, API domain, and network access from AgentForge.`,
+      `Could not reach ISC at ${baseUrl} (${detail}). Check tenant URL and network access from AgentForge.`,
     );
   }
 
