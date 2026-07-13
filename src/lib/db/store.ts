@@ -6,7 +6,7 @@ import { agentNeedsEnrichment, enrichAgentRow } from "@/lib/agents/enrichment-bu
 import { buildHeroSeedAgents, HERO_AGENT_IDS } from "@/lib/db/hero-seed-data";
 import { normalizeAgentRow } from "@/lib/providers/deployment";
 
-function resolveDataDir(): string {
+export function resolveAgentForgeDataDir(): string {
   if (process.env.AGENT_STORE_DIR?.trim()) {
     return process.env.AGENT_STORE_DIR.trim();
   }
@@ -18,7 +18,7 @@ function resolveDataDir(): string {
   return path.join(process.cwd(), "data");
 }
 
-const DATA_DIR = resolveDataDir();
+const DATA_DIR = resolveAgentForgeDataDir();
 const STORE_PATH = path.join(DATA_DIR, "agents.json");
 
 interface AgentStoreFile {

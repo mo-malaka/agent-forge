@@ -6,9 +6,10 @@ import {
   DEPLOYMENT_PROVIDER_VALUES,
   type DeploymentProvider,
 } from "@/lib/providers/profiles";
+import { resolveAgentForgeDataDir } from "@/lib/db/store";
 import { formatIscTenantUrl } from "@/lib/isc/tenant-url";
 
-const DATA_DIR = path.join(process.cwd(), "data");
+const DATA_DIR = resolveAgentForgeDataDir();
 const SETTINGS_PATH = path.join(DATA_DIR, "isc-settings.json");
 
 export type IscPlatformSources = Record<DeploymentProvider, string>;
@@ -130,11 +131,22 @@ function migrateFromEnvIfNeeded(settings: IscSettingsFile): IscSettingsFile {
 }
 
 function writeSettingsFile(settings: IscSettingsFile) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
+  cachedSettings = settings;
+
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
+  } catch (error) {
+    console.warn(
+      `Failed to persist ISC settings at ${SETTINGS_PATH}; using in-memory cache for this instance.`,
+      error,
+    );
+  }
 }
 
-export function readIscSettings(): IscSettingsFile {
+let cachedSettings: IscSettingsFile | null = null;
+
+function loadSettingsFromDisk(): IscSettingsFile {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 
   if (!fs.existsSync(SETTINGS_PATH)) {
@@ -160,6 +172,15 @@ export function readIscSettings(): IscSettingsFile {
   };
 
   return migrateFromEnvIfNeeded(settings);
+}
+
+export function readIscSettings(): IscSettingsFile {
+  if (cachedSettings) {
+    return cachedSettings;
+  }
+
+  cachedSettings = loadSettingsFromDisk();
+  return cachedSettings;
 }
 
 export function getIscSourceId(provider: DeploymentProvider): string | null {

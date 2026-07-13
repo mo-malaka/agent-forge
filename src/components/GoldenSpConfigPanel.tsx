@@ -12,6 +12,7 @@ import {
 } from "@/lib/isc/bootstrap-prefill";
 import {
   hasIscSessionCache,
+  loadIscSessionCache,
   saveIscSessionCache,
   withIscRuntimeBody,
   withIscRuntimeHeaders,
@@ -87,10 +88,14 @@ async function fetchSavedSourceIdsBySlug(
     throw new Error(body.error ?? "Failed to load saved source IDs");
   }
 
+  const cached = loadIscSessionCache();
   const map: Record<string, string> = {};
   for (const slug of slugs) {
     const provider = CONNECTOR_SLUG_TO_PROVIDER[slug];
-    map[slug] = body.sources?.[provider]?.trim() ?? "";
+    map[slug] =
+      body.sources?.[provider]?.trim() ||
+      cached?.sources[provider]?.trim() ||
+      "";
   }
   return map;
 }
