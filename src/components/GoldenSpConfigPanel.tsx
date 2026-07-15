@@ -143,16 +143,17 @@ function PrivilegeClassificationApplyPanel({
       const slugs = eligible.map((p) => p.connectorSlug as ConnectorSlug);
       const sourceIds = await fetchSavedSourceIdsBySlug(slugs);
 
-      const missing = eligible.filter(
-        (platform) => !sourceIds[platform.connectorSlug]?.trim(),
+      const platformsToApply = eligible.filter((platform) =>
+        Boolean(sourceIds[platform.connectorSlug]?.trim()),
       );
-      if (missing.length > 0) {
+
+      if (platformsToApply.length === 0) {
         throw new Error(
-          `Register source IDs in step 3 above first (${missing.map((p) => p.label).join(", ")}).`,
+          "Register at least one source ID in step 3 above before applying privilege classification.",
         );
       }
 
-      for (const platform of eligible) {
+      for (const platform of platformsToApply) {
         const sourceId = sourceIds[platform.connectorSlug]?.trim();
         if (!sourceId) {
           continue;
@@ -224,7 +225,7 @@ function PrivilegeClassificationApplyPanel({
           gcp_vertex: "",
           azure_ai_foundry: "",
         };
-        for (const platform of eligible) {
+        for (const platform of platformsToApply) {
           const sourceId = sourceIds[platform.connectorSlug]?.trim();
           if (!sourceId) {
             continue;
@@ -248,7 +249,9 @@ function PrivilegeClassificationApplyPanel({
             "Content-Type": "application/json",
           }),
           body: JSON.stringify({
-            sources,
+            sources: Object.fromEntries(
+              Object.entries(sources).filter(([, value]) => value.trim()),
+            ),
             mis_schemas: {
               aws_bedrock: DEPLOYMENT_PROVIDERS.aws_bedrock.misSchemaId,
               gcp_vertex: DEPLOYMENT_PROVIDERS.gcp_vertex.misSchemaId,
@@ -287,8 +290,9 @@ function PrivilegeClassificationApplyPanel({
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
           <strong>Required for Identity Graph rings.</strong> SP-Config import
           (step 2) creates sources only — it does <em>not</em> copy privilege
-          classification. Uses source IDs from <strong>step 3</strong> and Client
-          ID &amp; secret from <strong>Connect</strong>.
+          classification. Applies only to platforms with a source ID saved in{" "}
+          <strong>step 3</strong>. Uses Client ID &amp; secret from{" "}
+          <strong>Connect</strong>.
         </p>
       </div>
 
@@ -940,8 +944,8 @@ export function GoldenSpConfigPanel({
                 </p>
                 <p className="text-xs text-zinc-600 dark:text-zinc-400">
                   After import, copy each source ID from{" "}
-                  <strong>Admin → Connections → Sources</strong>. Save once
-                  here — used for privilege classification and the demo.
+                  <strong>Admin → Connections → Sources</strong>. Save one or
+                  more platforms — you only need the source(s) you plan to demo.
                 </p>
                 {sourcePanel ? (
                   <IscSourceIdsPanel {...sourcePanel} />

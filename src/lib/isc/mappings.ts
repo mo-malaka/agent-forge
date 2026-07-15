@@ -1,5 +1,5 @@
 import { iscRequest } from "@/lib/isc/client";
-import { listSourceAccounts } from "@/lib/isc/verify";
+import { listSourceAccounts, verifySourceData } from "@/lib/isc/verify";
 import type {
   IscConfig,
   MachineAccountAttributeMapping,
@@ -216,18 +216,58 @@ export async function updateMachineAccountMappings(
     throw lastError ?? new Error("Failed to update machine account mappings");
   }
 
+  let classification: {
+    accountsSubmitted?: number;
+    raw: unknown;
+    mode: string;
+  };
+
   try {
-    const classification = await classifySourceMachineAccounts(config);
-    return {
-      mappings: savedMappings,
-      classification,
-    };
+    classification = await classifySourceMachineAccounts(config);
   } catch (error) {
+    const verification = await verifySourceData(config);
+    if (verification.machineAccountCount > 0) {
+      return {
+        mappings: savedMappings,
+        classification: {
+          accountsSubmitted: verification.machineAccountCount,
+          raw: {
+            skippedClassify: true,
+            reason: error instanceof Error ? error.message : String(error),
+            verification,
+          },
+          mode: "already-linked",
+        },
+      };
+    }
+
     const detail = error instanceof Error ? error.message : String(error);
     throw new Error(
       `Mappings saved, but account classification failed: ${detail}. Re-run step 6 after deploy.`,
     );
   }
+
+  if ((classification.accountsSubmitted ?? 0) === 0) {
+    const verification = await verifySourceData(config);
+    if (verification.machineAccountCount > 0) {
+      return {
+        mappings: savedMappings,
+        classification: {
+          accountsSubmitted: verification.machineAccountCount,
+          raw: {
+            ...((classification.raw as Record<string, unknown>) ?? {}),
+            verification,
+          },
+          mode: "already-linked",
+        },
+      };
+    }
+  }
+
+  return {
+    mappings: savedMappings,
+    classification,
+  };
 }
 
 export function getDefaultMachineAccountMappings(

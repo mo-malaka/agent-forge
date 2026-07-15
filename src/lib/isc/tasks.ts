@@ -35,21 +35,40 @@ export async function getTaskStatus(
   });
 }
 
+function hasCompletedTimestamp(status: IscTaskStatus): boolean {
+  const { completed } = status;
+  if (completed === true) {
+    return true;
+  }
+  if (typeof completed === "string" && completed.trim().length > 0) {
+    return true;
+  }
+  return false;
+}
+
+const TERMINAL_COMPLETION_STATUSES = new Set([
+  "SUCCESS",
+  "WARNING",
+  "ERROR",
+  "FAILED",
+  "FAILURE",
+  "TERMINATED",
+  "TEMPERROR",
+  "COMPLETED",
+  "COMPLETE",
+  "SUCCEEDED",
+  "DONE",
+  "CANCELLED",
+  "CANCELED",
+]);
+
 export function isTaskComplete(status: IscTaskStatus): boolean {
-  if (status.completed === true) {
+  if (hasCompletedTimestamp(status)) {
     return true;
   }
 
   const completion = String(status.completionStatus ?? "").toUpperCase();
-  return (
-    completion === "SUCCESS" ||
-    completion === "WARNING" ||
-    completion === "ERROR" ||
-    completion === "FAILED" ||
-    completion === "FAILURE" ||
-    completion === "TERMINATED" ||
-    completion === "TEMPERROR"
-  );
+  return TERMINAL_COMPLETION_STATUSES.has(completion);
 }
 
 export function isTaskSuccessful(status: IscTaskStatus): boolean {
@@ -63,12 +82,18 @@ export function isTaskSuccessful(status: IscTaskStatus): boolean {
     completion === "FAILED" ||
     completion === "FAILURE" ||
     completion === "TERMINATED" ||
-    completion === "TEMPERROR"
+    completion === "TEMPERROR" ||
+    completion === "CANCELLED" ||
+    completion === "CANCELED"
   ) {
     return false;
   }
 
-  return status.completed === true && !status.errors?.length;
+  if (hasCompletedTimestamp(status)) {
+    return !status.errors?.length;
+  }
+
+  return false;
 }
 
 export function formatTaskStatus(status: IscTaskStatus): string {

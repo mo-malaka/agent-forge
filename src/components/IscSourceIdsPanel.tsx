@@ -34,6 +34,45 @@ function defaultMisSchemas(): Record<DeploymentProvider, string> {
   };
 }
 
+function buildSourcesPatch(
+  formSources: SourceMap,
+  baseline: SourceMap,
+): Partial<SourceMap> {
+  const patch: Partial<SourceMap> = {};
+
+  for (const provider of DEPLOYMENT_PROVIDER_VALUES) {
+    const next = formSources[provider].trim();
+    const prev = baseline[provider].trim();
+
+    if (next) {
+      patch[provider] = next;
+      continue;
+    }
+
+    if (prev) {
+      patch[provider] = "";
+    }
+  }
+
+  return patch;
+}
+
+function formatSavedPlatforms(patch: Partial<SourceMap>): string {
+  const labels = DEPLOYMENT_PROVIDER_VALUES.filter((provider) =>
+    Boolean(patch[provider]?.trim()),
+  ).map((provider) => DEPLOYMENT_PROVIDERS[provider].label);
+
+  if (labels.length === 0) {
+    return "Source ID cleared.";
+  }
+
+  if (labels.length === 1) {
+    return `${labels[0]} source ID saved.`;
+  }
+
+  return `Source IDs saved for ${labels.join(", ")}.`;
+}
+
 interface IscSourceIdsPanelProps {
   credentialsConfigured: boolean;
   tenant: string | null;
@@ -56,6 +95,7 @@ export function IscSourceIdsPanel({
   const [verifyState, setVerifyState] = useState<VerifyState>({});
   const [error, setError] = useState<string | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const [savedBaseline, setSavedBaseline] = useState<SourceMap>(EMPTY_SOURCES);
 
   const connectionReady = credentialsConfigured || hasIscSessionCache();
 
@@ -80,7 +120,7 @@ export function IscSourceIdsPanel({
 
       const cached = loadIscSessionCache();
 
-      setSources({
+      const loaded: SourceMap = {
         aws_bedrock:
           body.sources?.aws_bedrock || cached?.sources.aws_bedrock || "",
         gcp_vertex: body.sources?.gcp_vertex || cached?.sources.gcp_vertex || "",
@@ -88,7 +128,10 @@ export function IscSourceIdsPanel({
           body.sources?.azure_ai_foundry ||
           cached?.sources.azure_ai_foundry ||
           "",
-      });
+      };
+
+      setSources(loaded);
+      setSavedBaseline(loaded);
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -105,9 +148,18 @@ export function IscSourceIdsPanel({
   }, [loadSources]);
 
   async function persistSources(
-    nextSources: SourceMap,
-    options?: { quiet?: boolean },
+    formSources: SourceMap,
+    options?: { quiet?: boolean; baseline?: SourceMap },
   ) {
+    const patch = buildSourcesPatch(formSources, options?.baseline ?? savedBaseline);
+
+    if (Object.keys(patch).length === 0) {
+      if (!options?.quiet) {
+        setError("Enter at least one source ID before saving.");
+      }
+      return;
+    }
+
     setSaving(true);
     if (!options?.quiet) {
       setError(null);
@@ -120,26 +172,35 @@ export function IscSourceIdsPanel({
       const response = await fetch("/api/isc/sources", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sources: nextSources, mis_schemas: misSchemas }),
+        body: JSON.stringify({ sources: patch, mis_schemas: misSchemas }),
       });
-      const body = (await response.json()) as { error?: string };
+      const body = (await response.json()) as {
+        error?: string;
+        sources?: SourceMap;
+      };
 
       if (!response.ok) {
         throw new Error(body.error ?? "Failed to save ISC sources");
       }
 
-      setSources(nextSources);
+      const merged: SourceMap = {
+        ...EMPTY_SOURCES,
+        ...(body.sources ?? {}),
+        ...patch,
+      };
+      setSources(merged);
+      setSavedBaseline(merged);
 
       const cached = loadIscSessionCache();
       if (cached) {
         saveIscSessionCache({
-          sources: nextSources,
+          sources: merged,
           mis_schemas: misSchemas,
         });
       }
 
       if (!options?.quiet) {
-        setSavedMessage("Source IDs saved.");
+        setSavedMessage(formatSavedPlatforms(patch));
       }
       onSourcesChange?.();
     } catch (saveError) {
@@ -171,7 +232,7 @@ export function IscSourceIdsPanel({
     setError(null);
 
     try {
-      await persistSources(sources, { quiet: true });
+      await persistSources(sources, { quiet: true, baseline: savedBaseline });
 
       const response = await fetch("/api/isc/sources/verify", {
         method: "POST",
@@ -231,10 +292,8 @@ export function IscSourceIdsPanel({
               on tenant <span className="font-mono">{tenant}</span>
             </>
           ) : null}
-          . Machine identity schemas ({DEPLOYMENT_PROVIDERS.aws_bedrock.misSchemaId}
-          , {DEPLOYMENT_PROVIDERS.gcp_vertex.misSchemaId},{" "}
-          {DEPLOYMENT_PROVIDERS.azure_ai_foundry.misSchemaId}) are already in the
-          golden packages.
+          . Save one platform at a time — you only need the source(s) you plan to
+          demo.
         </p>
         {savedCount > 0 ? (
           <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
@@ -328,7 +387,7 @@ export function IscSourceIdsPanel({
           disabled={saving || loading || !connectionReady || !hasAnySource}
           className="rounded-md bg-zinc-900 px-4 py-2 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
         >
-          {saving ? "Saving..." : "Save source IDs"}
+          {saving ? "Saving..." : "Save entered source IDs"}
         </button>
         {savedMessage ? (
           <span className="text-xs text-emerald-700 dark:text-emerald-300">

@@ -219,11 +219,14 @@ export async function runDemoStep(
 
       return {
         step: payload.step,
-        status: submitted > 0 ? "completed" : "manual",
+        status:
+          submitted > 0 || mode === "already-linked" ? "completed" : "manual",
         message:
-          submitted > 0
-            ? `Machine account mappings updated; ${submitted} account(s) classified via ${mode}`
-            : "Mappings saved but 0 accounts classified. Configure machine account classification on the source in ISC, then re-run Step 6.",
+          mode === "already-linked"
+            ? `Machine accounts already linked (${submitted} on source); mappings confirmed`
+            : submitted > 0
+              ? `Machine account mappings updated; ${submitted} account(s) classified via ${mode}`
+              : "Mappings saved but 0 accounts classified. Configure machine account classification on the source in ISC, then re-run Step 6.",
         system,
         taskId: null,
         result,

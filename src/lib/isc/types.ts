@@ -11,7 +11,8 @@ export interface IscTaskRef {
 export interface IscTaskStatus {
   id: string;
   name?: string;
-  completed?: boolean;
+  /** ISC returns an ISO datetime when the task finishes, not a boolean. */
+  completed?: boolean | string;
   progress?: string;
   completionStatus?: string;
   errors?: Array<string | Record<string, unknown>>;

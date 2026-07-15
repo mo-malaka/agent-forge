@@ -18,6 +18,7 @@ import {
 import {
   clearDemoProgress,
   loadDemoProgress,
+  sanitizeInterruptedDemoProgress,
   saveDemoProgress,
 } from "@/lib/demo/progress-storage";
 import {
@@ -179,12 +180,41 @@ function stepStatusLabel(status: LogStatus | undefined, step: DemoStepId) {
   }
 }
 
+async function readJsonResponse<T>(response: Response): Promise<T> {
+  const text = await response.text();
+  if (!text) {
+    return {} as T;
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(
+      `Unexpected response from AgentForge (${response.status}): ${text.slice(0, 240)}`,
+    );
+  }
+}
+
 async function pollTask(taskId: string, onTick: (message: string) => void) {
+  let transientErrors = 0;
+
   for (let attempt = 0; attempt < TASK_POLL_MAX_ATTEMPTS; attempt += 1) {
-    const response = await fetch(`/api/demo/task/${taskId}`, {
-      headers: withIscRuntimeHeaders(),
-    });
-    const body = (await response.json()) as {
+    let response: Response;
+    try {
+      response = await fetch(`/api/demo/task/${taskId}`, {
+        headers: withIscRuntimeHeaders(),
+      });
+    } catch (error) {
+      transientErrors += 1;
+      if (transientErrors >= 5) {
+        throw error;
+      }
+      onTick(`Task poll network error — retrying (${taskId})`);
+      await sleep(TASK_POLL_INTERVAL_MS);
+      continue;
+    }
+
+    const body = await readJsonResponse<{
       complete?: boolean;
       successful?: boolean;
       label?: string;
@@ -196,11 +226,19 @@ async function pollTask(taskId: string, onTick: (message: string) => void) {
         name?: string;
         errors?: unknown[];
       };
-    };
+    }>(response);
 
     if (!response.ok) {
+      transientErrors += 1;
+      if (transientErrors < 5 && response.status >= 500) {
+        onTick(`Task poll server error (${response.status}) — retrying`);
+        await sleep(TASK_POLL_INTERVAL_MS);
+        continue;
+      }
       throw new Error(body.error ?? "Failed to poll ISC task");
     }
+
+    transientErrors = 0;
 
     const elapsedMinutes = Math.floor(((attempt + 1) * TASK_POLL_INTERVAL_MS) / 60000);
     const statusLabel =
@@ -347,7 +385,10 @@ export function DemoOrchestratorPanel() {
     const tabParam = searchParams.get("tab");
 
     if (saved?.stepStatus && Object.keys(saved.stepStatus).length > 0) {
-      setStepStatus(saved.stepStatus as StepStatusMap);
+      const restored = sanitizeInterruptedDemoProgress(saved.stepStatus);
+      if (Object.keys(restored).length > 0) {
+        setStepStatus(restored as StepStatusMap);
+      }
       if (tabParam !== "full-sync" && tabParam !== "govern-enforce") {
         setActiveMode(saved.activeMode);
       }
@@ -467,7 +508,9 @@ export function DemoOrchestratorPanel() {
       ),
     });
 
-    const body = (await response.json()) as DemoStepResponse & { error?: string };
+    const body = await readJsonResponse<DemoStepResponse & { error?: string }>(
+      response,
+    );
 
     if (!response.ok) {
       throw new Error(body.error ?? `Step ${step} failed`);

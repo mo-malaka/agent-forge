@@ -53,6 +53,24 @@ export function clearDemoProgress() {
   localStorage.removeItem(DEMO_PROGRESS_STORAGE_KEY);
 }
 
+const INTERRUPTED_STEP_STATUSES = new Set(["running", "waiting"]);
+
+/** Drop in-flight step markers saved before a refresh or tab close. */
+export function sanitizeInterruptedDemoProgress(
+  stepStatus: DemoProgressSnapshot["stepStatus"],
+): DemoProgressSnapshot["stepStatus"] {
+  const next: DemoProgressSnapshot["stepStatus"] = {};
+
+  for (const [step, entry] of Object.entries(stepStatus)) {
+    if (!entry || INTERRUPTED_STEP_STATUSES.has(entry.status)) {
+      continue;
+    }
+    next[step as DemoStepId] = entry;
+  }
+
+  return next;
+}
+
 export function summarizeDemoProgress(
   snapshot: DemoProgressSnapshot | null,
 ): DemoProgressSummary | null {
